@@ -168,5 +168,5 @@ Review the medical settings and fix anything unrealistic:
 - [ ] Pre-op cases use `pending` markers
 - [ ] demo-016, 017, 018 handed to the mutation-check teammate for `mutation_counts_96`
 - [ ] Gold eligibility labels for at least 10 cases
-- [ ] `policy.yaml` reviewed
+- [x] `policy.yaml` reviewed
 - [ ] No real names, addresses or dates of birth anywhere
