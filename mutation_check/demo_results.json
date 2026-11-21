@@ -14,6 +14,9 @@
     ],
     "critical_fraction": 0.12242798362361236,
     "detection_limit_95": 0.22084909167959166,
+    "critical_fraction_status": "established",
+    "detection_limit_95_status": "established",
+    "calibrated_from": 10,
     "false_alarm_rate": 0.01,
     "lrt": 117.37374870512849,
     "lrt_threshold": 5.078878693997585,
@@ -41,6 +44,9 @@
     ],
     "critical_fraction": 0.5347067307398355,
     "detection_limit_95": null,
+    "critical_fraction_status": "established",
+    "detection_limit_95_status": "not_established",
+    "calibrated_from": 10,
     "false_alarm_rate": 0.01,
     "lrt": 0.0,
     "lrt_threshold": 4.12606874287628,
@@ -53,7 +59,7 @@
      "SBS23": 0.0,
      "SBS30": 0.0
     },
-    "summary": "Too few mutations (30) to assess SBS11 at a 1% false-alarm rate: even if SBS11 made up half of them it would be detected less than half the time, and at 30 mutations, SBS11 would not be detected 95% of the time even if it made up all of them, so a non-detection here is not evidence of absence."
+    "summary": "Too few mutations (30) to assess SBS11 at a 1% false-alarm rate: even if SBS11 made up half of them it would be detected less than half the time, and the 95% detection limit is not established at 30 mutations, so a non-detection here is not evidence of absence."
    }
   },
   "demo-018": {
@@ -68,6 +74,9 @@
     ],
     "critical_fraction": 0.3324420722239345,
     "detection_limit_95": 0.5950203247299638,
+    "critical_fraction_status": "established",
+    "detection_limit_95_status": "established",
+    "calibrated_from": 10,
     "false_alarm_rate": 0.01,
     "lrt": 0.0728509313036767,
     "lrt_threshold": 4.491597169711085,

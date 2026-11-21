@@ -154,3 +154,21 @@ def test_live_engine_on_snvs_matches_counts():
 def test_live_far_mismatch_raises():
     with pytest.raises(MutationCheckUnavailable, match="false-alarm rate"):
         run_mutation_check(_request("demo-016"), false_alarm_rate=0.05)
+
+
+# ---- defaults after #6 (issue #16) -------------------------------------------------------------
+
+@pytest.mark.parametrize("case_id", ["demo-016", "demo-017", "demo-018"])
+def test_limits_are_on_by_default_and_validate(no_engine, case_id):
+    out = run_mutation_check(_request(case_id), false_alarm_rate=FAR)
+    assert {"sbs11_fraction_ci95", "detection_limit_95", "critical_fraction", "summary"} <= out.keys()
+    _valid(out)
+
+
+def test_summary_never_claims_an_unsimulated_limit(no_engine):
+    """demo-017 (30 mutations) sits between grid points: its 95% limit is not established, and the
+    summary says so instead of claiming SBS11 would be missed even at 100%."""
+    out = run_mutation_check(_request("demo-017"), false_alarm_rate=FAR)
+    assert out["sbs11_call"] == "inconclusive" and out["detection_limit_95"] is None
+    assert "not established at 30 mutations" in out["summary"]
+    assert "even if it made up all of them" not in out["summary"]

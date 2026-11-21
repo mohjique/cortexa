@@ -150,7 +150,7 @@ def _to_contract(case_id: str, rep: dict[str, Any], far: float, include_limits: 
         "exposures": exposures,
         "note": NOTE,
     }
-    if include_limits:  # issue #6: needs the four optional fields in agent/schemas.py first
+    if include_limits:  # the four optional fields from issue #6
         out.update(
             sbs11_fraction_ci95=[round(x, 4) for x in rep["ci95"]],
             critical_fraction=None if rep["critical_fraction"] is None else round(rep["critical_fraction"], 4),
@@ -161,13 +161,14 @@ def _to_contract(case_id: str, rep: dict[str, Any], far: float, include_limits: 
 
 
 def run_mutation_check(request: dict[str, Any], *, false_alarm_rate: float,
-                       include_limits: bool = False) -> dict[str, Any]:
+                       include_limits: bool = True) -> dict[str, Any]:
     """Run the check for one case; returns a MutationCheckRan or MutationCheckSkipped dict.
 
     The agent decides whether a case is a recurrent glioma before calling. This function skips any
     case without exome or genome sequencing, because the false-alarm calibration doesn't hold for
-    small panels. ``include_limits`` adds the four fields proposed in issue #6; leave it False until
-    the schema has them (the schema rejects unknown keys).
+    small panels. By default the result carries the four fields from issue #6
+    (``sbs11_fraction_ci95``, ``detection_limit_95``, ``critical_fraction``, ``summary``);
+    ``include_limits=False`` returns only the original contract fields.
     """
     case_id = request["case_id"]
     if request.get("sequencing") not in BROAD:
