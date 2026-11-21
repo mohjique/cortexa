@@ -13,11 +13,14 @@ React + Vite + TypeScript app for the doctor-facing side of Cortexa. It reads ca
 | Confirm / correct bucket, classifier probabilities | detail panel | `POST /cases/{id}/decisions` (`confirm_bucket`) |
 | Watch or treat, hormone labs, surgery or meds | detail panel | `watch_or_treat`, `hormone_labs`, `surgery_or_meds` |
 | Pre-op screen: tests needed, enroll-before-surgery trials | Pre-op screen tab | `record.preop` |
+| Pre-op review: tests reviewed, pursue / not pursuing each pre-surgery trial | detail panel | `preop_review` |
+| Rescreen the pre-op screen | detail panel | `POST /cases/{id}/preop/rescreen` |
 | Enter pathology results | Enter results tab | `enter_results` |
-| Trial shortlist: per-criterion evidence, map, travel time, keep/reject | Trial shortlist tab | `review_shortlist` |
+| Trial shortlist: eligible and needs-a-test groups, per-criterion evidence, map, travel time, keep/reject | Trial shortlist tab | `review_shortlist` |
 | No-match plan: near misses, alert, tumor board log | No-match plan tab | `record.no_match` |
 | Audit log | Audit log tab | `GET /cases/{id}/audit` |
-| MRI upload | `/new` | `POST /cases` (**not built yet**, see below) |
+| MRI upload | `/new` | `POST /cases?case_id=&filename=`, raw image bytes as the body |
+| Grad-CAM heatmap | detail panel | `GET /cases/{id}/heatmap` (hidden on 404) |
 | Retry a failed agent step | detail panel | `POST /cases/{id}/run` |
 
 Safety rules the UI follows: model output is always labelled "suspected"; the confirm screen never pre-selects a bucket; results fields start blank (the doctor picks `pending` or `unknown` explicitly); only the ZIP is entered, never an address; the mutation check is shown as context only; there is no patient-contact feature. The doctor ID typed in the header is recorded on every decision.
@@ -48,8 +51,6 @@ The frontend is a static build. The FastAPI backend needs its own host (Render, 
 
 `vercel.json` rewrites every path to `index.html` so deep links like `/cases/demo-013` work, and sets `noindex` and basic security headers.
 
-## Waiting on other folders
+## Known limits
 
-- **MRI intake endpoint (agent/).** The upload page posts `multipart/form-data` with `case_id` and `file` to `POST /cases` and expects a `CaseState` back. The backend should create the case, run the classifier (stub now, real model later, same `Classifier` protocol) and call `workflow.attach_classification`, leaving the case at `confirm_bucket`. Until then the page says the endpoint isn't there, and cases created on the backend still show up.
-- **Grad-CAM heatmap.** `heatmap_path` is a local file path today. The UI shows it only if it is an `http(s):` or `data:` URL, so the backend needs to serve it (e.g. `GET /cases/{id}/heatmap`) or return a URL.
 - **No auth.** The doctor ID is typed in, not verified. Fine for a synthetic-data demo; put the deployment behind Vercel password protection if it should not be public.

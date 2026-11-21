@@ -34,6 +34,15 @@ function CriteriaTable({ rows }: { rows: EligibilityResult[] }) {
   );
 }
 
+const FIELD_LABEL: Record<string, string> = {
+  idh: "IDH status",
+  codeletion_1p19q: "1p/19q codeletion",
+  mgmt: "MGMT methylation",
+  tmb_clia: "CLIA TMB result",
+  grade: "grade",
+};
+const fieldLabel = (f: string) => FIELD_LABEL[f] ?? f.replace(/_/g, " ");
+
 type Choice = { keep: boolean | null; reason: string };
 
 export function ShortlistReview({ record, canReview, onDone }: { record: CaseRecord; canReview: boolean; onDone: () => Promise<void> }) {
@@ -45,6 +54,9 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
   const setC = (id: string, c: Partial<Choice>) => setChoices((x) => ({ ...x, [id]: { ...get(id), ...c } }));
   const undecided = sl.trials.filter((t) => get(t.trial_id).keep === null || (get(t.trial_id).keep === false && !get(t.trial_id).reason.trim()));
   const mutation = record.mutation;
+  // Backend order: eligible group first, then needs_test, nearest first within each.
+  const eligible = sl.trials.filter((t) => (t.group ?? "eligible") === "eligible");
+  const needsTest = sl.trials.filter((t) => t.group === "needs_test");
 
   return (
     <div>
@@ -58,7 +70,19 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
       <TrialMap shortlist={sl} />
       {mutation && <MutationBox m={mutation} />}
       <div style={{ height: 10 }} />
-      {sl.trials.map((t) => (
+      {eligible.length > 0 && <h4 style={{ margin: "14px 0 6px" }}>Eligible on what we know ({eligible.length})</h4>}
+      {eligible.map((t) => (
+        <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
+      ))}
+      {needsTest.length > 0 && (
+        <>
+          <h4 style={{ margin: "14px 0 6px" }}>Needs a test before it can match ({needsTest.length})</h4>
+          <div className="faint" style={{ fontSize: 12, marginBottom: 6 }}>
+            Not a match yet. A key result is unknown; the unknown row says which test decides it.
+          </div>
+        </>
+      )}
+      {needsTest.map((t) => (
         <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
       ))}
       {canReview && (
@@ -102,6 +126,9 @@ function TrialCard({ t, canReview, choice, onChange }: { t: ShortlistTrial; canR
         <b>{t.trial_id}</b>
         <RecruitChip status={t.recruitment_status} label={t.status_label} />
         {t.remote_participation && <span className="chip doc">Remote participation</span>}
+        {t.group === "needs_test" && (
+          <span className="chip warn">Needs a test: {(t.needs_test_fields ?? []).map(fieldLabel).join(", ")}</span>
+        )}
         {!canReview && t.doctor_decision !== "pending" && (
           <span className={`chip ${t.doctor_decision === "keep" ? "doc" : ""}`}>Doctor: {t.doctor_decision}</span>
         )}
@@ -224,11 +251,18 @@ export function PreOp({ preop }: { preop: PreOpScreen }) {
             <div className="ptrial" key={t.trial_id}>
               <div>
                 <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
+                {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+                {t.doctor_action && t.doctor_action !== "pending" && (
+                  <span className={`chip ${t.doctor_action === "pursue_before_surgery" ? "doc" : ""}`}>
+                    Doctor: {t.doctor_action === "pursue_before_surgery" ? "pursue before surgery" : "not pursuing"}
+                  </span>
+                )}
               </div>
               <div className="ptitle">{t.title}</div>
               <div className="crit">
-                <span>Criterion</span>"{t.criterion_text}"
+                <span>{t.matched_on === "title_hint" ? "Matched on title only" : "Criterion"}</span>"{t.criterion_text}"
               </div>
+              {t.doctor_reason && <div className="muted">Reason: {t.doctor_reason}</div>}
               <div className="demo">Nearest site: {siteText(t.nearest_site)}</div>
             </div>
           ))}

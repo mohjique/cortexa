@@ -97,14 +97,25 @@ export interface DoctorResults {
 export type Gate =
   | "confirm_bucket"
   | "watch_or_treat"
+  | "preop_review"
   | "hormone_labs"
   | "surgery_or_meds"
   | "enter_results"
   | "review_shortlist";
 
+export type PreSurgeryAction = "pursue_before_surgery" | "not_pursuing";
+
 export type GateDecision =
   | { gate: "confirm_bucket"; decision: { bucket: Bucket; overrode_model: boolean } }
   | { gate: "watch_or_treat"; decision: { choice: "watch" | "treat"; rescan_in_months?: number | null } }
+  | {
+      gate: "preop_review";
+      decision: {
+        screen_id: string;
+        tests_reviewed: true;
+        pre_surgery_trials: { trial_id: string; action: PreSurgeryAction; reason?: string | null }[];
+      };
+    }
   | { gate: "hormone_labs"; decision: { labs_reviewed: true } }
   | { gate: "surgery_or_meds"; decision: { choice: "surgery" | "medication_only" } }
   | { gate: "enter_results"; decision: DoctorResults }
@@ -154,11 +165,15 @@ export interface PreSurgeryTrial {
   title: string;
   recruitment_status: string;
   criterion_text: string;
+  matched_on?: "criteria" | "title_hint";
   nearest_site?: NearestSite | null;
+  doctor_action?: "pending" | PreSurgeryAction;
+  doctor_reason?: string | null;
 }
 
 export interface PreOpScreen {
   case_id: string;
+  screen_id: string;
   trials_considered: number;
   tests_needed: TestNeeded[];
   pre_surgery_trials: PreSurgeryTrial[];
@@ -198,6 +213,8 @@ export interface ShortlistTrial {
   eligibility: EligibilityResult[];
   mutation_context: MutationCheckRan | null;
   doctor_decision: "pending" | "keep" | "reject";
+  group?: "eligible" | "needs_test";
+  needs_test_fields?: string[];
 }
 
 export interface Shortlist {
@@ -234,6 +251,7 @@ export interface CaseRecord {
   classifier: ClassifierOutput | null;
   decisions: DecisionRecord[];
   results: DoctorResults | null;
+  zip?: string | null;
   preop: PreOpScreen | null;
   mutation: MutationCheckOutput | null;
   shortlist: Shortlist | null;

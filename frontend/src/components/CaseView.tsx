@@ -7,7 +7,14 @@ import type { CaseRecord, Gate, MutationCheckOutput, Stage } from "../types";
 import Tree from "./Tree";
 import Audit from "./Audit";
 import { ErrorBanner, WaitChip } from "./common";
-import { AgentRetry, ConfirmBucketForm, HormoneLabsForm, SurgeryOrMedsForm, WatchOrTreatForm } from "./GateForms";
+import {
+  AgentRetry,
+  ConfirmBucketForm,
+  HormoneLabsForm,
+  PreopReviewForm,
+  SurgeryOrMedsForm,
+  WatchOrTreatForm,
+} from "./GateForms";
 import ResultsForm from "./ResultsForm";
 import { NoMatch, PreOp, ShortlistReview } from "./Trials";
 
@@ -15,6 +22,7 @@ import { NoMatch, PreOp, ShortlistReview } from "./Trials";
 const GATE_AT_STAGE: Partial<Record<Stage, Gate>> = {
   confirm_bucket: "confirm_bucket",
   watch_or_treat: "watch_or_treat",
+  preop_screen: "preop_review", // only once the screen has run (waiting_on: doctor)
   hormone_labs: "hormone_labs",
   surgery_or_meds: "surgery_or_meds",
   awaiting_pathology: "enter_results",
@@ -24,6 +32,13 @@ const GATE_AT_STAGE: Partial<Record<Stage, Gate>> = {
 const AGENT_STAGES: Stage[] = ["intake", "preop_screen", "mutation_check", "matching"];
 
 type Tab = "pathway" | "results" | "trials" | "audit";
+
+/** The doctor gate the case waits on, if any. preop_screen is an agent stage until the screen is built. */
+function gateFor(record: CaseRecord): Gate | undefined {
+  const { stage, waiting_on } = record.state;
+  if (stage === "preop_screen") return waiting_on === "doctor" && record.preop ? "preop_review" : undefined;
+  return GATE_AT_STAGE[stage];
+}
 
 export default function CaseView() {
   const { caseId } = useParams();
@@ -44,7 +59,7 @@ export default function CaseView() {
   };
 
   const record = rec.data;
-  const gate = record ? GATE_AT_STAGE[record.state.stage] : undefined;
+  const gate = record ? gateFor(record) : undefined;
   const hasTrials = !!(record?.shortlist || record?.no_match || record?.preop);
   const tabs: [Tab, string][] = [
     ["pathway", "Pathway"],
@@ -176,9 +191,19 @@ function Detail({
       {gate && (
         <div className="box gate">
           <h4>Doctor action needed</h4>
-          <div>{STAGE_LABEL[s.stage]}</div>
+          <div>{gate === "preop_review" ? "Review the pre-op screen and answer each enroll-before-surgery trial" : STAGE_LABEL[s.stage]}</div>
           {gate === "confirm_bucket" && <ConfirmBucketForm record={record} onDone={onDone} />}
           {gate === "watch_or_treat" && <WatchOrTreatForm record={record} onDone={onDone} />}
+          {gate === "preop_review" && (
+            <>
+              <div className="row-actions">
+                <a href="#" onClick={(e) => (e.preventDefault(), openTab("trials"))}>
+                  See the full pre-op screen
+                </a>
+              </div>
+              <PreopReviewForm key={record.preop!.screen_id} record={record} onDone={onDone} />
+            </>
+          )}
           {gate === "hormone_labs" && <HormoneLabsForm record={record} onDone={onDone} />}
           {gate === "surgery_or_meds" && <SurgeryOrMedsForm record={record} onDone={onDone} />}
           {gate === "enter_results" && (
@@ -250,14 +275,30 @@ function Detail({
               {c.medgemma_bucket !== c.suspected_bucket && " (disagrees with the classifier)"}
             </div>
           )}
-          {c.heatmap_path && /^(https?:|data:)/.test(c.heatmap_path) && (
-            <img src={c.heatmap_path} alt="Grad-CAM heatmap" style={{ width: "100%", marginTop: 8, borderRadius: 6 }} />
-          )}
+          {c.heatmap_path && <Heatmap caseId={s.case_id} />}
         </div>
       )}
 
       {record.results && <ResultsSummary record={record} />}
       {record.mutation && <MutationBox m={record.mutation} />}
+    </>
+  );
+}
+
+/** Grad-CAM overlay served by GET /cases/{id}/heatmap. Hidden on 404 (no heatmap, e.g. the stub). */
+function Heatmap({ caseId }: { caseId: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [caseId]);
+  if (failed) return null;
+  return (
+    <>
+      <img
+        src={api.heatmapUrl(caseId)}
+        alt="Grad-CAM heatmap: where the classifier looked"
+        onError={() => setFailed(true)}
+        style={{ width: "100%", marginTop: 8, borderRadius: 6 }}
+      />
+      <div className="faint" style={{ fontSize: 11 }}>Grad-CAM: where the model looked. Not a tumor outline.</div>
     </>
   );
 }

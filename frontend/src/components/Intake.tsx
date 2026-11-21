@@ -34,9 +34,13 @@ export default function Intake() {
             } catch (err) {
               const ae = err as ApiError;
               setError(
-                ae.status === 404 || ae.status === 405
-                  ? "The backend doesn't have an MRI intake endpoint yet (POST /cases). Cases created by the agent still show up on the care board."
-                  : ae.message,
+                ae.status === 409
+                  ? `Case ${caseId} already exists. Choose another case ID, or open it from the care board.`
+                  : ae.status === 413
+                    ? "The image is larger than 20 MB. Upload a smaller PNG or JPEG."
+                    : ae.status === 422
+                      ? `The image couldn't be classified, so no case was created. ${ae.message}`
+                      : ae.message,
               );
             } finally {
               setBusy(false);

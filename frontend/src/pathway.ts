@@ -190,7 +190,7 @@ export const COLUMNS: Column[] = [
     owner: "doctor",
     title: "Workup",
     stages: ["watch_or_treat", "preop_screen", "hormone_labs", "surgery_or_meds"],
-    wait: "Doctor decision (watch/treat, hormone labs review, surgery/meds)",
+    wait: "Doctor decision (watch/treat, pre-op review, hormone labs review, surgery/meds)",
   },
   { key: "path", owner: "lab", title: "Awaiting pathology", stages: ["awaiting_pathology"], wait: "Pathology report from the lab" },
   { key: "results", owner: "doctor", title: "Enter results", stages: ["enter_results"], wait: "Doctor enters diagnosis, grade and markers" },

@@ -75,16 +75,29 @@ export const api = {
     });
   },
 
+  /** Doctor asks for a fresh pre-op screen. 409 unless the case waits on preop_review. */
+  rescreenPreop: (caseId: string, doctorId: string, reason?: string) =>
+    request<CaseState>(`/cases/${encodeURIComponent(caseId)}/preop/rescreen`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ doctor_id: doctorId, reason: reason?.trim() ? reason.trim() : null }),
+    }),
+
+  /** Grad-CAM overlay PNG. 404 when there is none (e.g. the stub classifier). */
+  heatmapUrl: (caseId: string) => `${API_BASE}/cases/${encodeURIComponent(caseId)}/heatmap`,
+
   /**
-   * MRI intake. Proposed endpoint (not in agent/api.py yet):
-   *   POST /cases  multipart/form-data  { case_id, file }  -> CaseState
-   * It should create the case, run the classifier and attach its output
-   * (workflow.attach_classification), leaving the case at confirm_bucket.
+   * MRI intake (docs/interfaces.md, "Upload endpoint"):
+   *   POST /cases?case_id=<id>&filename=<name>, raw image bytes as the body -> CaseState (201)
+   * The backend classifies, creates the case and moves it to confirm_bucket.
+   * 422 unreadable image (no case created), 409 case exists, 413 over 20 MB.
    */
   createCase: (caseId: string, file: File) => {
-    const form = new FormData();
-    form.append("case_id", caseId);
-    form.append("file", file);
-    return request<CaseState>("/cases", { method: "POST", body: form });
+    const q = new URLSearchParams({ case_id: caseId, filename: file.name });
+    return request<CaseState>(`/cases?${q}`, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+      body: file,
+    });
   },
 };
