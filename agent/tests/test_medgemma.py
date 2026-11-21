@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import json
 import re
 
@@ -121,3 +122,28 @@ def test_vote_on_flags_disagreement(client, tmp_path):
         assert c["flagged_uncertain"] is True
     finally:
         policy.set_policy_store(old)
+
+
+def test_finetune_rows_come_from_train_split_only():
+    rows = medgemma.pick_train()
+    assert rows and all(r["split"] == "train" for r in rows)
+    with medgemma.SPLIT_CSV.open(encoding="utf-8") as f:
+        held_out = {r["path"] for r in csv.DictReader(f) if r["split"] != "train"}
+    demo = {d["image_file"] for d in json.loads(medgemma.DEMO_JSON.read_text(encoding="utf-8"))}
+    paths = {r["path"] for r in rows}
+    assert not paths & held_out and not paths & demo
+
+
+def test_finetune_rows_weighted_toward_hard_classes():
+    from collections import Counter
+
+    rows = medgemma.pick_train()
+    n = Counter(r["label"] for r in rows)
+    assert n == Counter(medgemma.TRAIN_COUNTS)
+    assert n["glioma"] > n["no_tumor"] and n["meningioma"] > n["no_tumor"]
+    variants = sum(r["origin"] not in medgemma.CLEAN_ORIGINS for r in rows)
+    assert 0 < variants < len(rows)
+    assert len({r["path"] for r in rows}) == len(rows)  # no repeats
+    assert medgemma.pick_train() == rows  # seeded: same rows on every machine
+    assert set(medgemma.LETTER) == set(medgemma.CHOICES.values())
+    assert all(medgemma.CHOICES[medgemma.LETTER[b]] == b for b in medgemma.LETTER)
