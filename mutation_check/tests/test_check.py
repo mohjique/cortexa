@@ -147,3 +147,19 @@ def test_live_engine_on_snvs_matches_counts():
 def test_live_far_mismatch_raises():
     with pytest.raises(MutationCheckUnavailable, match="false-alarm rate"):
         run_mutation_check(_request("demo-016"), false_alarm_rate=0.05)
+
+
+# ---- review follow-ups (PR #10) ----------------------------------------------------------------
+
+def test_counts_96_rejects_booleans():
+    req = _request("demo-016")
+    req["counts_96"] = [True] + req["counts_96"][1:]
+    with pytest.raises(ValueError, match="non-negative integers"):
+        run_mutation_check(req, false_alarm_rate=FAR)
+
+
+def test_unknown_engine_verdict_is_unavailable_not_keyerror(no_engine, monkeypatch):
+    real = check._report
+    monkeypatch.setattr(check, "_report", lambda *a: {**real(*a), "verdict": "maybe"})
+    with pytest.raises(MutationCheckUnavailable, match="unknown verdict"):
+        run_mutation_check(_request("demo-016"), false_alarm_rate=FAR)
