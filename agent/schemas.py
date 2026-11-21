@@ -263,6 +263,12 @@ class WatchOrTreatDecision(Schema):
         return self
 
 
+class HormoneLabsDecision(Schema):
+    """Pituitary: doctor has reviewed hormone labs and endocrinology."""
+
+    labs_reviewed: Literal[True]
+
+
 class SurgeryOrMedsDecision(Schema):
     choice: Literal["surgery", "medication_only"]
 
@@ -302,6 +308,11 @@ class WatchOrTreatRecord(_DecisionRecord):
     decision: WatchOrTreatDecision
 
 
+class HormoneLabsRecord(_DecisionRecord):
+    gate: Literal["hormone_labs"]
+    decision: HormoneLabsDecision
+
+
 class SurgeryOrMedsRecord(_DecisionRecord):
     gate: Literal["surgery_or_meds"]
     decision: SurgeryOrMedsDecision
@@ -327,6 +338,7 @@ DoctorDecision = Annotated[
     Union[
         ConfirmBucketRecord,
         WatchOrTreatRecord,
+        HormoneLabsRecord,
         SurgeryOrMedsRecord,
         EnterResultsRecord,
         ReviewShortlistRecord,
@@ -335,7 +347,12 @@ DoctorDecision = Annotated[
 ]
 DoctorDecisionAdapter: TypeAdapter[DoctorDecision] = TypeAdapter(DoctorDecision)
 Gate = Literal[
-    "confirm_bucket", "watch_or_treat", "surgery_or_meds", "enter_results", "review_shortlist"
+    "confirm_bucket",
+    "watch_or_treat",
+    "hormone_labs",
+    "surgery_or_meds",
+    "enter_results",
+    "review_shortlist",
 ]
 
 
