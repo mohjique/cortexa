@@ -103,19 +103,22 @@ def load_hashes(rebuild: bool = False) -> list[dict]:
         with HASH_CACHE.open(newline="", encoding="utf-8") as f:
             cached = {r["path"]: r for r in csv.DictReader(f)}
     rows = []
+    added = False
     for i, ref in enumerate(refs):
         hit = cached.get(ref.path)
         if hit is None:
+            added = True
             md5, ph, dh = _hashes(DATA_ROOT / ref.path)
             hit = {"path": ref.path, "md5": md5, "phash": f"{ph:016x}", "dhash": f"{dh:016x}"}
         rows.append({"path": ref.path, "label": ref.label, "origin": ref.origin,
                      "md5": hit["md5"], "phash": hit["phash"], "dhash": hit["dhash"]})
         if (i + 1) % 2000 == 0:
             print(f"  hashed {i + 1}/{len(refs)}")
-    with HASH_CACHE.open("w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=["path", "md5", "phash", "dhash"])
-        w.writeheader()
-        w.writerows({k: r[k] for k in ("path", "md5", "phash", "dhash")} for r in rows)
+    if added or len(cached) != len(rows):  # new images, or stale entries to drop
+        with HASH_CACHE.open("w", newline="", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=["path", "md5", "phash", "dhash"])
+            w.writeheader()
+            w.writerows({k: r[k] for k in ("path", "md5", "phash", "dhash")} for r in rows)
     return rows
 
 
