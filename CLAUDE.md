@@ -95,8 +95,8 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Runs only for recurrent gliomas with broad sequencing (exome or genome). Skip small gene panels.
 
 ### Clinical (`clinical/`)
-- 3 to 5 synthetic patients with realistic radiology and pathology reports, written by the premed teammate.
-- Gold labels: manual eligibility calls for a sample of real recruiting trials, used to measure agent accuracy.
+- 23 synthetic patients (`clinical/patients/demo-001.json` to `demo-023.json`) covering every branch of the decision tree, each paired with a held-out test-set MRI. Spec: `clinical/PATIENT_PROFILES_GUIDE.md`; template: `clinical/patients/_template.json`.
+- Gold labels: manual eligibility calls against the synthetic trials in `agent/demo_cache/`, used to measure agent accuracy. `status` always means "does the patient pass this criterion"; for exclusion criteria, `met` means the exclusion does not apply.
 - Owns the wording of medical rules in `policies/policy.yaml`.
 
 ## Evaluation we will show judges

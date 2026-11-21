@@ -1,0 +1,103 @@
+{
+  "case_id": "demo-009",
+  "scenario": "Glioma pre-op, markers pending",
+  "image_file": "FROM_COMPUTER_ENGINEER.jpg",
+  "kaggle_label": "glioma",
+  "age": 58,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 200,
+  "presenting_symptoms": [
+    "new-onset seizure",
+    "word-finding difficulty"
+  ],
+  "radiology_report": "MRI brain with and without contrast. 4.1 x 3.6 cm heterogeneously enhancing mass in the left temporal lobe with central necrosis and surrounding T2/FLAIR signal. Mild mass effect, no midline shift. Impression: findings suspicious for high-grade glioma. Recommend neurosurgical evaluation.",
+  "tumor_location": "left temporal lobe",
+  "tumor_size_mm": [
+    41,
+    36
+  ],
+  "multifocal": false,
+  "kps": 80,
+  "labs": {
+    "anc": 4.2,
+    "platelets": 245,
+    "hemoglobin": 13.1,
+    "creatinine": 0.8,
+    "bilirubin": 0.6,
+    "ast": 22,
+    "alt": 25
+  },
+  "steroid_dose_mg": 4,
+  "current_meds": [
+    "levetiracetam 500 mg twice daily",
+    "dexamethasone 4 mg daily"
+  ],
+  "comorbidities": [
+    "hypertension"
+  ],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": "pending",
+  "idh": "pending",
+  "codeletion_1p19q": "pending",
+  "mgmt": "pending",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [
+    "NCT99000003"
+  ],
+  "expected_no_match": false,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Must enroll before planned surgical resection",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "No surgery yet"
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the brain",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "Passes: no prior brain radiation, so the exclusion does not apply"
+    }
+  ],
+  "_pituitary_example_for_reference_only": {
+    "treatment_path": "medication_only",
+    "secreting_hormone": "acth",
+    "size": "micro",
+    "cavernous_sinus_invasion": "no",
+    "hormone_levels": {
+      "late_night_salivary_cortisol_ug_dl": 0.42,
+      "acth_pg_ml": 68
+    },
+    "surgical_candidate": false
+  }
+}
