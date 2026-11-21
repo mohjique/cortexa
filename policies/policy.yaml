@@ -30,6 +30,11 @@ trial_search:
     NOT_YET_RECRUITING: "Not yet recruiting: enrollment has not opened"
   # No distance cutoff: every eligible trial is shown, sorted nearest first.
   # Remote trials and trials with no site location are listed last.
+  # Shortlist groups: a trial whose only open questions are routine items
+  # (labs, washout, device use) is "eligible on what we know". A trial with an
+  # unknown on one of these fields goes under "needs a test", which names the
+  # test. Field names match the eligibility evidence_field. Edit freely.
+  key_unknown_fields: [idh, codeletion_1p19q, mgmt, tmb_clia]
   no_match_plan:
     show_near_misses: true        # fails exactly one rule, or depends on a pending result
     alert_on_new_trials: true

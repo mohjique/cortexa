@@ -36,7 +36,7 @@ NCI_STATUS_MAP: dict[str, str] = {
 }
 
 # Neither API has a structured "remote" flag. Match on title + criteria.
-# TODO(policy): move to policy.yaml once the premed teammate agrees the wording.
+# TODO(policy): move to policy.yaml once the wording is agreed.
 REMOTE_PATTERNS = (
     r"\bfully remote\b",
     r"\bremote participation\b",

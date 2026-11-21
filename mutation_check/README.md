@@ -1,7 +1,5 @@
 # mutation_check/
 
-Owner: Nuclear engineer.
-
 Runs only for recurrent gliomas with broad sequencing (exome or genome).
 
 1. Convert somatic SNVs to 96-channel counts (6 substitution types x 4 x 4 flanking bases).
@@ -38,8 +36,8 @@ out = run_mutation_check(request, false_alarm_rate=policy.mutation_check.false_a
 
 ## The engine
 
-Detection runs in [sigdetect](https://github.com/almondshawarma/sigdetect) (private; ask the mutation-check
-owner for access): Poisson fit of non-negative signature exposures, likelihood-ratio test with thresholds
+Detection runs in [sigdetect](https://github.com/almondshawarma/sigdetect) (private repo;
+access required): Poisson fit of non-negative signature exposures, likelihood-ratio test with thresholds
 simulated per mutation count, Currie detection limits. Without it installed, the three demo cases still run from
 `demo_results.json` (precomputed by `python -m mutation_check.make_demo_results`), so nobody else needs sigdetect
 or the COSMIC file to run the app. With it: `pip install -e <sigdetect checkout>`, and the calibration is found at

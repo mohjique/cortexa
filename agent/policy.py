@@ -83,6 +83,8 @@ class TrialSearchPolicy(Schema):
     status_labels: dict[str, NonEmptyStr]
     # No distance cutoff: every eligible trial is shown, nearest first.
     # Distance sorts and labels trials; it never filters them out.
+    # An unknown on one of these puts a trial in the "needs_test" group.
+    key_unknown_fields: list[NonEmptyStr]
     no_match_plan: NoMatchPolicy
 
     @model_validator(mode="after")

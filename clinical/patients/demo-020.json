@@ -117,6 +117,7 @@
     "no_match"
   ],
   "expected_trials": [],
+  "expected_needs_test": {},
   "expected_preop_flags": [],
   "expected_no_match": true,
   "gold_eligibility": []

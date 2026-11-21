@@ -61,6 +61,7 @@
     "awaiting_pathology"
   ],
   "expected_trials": [],
+  "expected_needs_test": {},
   "expected_preop_flags": [
     "NCT99000003"
   ],
