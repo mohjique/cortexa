@@ -101,6 +101,7 @@
   "expected_trials": [
     "NCT99000001"
   ],
+  "expected_needs_test": {},
   "expected_preop_flags": [],
   "expected_no_match": false,
   "gold_eligibility": [

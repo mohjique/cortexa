@@ -63,17 +63,6 @@ def policy_with(tmp_path):
 # --- every demo patient lands where the clinical team expects --------------
 
 
-# Shortlisted trials clinical/ has not added to expected_trials yet (PR #30
-# decision): remote NCT99000008 for 016/017 goes in expected_trials, and
-# NCT99000009 is recorded as "needs a test" (CLIA TMB) for 016 to 019.
-NOT_YET_IN_EXPECTED = {
-    "demo-016": {"NCT99000008", "NCT99000009"},
-    "demo-017": {"NCT99000008", "NCT99000009"},
-    "demo-018": {"NCT99000009"},
-    "demo-019": {"NCT99000009"},
-}
-
-
 @pytest.mark.parametrize("case_id", with_results())
 def test_patient_matches_expected_outcome(case_id):
     p = patient(case_id)
@@ -82,10 +71,10 @@ def test_patient_matches_expected_outcome(case_id):
         assert isinstance(out, NoMatchPlan)
     else:
         assert isinstance(out, Shortlist)
-        got = [t.trial_id for t in out.trials]
-        extra = NOT_YET_IN_EXPECTED.get(case_id, set())
-        assert [t for t in got if t not in extra] == p["expected_trials"]
-        assert set(got) - set(p["expected_trials"]) == extra
+        eligible = [t.trial_id for t in out.trials if t.group == "eligible"]
+        needs_test = {t.trial_id: t.needs_test_fields for t in out.trials if t.group == "needs_test"}
+        assert eligible == p["expected_trials"]
+        assert needs_test == p["expected_needs_test"]
 
 
 # --- shortlist ----------------------------------------------------------------

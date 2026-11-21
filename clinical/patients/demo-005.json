@@ -65,6 +65,7 @@
     "rescan"
   ],
   "expected_trials": [],
+  "expected_needs_test": {},
   "expected_preop_flags": [],
   "expected_no_match": false,
   "gold_eligibility": []

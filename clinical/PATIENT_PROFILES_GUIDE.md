@@ -84,7 +84,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | `mutation_counts_96` | 96 integers or null | **Leave null.** The mutation-check teammate fills it |
 | `true_sbs11_fraction` | number or null | Answer key, set by the mutation-check teammate. The app never reads it |
 
-**Safety note:** trial `NCT99000009` requires high TMB from a CLIA-certified assay. Our mutation check is research context, not a CLIA test, so it must never satisfy that criterion. If `tmb_clia` is `null`, the correct label is `unknown`, even when the mutation check says "detected."
+**Safety note:** trial `NCT99000009` requires high TMB from a CLIA-certified assay. Our mutation check is research context, not a CLIA test, so it must never satisfy that criterion. If `tmb_clia` is `null`, the correct label is `unknown`, even when the mutation check says "detected." The shortlist then shows 009 under **Needs a test: CLIA TMB result**, never as a match.
 
 ### 7. Demo script and answer key
 
@@ -92,7 +92,8 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 |---|---|
 | `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `surgery_or_meds` `{"choice": "surgery"}` |
 | `expected_path` | Branches this case should follow, e.g. `["glioma", "preop_screen", "awaiting_pathology", "enter_results", "matching", "review_shortlist"]` (use the `stage` names from `docs/interfaces.md`) |
-| `expected_trials` | Trial IDs you expect on the shortlist. There is no distance cutoff, so include every eligible trial however far away; the app sorts them nearest first |
+| `expected_trials` | Trial IDs you expect in the shortlist's **eligible** group (eligible on what we know; any unknowns are routine screening-visit items). There is no distance cutoff, so include every eligible trial however far away; the app sorts them nearest first |
+| `expected_needs_test` | Trials you expect in the **needs a test** group, each mapped to the key fields left unknown, e.g. `{"NCT99000009": ["tmb_clia"]}`. Key fields are `trial_search.key_unknown_fields` in `policies/policy.yaml`. `{}` if none |
 | `expected_no_match` | true if no trial is eligible anywhere, so the case ends in the no-match plan |
 | `gold_eligibility` | Your hand labels (see below) |
 
@@ -117,10 +118,10 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | demo-013 | glioma | New GBM | IDH-wildtype, grade 4, MGMT **unmethylated**, age ≤ 75, no prior RT/TMZ | 004 match |
 | demo-014 | glioma | New astrocytoma | IDH-mutant, grade 2 or 3, 1p/19q intact, no prior RT/chemo | 001 match |
 | demo-015 | glioma | New oligodendroglioma | IDH-mutant, 1p/19q codeleted | 001 `not_met` (codeletion). 007 in New Orleans (376 mi): match |
-| demo-016 | glioma | Recurrent GBM, exome | 1st recurrence after RT + temozolomide, no bevacizumab, `tmb_clia: null`. Mutation check: **detected** | 002 match. 009 must stay `unknown` |
-| demo-017 | glioma | Recurrent GBM, exome | 1st or 2nd recurrence, few mutations. Mutation check: **inconclusive** | 002 match |
-| demo-018 | glioma | Recurrent IDH-mutant astrocytoma, exome | Little or no prior temozolomide. Mutation check: **not detected** | 002 `not_met` (IDH). Remote 008: match |
-| demo-019 | glioma | Recurrent GBM, no sequencing | 3rd recurrence, prior bevacizumab. Mutation check skipped | 002 `not_met`. Remote 008: match |
+| demo-016 | glioma | Recurrent GBM, exome | 1st recurrence after RT + temozolomide, no bevacizumab, `tmb_clia: null`. Mutation check: **detected** | 002 match. Remote 008: match. 009 must stay `unknown`: needs a test (CLIA TMB) |
+| demo-017 | glioma | Recurrent GBM, exome | 1st or 2nd recurrence, few mutations. Mutation check: **inconclusive** | 002 match. Remote 008: match. 009: needs a test (CLIA TMB) |
+| demo-018 | glioma | Recurrent IDH-mutant astrocytoma, exome | Little or no prior temozolomide. Mutation check: **not detected** | 002 `not_met` (IDH). Remote 008: match. 009: needs a test (CLIA TMB) |
+| demo-019 | glioma | Recurrent GBM, no sequencing | 3rd recurrence, prior bevacizumab. Mutation check skipped | 002 `not_met`. Remote 008: match. 009: needs a test (CLIA TMB) |
 | demo-020 | pituitary | Pituitary, surgery | Non-functioning macroadenoma. `surgery_or_meds: surgery` | none |
 | demo-021 | pituitary | Pituitary, surgery | Growth-hormone-secreting | none |
 | demo-022 | pituitary | Pituitary, meds only | **ACTH-secreting (Cushing disease), not a surgical candidate.** `surgery_or_meds: medication_only`. Please confirm this is realistic | 006 (Houston, opens soon) |
