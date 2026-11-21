@@ -33,13 +33,19 @@ def test_filename_keyword(stub, filename, bucket, review):
     assert out.flagged_uncertain is review
 
 
-def test_hash_fallback_is_deterministic_and_clean(stub):
+def test_hash_fallback_is_deterministic_and_always_flagged(stub):
+    seen = set()
     for i in range(20):
         img = f"img-{i}".encode()
         a = stub.classify("c", img, "upload.png")
         assert a == stub.classify("c", img, None)
         assert a.suspected_bucket in BUCKETS
-        assert a.flagged_uncertain is False
+        # Arbitrary pick: must never look confident, even with lax policy.
+        assert a.flagged_uncertain is True
+        seen.add(a.suspected_bucket)
+    assert len(seen) > 1  # fallback really spreads across buckets
+    lax = StubClassifier(min_confidence_for_auto_suggest=0.0, flag_on_model_disagreement=False)
+    assert lax.classify("c", b"x", "scan.png").flagged_uncertain is True
 
 
 def test_threshold_is_configurable():
