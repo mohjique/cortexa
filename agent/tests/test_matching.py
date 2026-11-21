@@ -202,3 +202,39 @@ def test_recurrent_glioma_end_to_end(case_store, real_hooks, audit_log):
     assert isinstance(t.mutation_context, MutationCheckRan)  # context only
     acts = [e.action for e in audit_log.read(cid)]
     assert "shortlist_built" in acts and "eligibility_checked" in acts
+
+
+# --- review fix: remote trials survive the live geo filter --------------------
+
+
+def test_remote_trial_outside_geo_filter_reaches_widened(monkeypatch):
+    """Live ctgov drops far-away sites server side; the remote trial must still come back."""
+    real = matching.search_trials
+    calls = []
+
+    def fake(condition="brain tumor", origin=None, radius_miles=None, case_id=None):
+        calls.append(origin is not None)
+        found = real(condition=condition, case_id=case_id)
+        if origin is not None:  # what the live geo filter would return: no remote NCT99000008
+            found = [t for t in found if t.trial_id != "NCT99000008"]
+        return found
+
+    monkeypatch.setattr(matching, "search_trials", fake)
+    out = match("demo-018", can_use_phone_or_tablet=True, recurrence_number=1)
+    assert calls == [True, False]
+    assert isinstance(out, NoMatchPlan) and out.widened
+    assert "NCT99000008" in [t.trial_id for t in out.widened.trials]
+
+
+def test_no_second_search_when_remote_trials_excluded(monkeypatch, policy_with):
+    policy_with(lambda t: t.replace("include_remote_trials: true", "include_remote_trials: false"))
+    real = matching.search_trials
+    calls = []
+
+    def fake(**kw):
+        calls.append(kw.get("origin") is not None)
+        return real(**kw)
+
+    monkeypatch.setattr(matching, "search_trials", fake)
+    match("demo-015")
+    assert calls == [True]

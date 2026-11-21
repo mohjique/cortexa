@@ -156,6 +156,22 @@ def check_all(trials: list[TrialRecord], facts: Facts, origin: Origin, policy: P
     return sorted(out, key=_sort_key)
 
 
+def _find_trials(condition: str, origin: Origin, radius: float, include_remote: bool,
+                 case_id: str) -> list[TrialRecord]:
+    """Trials near the origin, plus remote trials from anywhere.
+
+    The live ClinicalTrials.gov query applies a server-side distance filter,
+    which drops a remote trial whose sites are all far away. So when remote
+    trials count, a second search without the geo filter adds them.
+    """
+    trials = search_trials(condition=condition, origin=origin, radius_miles=radius, case_id=case_id)
+    if include_remote:
+        seen = {t.trial_id for t in trials}
+        trials += [t for t in search_trials(condition=condition, case_id=case_id)
+                   if t.remote_participation and t.trial_id not in seen]
+    return trials
+
+
 def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     """Workflow matching hook: a shortlist, or the no-match plan."""
     r = rec.results
@@ -170,7 +186,7 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     origin = geo.geocode_zip(r.zip, case_id=case_id)  # rule 6: ZIP only
     condition = CONDITION_FOR_BUCKET.get(r.confirmed_bucket, "brain tumor")
     wide = max(radius, nm.widened_radius_miles)
-    trials = search_trials(condition=condition, origin=origin, radius_miles=wide, case_id=case_id)
+    trials = _find_trials(condition, origin, wide, nm.include_remote_trials, case_id)
     checked = check_all(trials, Facts.from_results(r), origin, policy, case_id)
 
     hits = [c for c in checked if c.ok and c.in_scope(radius, include_remote=False)]
