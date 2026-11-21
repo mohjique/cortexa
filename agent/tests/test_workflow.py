@@ -137,6 +137,7 @@ def test_pituitary_surgery_waits_on_pathology(case_store):
 
 
 def test_recurrent_glioma_with_exome_runs_mutation_check(case_store, audit_log):
+    workflow.set_hooks(AgentHooks(mutation_check=workflow.stub_mutation_check))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     rec = decide("enter_results", glioma_results())
