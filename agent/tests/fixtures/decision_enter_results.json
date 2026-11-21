@@ -1,0 +1,22 @@
+{
+  "case_id": "demo-001",
+  "gate": "enter_results",
+  "decision": {
+    "case_id": "demo-001",
+    "confirmed_bucket": "glioma",
+    "diagnosis": "Glioblastoma, IDH-wildtype",
+    "grade": "pending",
+    "idh": "wildtype",
+    "codeletion_1p19q": "unknown",
+    "mgmt": "pending",
+    "recurrent": false,
+    "prior_treatments": [],
+    "age": 54,
+    "zip": "77840",
+    "broad_sequencing_available": false,
+    "sequencing": "none",
+    "pituitary": null
+  },
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T15:00:00Z"
+}

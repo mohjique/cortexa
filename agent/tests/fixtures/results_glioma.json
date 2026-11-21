@@ -1,0 +1,38 @@
+{
+  "case_id": "demo-002",
+  "confirmed_bucket": "glioma",
+  "diagnosis": "Glioblastoma, IDH-wildtype",
+  "grade": 4,
+  "idh": "wildtype",
+  "codeletion_1p19q": "intact",
+  "mgmt": "methylated",
+  "tmb_clia": null,
+  "recurrent": true,
+  "recurrence_number": 1,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "extent": "gross_total",
+      "weeks_ago": 40
+    },
+    {
+      "type": "radiation",
+      "detail": "60 Gy / 30 fractions",
+      "weeks_ago": 34
+    },
+    {
+      "type": "temozolomide",
+      "cycles": 6,
+      "weeks_ago": 8
+    }
+  ],
+  "comorbidities": [
+    "hypertension"
+  ],
+  "can_use_phone_or_tablet": true,
+  "age": 54,
+  "zip": "77840",
+  "broad_sequencing_available": true,
+  "sequencing": "exome",
+  "pituitary": null
+}

@@ -1,0 +1,7 @@
+{
+  "case_id": "demo-003",
+  "gate": "watch_or_treat",
+  "decision": {"choice": "watch", "rescan_in_months": 6},
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T14:05:40Z"
+}

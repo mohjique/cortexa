@@ -1,0 +1,10 @@
+{
+  "case_id": "demo-001",
+  "gate": "review_shortlist",
+  "decision": {
+    "keep": ["NCT99000001"],
+    "reject": [{"trial_id": "NCT99000004", "reason": "patient preference"}]
+  },
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T15:20:00Z"
+}

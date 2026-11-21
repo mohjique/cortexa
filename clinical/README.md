@@ -1,9 +1,9 @@
 # clinical/
 
-Owner: premed teammate.
+Owner: premed teammate. Contributor: computer engineer.
 
-- 3 to 5 synthetic patients (one per path in the decision tree, including one recurrent glioma), each with a realistic radiology report and pathology report.
-- Gold eligibility labels: manual met / not met / unknown calls for a sample of real recruiting trials. Used to measure the agent.
+- 23 synthetic patients in `patients/demo-001.json` to `demo-023.json`, covering every branch of the decision tree. Spec: `PATIENT_PROFILES_GUIDE.md`; template: `patients/_template.json`.
+- Gold eligibility labels: manual met / not met / unknown calls against the synthetic trials in `agent/demo_cache/`. Used to measure the agent.
 - Medical wording for rules in `policies/policy.yaml`.
 - Sanity-check the clinical workflow in `docs/decision-tree.md`.
 

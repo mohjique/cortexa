@@ -1,0 +1,24 @@
+{
+  "case_id": "demo-004",
+  "confirmed_bucket": "pituitary",
+  "diagnosis": "Prolactinoma",
+  "grade": null,
+  "idh": "unknown",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "unknown",
+  "recurrent": false,
+  "prior_treatments": [],
+  "age": 31,
+  "zip": "78701",
+  "broad_sequencing_available": false,
+  "pituitary": {
+    "treatment_path": "medication_only",
+    "secreting_hormone": "prolactin",
+    "size": "micro",
+    "cavernous_sinus_invasion": "no",
+    "surgical_candidate": false,
+    "hormone_levels": {
+      "prolactin_ng_ml": 180.0
+    }
+  }
+}

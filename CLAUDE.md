@@ -2,7 +2,7 @@
 
 Cortexa is an agentic care management platform that supports physician teams handling suspected brain tumor cases. It classifies a brain MRI into a suspected tumor bucket, guides the team on what the biopsy must answer, and matches confirmed cases to recruiting clinical trials, with a doctor approving every step.
 
-Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 8:00 PM; judging 8:00 to 9:30 PM.
+Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 7:30 PM (official cutoff); team deadline 6:30 PM. Judging 8:00 to 9:30 PM.
 
 The full app logic is in `docs/decision-tree.md` (Mermaid) and `docs/decision-tree.svg`. Treat that tree as the spec. If code and tree disagree, fix the code or update the tree in the same PR.
 
@@ -27,7 +27,7 @@ These apply to every piece of code, prompt and UI string. Enforce them in code, 
 
 ## App flow (summary of the decision tree)
 
-1. **Intake:** MRI uploaded → ResNet classifier + MedGemma → suspected bucket + confidence. Low confidence or model disagreement is flagged "needs review."
+1. **Intake:** MRI uploaded → ResNet classifier + MedGemma → suspected bucket + confidence. Low confidence or model disagreement is marked `flagged_uncertain`. The doctor still confirms every case; the flag only warns them to look harder.
 2. **Doctor confirms bucket** (or corrects it). The case then follows the confirmed bucket:
    - **No tumor:** stop, no trial search.
    - **Meningioma:** doctor chooses watch (rescan later, stop) or treat (go to surgery + pathology).
@@ -58,9 +58,9 @@ docs/             decision tree and design notes
 
 | Area | Owner | Folders |
 |---|---|---|
-| Agent, trial APIs, approval screens, audit log, frontend | Matt | `agent/`, `frontend/` |
-| MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `classifier/` |
-| Clinical rules, synthetic cases and reports, eligibility checks | Premed | `clinical/`, `policies/` |
+| Agent, trial APIs, eligibility checks, audit log, MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `agent/`, `classifier/` |
+| Clinical rules, synthetic cases and reports | Premed (contributor: computer engineer) | `clinical/`, `policies/` |
+| Frontend UI: upload, approval screens, shortlist + map | Matt | `frontend/` |
 | Mutation check | Nuclear engineer | `mutation_check/` |
 
 Stay in your folders. Cross-folder changes go through a PR the owner reviews. Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.

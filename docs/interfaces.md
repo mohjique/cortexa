@@ -31,7 +31,7 @@ The case moves forward only after the gate for its stage has a recorded doctor d
   "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
   "medgemma_bucket": "glioma",
   "confidence": 0.88,
-  "needs_review": false,
+  "flagged_uncertain": false,
   "heatmap_path": "artifacts/demo-001_gradcam.png"
 }
 ```
@@ -68,18 +68,37 @@ One record per gate. Each one is also written to the audit log.
   "case_id": "demo-001",
   "confirmed_bucket": "glioma",
   "diagnosis": "Glioblastoma, IDH-wildtype",
-  "grade": 4,
+  "grade": "1-4 | pending | unknown | null",
   "idh": "mutant | wildtype | pending | unknown",
   "codeletion_1p19q": "codeleted | intact | pending | unknown",
   "mgmt": "methylated | unmethylated | pending | unknown",
-  "recurrent": false,
-  "prior_treatments": ["surgery", "radiation", "temozolomide"],
+  "tmb_clia": null,
+  "recurrent": true,
+  "recurrence_number": 1,
+  "prior_treatments": [
+    {"type": "surgery", "extent": "gross_total", "weeks_ago": 40},
+    {"type": "radiation", "detail": "60 Gy / 30 fractions", "weeks_ago": 34},
+    {"type": "temozolomide", "cycles": 6, "weeks_ago": 8}
+  ],
+  "comorbidities": ["hypertension"],
+  "can_use_phone_or_tablet": true,
   "age": 54,
   "zip": "77840",
   "broad_sequencing_available": false,
+  "sequencing": "exome | genome | panel | none | null",
   "pituitary": null
 }
 ```
+
+`sequencing` is optional. When set, it must agree with `broad_sequencing_available` (`exome` or `genome` means true). The mutation check needs it to tell exome/genome from a panel.
+
+Field names follow `clinical/PATIENT_PROFILES_GUIDE.md`:
+
+- `grade`: 1 to 4, `pending` or `unknown` for glioma and meningioma; `null` when it does not apply (pituitary).
+- `tmb_clia`: tumor mutational burden (mut/Mb) from a CLIA-certified lab test, or `null`. Never filled from the mutation check.
+- `recurrence_number`: 0 when `recurrent` is false, 1 or more when true.
+- `prior_treatments[].type`: `surgery`, `radiation`, `temozolomide`, `bevacizumab`, `idh_inhibitor`, `checkpoint_inhibitor`, `pituitary_radiation`, `other`. Optional `detail` and `weeks_ago`. `extent` (`gross_total`, `subtotal`, `biopsy_only`) only for surgery; `cycles` only for temozolomide.
+- `comorbidities`, `can_use_phone_or_tablet`, `tmb_clia` and `recurrence_number` are optional. `null` means not recorded, and the checker marks dependent criteria `unknown`. An empty `comorbidities` list means "none".
 
 For pituitary cases, `pituitary` holds hormone and imaging results. For a medication-only case, the doctor enters these directly with no pathology. Glioma marker fields are then `unknown`.
 
@@ -88,9 +107,13 @@ For pituitary cases, `pituitary` holds hormone and imaging results. For a medica
   "treatment_path": "surgery | medication_only",
   "secreting_hormone": "prolactin | growth_hormone | acth | tsh | none | pending | unknown",
   "size": "micro | macro | unknown",
-  "cavernous_sinus_invasion": "yes | no | unknown"
+  "cavernous_sinus_invasion": "yes | no | unknown",
+  "surgical_candidate": "true | false | null",
+  "hormone_levels": {"late_night_salivary_cortisol_ug_dl": 0.42, "acth_pg_ml": 68}
 }
 ```
+
+`surgical_candidate` and `hormone_levels` are optional. `hormone_levels` keys are `<hormone>_<unit>`.
 
 `unknown` means not tested or not available. `pending` means ordered, result not back. The eligibility checker treats both as `unknown` but gives a different reason.
 
@@ -160,7 +183,7 @@ Sent only for recurrent glioma with exome or genome sequencing.
 }
 ```
 
-If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no broad sequencing | not recurrent glioma"}`.
+If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no_broad_sequencing | not_recurrent_glioma"}`.
 
 ## Trial record (agent internal, normalized from both APIs)
 
@@ -191,12 +214,17 @@ One per criterion.
 ```json
 {
   "trial_id": "NCT00000000",
+  "criterion_type": "inclusion | exclusion",
   "criterion_text": "Histologically confirmed IDH-mutant glioma",
   "status": "met | not_met | unknown",
   "evidence_field": "idh",
   "reason": "needs pathology: IDH status"
 }
 ```
+
+`status` answers "does the patient pass this criterion?". For an exclusion, `met` means the exclusion does not apply. `criterion_type` is optional but matches the gold labels.
+
+Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutation_check`, `mutation_context`, `sbs11_call`, `exposures`, `total_mutations`) must be `unknown`; the schema rejects `met` or `not_met`. A CLIA TMB criterion cites `tmb_clia`.
 
 ## Shortlist → frontend
 
@@ -225,7 +253,7 @@ Shown at the `review_shortlist` gate. A trial is on the shortlist when no criter
 }
 ```
 
-`status_label` is `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
+`status_label` comes from `trial_search.status_labels` in `policy.yaml` (today `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`). Allowed `recruitment_status` values are `trial_search.statuses`, so staff can add a status without a code change. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
 
 ## No-match plan → frontend
 
@@ -237,7 +265,7 @@ Produced when the shortlist is empty. Settings come from `trial_search.no_match_
   "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
   "widened": {
     "radius_miles": 500,
-    "include_remote": true,
+    "include_remote_trials": true,
     "trials": ["<Shortlist trial>"]
   },
   "near_misses": [
