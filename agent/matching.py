@@ -63,6 +63,7 @@ class Checked:
     trial: TrialRecord
     rows: list[EligibilityResult]
     site: NearestSite | None  # straight-line only until shortlisted
+    ok: bool  # eligibility.passes(rows), computed once
 
     @property
     def miles(self) -> float | None:
@@ -141,16 +142,17 @@ def _alert(rec: CaseRecord, radius: float, now: datetime) -> TrialAlert:
     )
 
 
-def check_all(trials: list[TrialRecord], facts: Facts, origin: Origin, case_id: str) -> list[Checked]:
+def check_all(trials: list[TrialRecord], facts: Facts, origin: Origin, policy: Policy,
+              case_id: str) -> list[Checked]:
     out = []
     for t in trials:
-        rows = check_trial(t, facts, case_id=case_id)
         site = geo.nearest_site(origin, t.sites, with_drive_time=False, case_id=case_id)
         if site is None and not t.remote_participation:
             audit("agent", "trial_skipped", {"trial_id": t.trial_id, "reason": "no site with coordinates"},
                   case_id=case_id)
             continue
-        out.append(Checked(t, rows, site))
+        rows = check_trial(t, facts, policy=policy, case_id=case_id)
+        out.append(Checked(t, rows, site, passes(rows)))
     return sorted(out, key=_sort_key)
 
 
@@ -169,9 +171,9 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     condition = CONDITION_FOR_BUCKET.get(r.confirmed_bucket, "brain tumor")
     wide = max(radius, nm.widened_radius_miles)
     trials = search_trials(condition=condition, origin=origin, radius_miles=wide, case_id=case_id)
-    checked = check_all(trials, Facts.from_results(r), origin, case_id)
+    checked = check_all(trials, Facts.from_results(r), origin, policy, case_id)
 
-    hits = [c for c in checked if passes(c.rows) and c.in_scope(radius, include_remote=False)]
+    hits = [c for c in checked if c.ok and c.in_scope(radius, include_remote=False)]
     if hits:
         shortlist = Shortlist(
             case_id=case_id,
@@ -185,11 +187,11 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
         return shortlist
 
     # --- no-match plan (F10) ---
-    widened = [c for c in checked if passes(c.rows) and c.in_scope(wide, nm.include_remote_trials)]
+    widened = [c for c in checked if c.ok and c.in_scope(wide, nm.include_remote_trials)]
     near_misses: list[NearMiss] = []
     if nm.show_near_misses:
         misses = (_near_miss(c) for c in checked
-                  if not passes(c.rows) and c.in_scope(wide, nm.include_remote_trials))
+                  if not c.ok and c.in_scope(wide, nm.include_remote_trials))
         near_misses = [m for m in misses if m is not None]
     now = _now()
     alert = _alert(rec, wide, now) if nm.alert_on_new_trials else None
@@ -213,7 +215,7 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     if board:
         audit("agent", "tumor_board_log", {"entry": board.entry}, case_id=case_id)
     audit("agent", "no_match_plan_built", {
-        "widened_trials": [t.trial_id for t in plan.widened.trials] if plan.widened else [],
+        "widened_trials": [c.trial.trial_id for c in widened],
         "near_misses": [m.trial_id for m in near_misses],
     }, case_id=case_id)
     return plan
