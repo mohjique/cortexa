@@ -62,6 +62,17 @@ def policy_with(tmp_path):
 # --- every demo patient lands where the clinical team expects --------------
 
 
+# With no distance cutoff these recurrent-glioma cases also pass trials their
+# expected_trials do not list yet (team decision pending, see PR #30):
+# NCT99000009 with TMB unknown (no CLIA result), and remote NCT99000008.
+NOT_YET_IN_EXPECTED = {
+    "demo-016": {"NCT99000008", "NCT99000009"},
+    "demo-017": {"NCT99000008", "NCT99000009"},
+    "demo-018": {"NCT99000009"},
+    "demo-019": {"NCT99000009"},
+}
+
+
 @pytest.mark.parametrize("case_id", with_results())
 def test_patient_matches_expected_outcome(case_id):
     p = patient(case_id)
@@ -70,7 +81,10 @@ def test_patient_matches_expected_outcome(case_id):
         assert isinstance(out, NoMatchPlan)
     else:
         assert isinstance(out, Shortlist)
-        assert [t.trial_id for t in out.trials] == p["expected_trials"]
+        got = [t.trial_id for t in out.trials]
+        extra = NOT_YET_IN_EXPECTED.get(case_id, set())
+        assert [t for t in got if t not in extra] == p["expected_trials"]
+        assert set(got) - set(p["expected_trials"]) == extra
 
 
 # --- shortlist ----------------------------------------------------------------
@@ -94,24 +108,51 @@ def test_not_yet_recruiting_trial_shown_with_its_label():
     assert out.trials[0].status_label.startswith("Not yet recruiting")
 
 
-def test_tmb_trial_never_shortlisted_from_mutation_check():
-    """demo-016 has SBS11 detected and many mutations; NCT99000009 still needs CLIA TMB."""
+def test_tmb_criterion_never_met_from_mutation_check():
+    """demo-016 has SBS11 detected and many mutations; the TMB row stays unknown."""
     out = match("demo-016", recurrence_number=1)
     assert isinstance(out, Shortlist)
-    assert "NCT99000009" not in [t.trial_id for t in out.trials]
+    t = {t.trial_id: t for t in out.trials}["NCT99000009"]
+    tmb = [r for r in t.eligibility if "mutational burden" in r.criterion_text]
+    assert len(tmb) == 1 and tmb[0].status == "unknown" and tmb[0].evidence_field == "tmb_clia"
+
+
+def test_no_distance_cutoff_far_trial_is_shortlisted():
+    out = match("demo-015")  # oligodendroglioma; NCT99000007 is in New Orleans, ~376 mi
+    assert isinstance(out, Shortlist)
+    (t,) = out.trials
+    assert t.trial_id == "NCT99000007" and t.nearest_site and t.nearest_site.distance_miles > 300
+
+
+def test_shortlist_sorted_nearest_first():
+    out = match("demo-016", recurrence_number=1, can_use_phone_or_tablet=True)
+    assert isinstance(out, Shortlist)
+    miles = [t.nearest_site.distance_miles for t in out.trials if t.nearest_site]
+    assert miles == sorted(miles) and len(miles) == 3
+
+
+def test_search_is_nationwide(monkeypatch):
+    calls = []
+    real = matching.search_trials
+
+    def spy(**kw):
+        calls.append(kw)
+        return real(**kw)
+
+    monkeypatch.setattr(matching, "search_trials", spy)
+    match("demo-014")
+    assert len(calls) == 1 and set(calls[0]) == {"condition", "case_id"}  # no origin, no radius
 
 
 # --- no-match plan --------------------------------------------------------------
 
 
-def test_no_match_plan_widens_alerts_and_logs():
-    out = match("demo-015")  # oligodendroglioma; NCT99000007 is in New Orleans
+def test_no_match_plan_alerts_and_logs():
+    out = match("demo-012")  # MGMT-methylated GBM: no eligible trial anywhere
     assert isinstance(out, NoMatchPlan)
     assert out.searched.match_count == 0
-    assert out.widened and out.widened.radius_miles == 500
-    assert [t.trial_id for t in out.widened.trials] == ["NCT99000007"]
     assert out.alert and out.alert.notify == "care_team_in_app"
-    assert out.alert.query.markers == {"grade": 2, "idh": "mutant", "codeletion_1p19q": "codeleted"}
+    assert out.alert.query.markers == {"grade": 4, "idh": "wildtype", "mgmt": "methylated"}
     assert out.tumor_board_log and out.tumor_board_log.entry == "No current match"
 
 
@@ -133,22 +174,14 @@ def test_near_miss_pending_result():
     assert all(b.status == "unknown" for b in m.blocking)
 
 
-def test_remote_trial_only_in_widened_search():
+def test_remote_trial_is_shortlisted():
     out = match("demo-018", can_use_phone_or_tablet=True, recurrence_number=1)
-    assert isinstance(out, NoMatchPlan)
-    assert out.widened
-    remote = [t for t in out.widened.trials if t.trial_id == "NCT99000008"]
+    assert isinstance(out, Shortlist)
+    remote = [t for t in out.trials if t.trial_id == "NCT99000008"]
     assert remote and remote[0].remote_participation
 
 
 # --- policy.yaml changes behavior without code (rule 8) ------------------------
-
-
-def test_radius_edit_turns_no_match_into_shortlist(policy_with):
-    assert isinstance(match("demo-007"), NoMatchPlan)  # San Antonio is 155 mi
-    policy_with(lambda t: t.replace("default_radius_miles: 100", "default_radius_miles: 200"))
-    out = match("demo-007")
-    assert isinstance(out, Shortlist) and [t.trial_id for t in out.trials] == ["NCT99000005"]
 
 
 def test_status_edit_drops_not_yet_recruiting(policy_with):
@@ -197,44 +230,8 @@ def test_recurrent_glioma_end_to_end(case_store, real_hooks, audit_log):
     rec = decide(cid, "enter_results", p["doctor_decisions"]["enter_results"])
     assert "stage_done:mutation_check" in [e.action for e in audit_log.read(cid)]
     assert rec.state.stage == "review_shortlist"
-    assert rec.shortlist and [t.trial_id for t in rec.shortlist.trials] == ["NCT99000002"]
+    assert rec.shortlist and rec.shortlist.trials[0].trial_id == "NCT99000002"  # nearest first
     t = rec.shortlist.trials[0]
     assert isinstance(t.mutation_context, MutationCheckRan)  # context only
     acts = [e.action for e in audit_log.read(cid)]
     assert "shortlist_built" in acts and "eligibility_checked" in acts
-
-
-# --- review fix: remote trials survive the live geo filter --------------------
-
-
-def test_remote_trial_outside_geo_filter_reaches_widened(monkeypatch):
-    """Live ctgov drops far-away sites server side; the remote trial must still come back."""
-    real = matching.search_trials
-    calls = []
-
-    def fake(condition="brain tumor", origin=None, radius_miles=None, case_id=None):
-        calls.append(origin is not None)
-        found = real(condition=condition, case_id=case_id)
-        if origin is not None:  # what the live geo filter would return: no remote NCT99000008
-            found = [t for t in found if t.trial_id != "NCT99000008"]
-        return found
-
-    monkeypatch.setattr(matching, "search_trials", fake)
-    out = match("demo-018", can_use_phone_or_tablet=True, recurrence_number=1)
-    assert calls == [True, False]
-    assert isinstance(out, NoMatchPlan) and out.widened
-    assert "NCT99000008" in [t.trial_id for t in out.widened.trials]
-
-
-def test_no_second_search_when_remote_trials_excluded(monkeypatch, policy_with):
-    policy_with(lambda t: t.replace("include_remote_trials: true", "include_remote_trials: false"))
-    real = matching.search_trials
-    calls = []
-
-    def fake(**kw):
-        calls.append(kw.get("origin") is not None)
-        return real(**kw)
-
-    monkeypatch.setattr(matching, "search_trials", fake)
-    match("demo-015")
-    assert calls == [True]

@@ -2,14 +2,16 @@
 
 `match_case` is the workflow's matching hook. It geocodes the patient's ZIP
 (rule 6: ZIP only), searches trials, runs the eligibility checker on every
-trial and keeps those that pass within the default radius. A trial passes
-when no criterion is `not_met` and none waits on a `pending` result
-(interfaces.md). Remote trials only count in the widened search.
+trial and keeps every one that passes. A trial passes when no criterion is
+`not_met` and none waits on a `pending` result (interfaces.md).
+
+There is no distance cutoff. The search is nationwide, and distance only
+sorts the shortlist: nearest first, trials with no known distance
+(remote-only) last. The patient and doctor decide whether travel is worth it.
 
 If nothing passes, it builds the no-match plan from
-`trial_search.no_match_plan` in policy.yaml: widened radius (plus remote
-trials), near misses, an in-app alert for the care team (rule 5: never the
-patient) and a tumor board log entry.
+`trial_search.no_match_plan` in policy.yaml: near misses, an in-app alert for
+the care team (rule 5: never the patient) and a tumor board log entry.
 
 The mutation check is not read here. The workflow attaches it to each
 shortlist trial as context only (rule 10).
@@ -37,7 +39,7 @@ from agent.schemas import (
     TrialAlert,
     TrialRecord,
     TumorBoardEntry,
-    WidenedSearch,
+    distance_sort_key,
 )
 from agent.store import CaseRecord
 from agent.trials import search_trials
@@ -65,22 +67,14 @@ class Checked:
     site: NearestSite | None  # straight-line only until shortlisted
     ok: bool  # eligibility.passes(rows), computed once
 
-    @property
-    def miles(self) -> float | None:
-        return self.site.distance_miles if self.site else None
-
-    def in_scope(self, radius: float, include_remote: bool) -> bool:
-        if self.site is not None and self.site.distance_miles <= radius:
-            return True
-        return include_remote and self.trial.remote_participation
-
 
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _sort_key(c: Checked) -> tuple[float, str]:
-    return (c.miles if c.miles is not None else float("inf"), c.trial.trial_id)
+def _sort_key(c: Checked) -> tuple[tuple[bool, float], str]:
+    """The Shortlist schema's order (nearest first, unknown last), then trial id."""
+    return (distance_sort_key(c.site), c.trial.trial_id)
 
 
 def _shortlist_trial(c: Checked, origin: Origin, policy: Policy, case_id: str) -> ShortlistTrial:
@@ -124,7 +118,7 @@ def _near_miss(c: Checked) -> NearMiss | None:
     )
 
 
-def _alert(rec: CaseRecord, radius: float, now: datetime) -> TrialAlert:
+def _alert(rec: CaseRecord, now: datetime) -> TrialAlert:
     r = rec.results
     assert r is not None
     markers: dict[str, str | int] = {}
@@ -136,7 +130,7 @@ def _alert(rec: CaseRecord, radius: float, now: datetime) -> TrialAlert:
         markers["secreting_hormone"] = r.pituitary.secreting_hormone
     return TrialAlert(
         alert_id=f"alert-{rec.case_id}-{now.strftime('%Y%m%d%H%M%S')}",
-        query=AlertQuery(bucket=r.confirmed_bucket, markers=markers, zip=r.zip, radius_miles=radius),
+        query=AlertQuery(bucket=r.confirmed_bucket, markers=markers, zip=r.zip),
         notify="care_team_in_app",
         created_at=now,
     )
@@ -156,22 +150,6 @@ def check_all(trials: list[TrialRecord], facts: Facts, origin: Origin, policy: P
     return sorted(out, key=_sort_key)
 
 
-def _find_trials(condition: str, origin: Origin, radius: float, include_remote: bool,
-                 case_id: str) -> list[TrialRecord]:
-    """Trials near the origin, plus remote trials from anywhere.
-
-    The live ClinicalTrials.gov query applies a server-side distance filter,
-    which drops a remote trial whose sites are all far away. So when remote
-    trials count, a second search without the geo filter adds them.
-    """
-    trials = search_trials(condition=condition, origin=origin, radius_miles=radius, case_id=case_id)
-    if include_remote:
-        seen = {t.trial_id for t in trials}
-        trials += [t for t in search_trials(condition=condition, case_id=case_id)
-                   if t.remote_participation and t.trial_id not in seen]
-    return trials
-
-
 def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     """Workflow matching hook: a shortlist, or the no-match plan."""
     r = rec.results
@@ -180,47 +158,36 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     case_id = rec.case_id
     ts = policy.trial_search
     nm = ts.no_match_plan
-    radius = ts.default_radius_miles
 
     searched_at = _now()
-    origin = geo.geocode_zip(r.zip, case_id=case_id)  # rule 6: ZIP only
+    origin = geo.geocode_zip(r.zip, case_id=case_id)  # rule 6: ZIP only; for distance, never a filter
     condition = CONDITION_FOR_BUCKET.get(r.confirmed_bucket, "brain tumor")
-    wide = max(radius, nm.widened_radius_miles)
-    trials = _find_trials(condition, origin, wide, nm.include_remote_trials, case_id)
+    trials = search_trials(condition=condition, case_id=case_id)  # nationwide
     checked = check_all(trials, Facts.from_results(r), origin, policy, case_id)
 
-    hits = [c for c in checked if c.ok and c.in_scope(radius, include_remote=False)]
+    hits = [c for c in checked if c.ok]
     if hits:
         shortlist = Shortlist(
             case_id=case_id,
             origin=origin,
-            radius_miles=radius,
             statuses_searched=list(ts.statuses),
             trials=[_shortlist_trial(c, origin, policy, case_id) for c in hits],
         )
-        audit("agent", "shortlist_built", {"trials": [t.trial_id for t in shortlist.trials],
-                                           "radius_miles": radius}, case_id=case_id)
+        audit("agent", "shortlist_built", {"trials": [t.trial_id for t in shortlist.trials]},
+              case_id=case_id)
         return shortlist
 
-    # --- no-match plan (F10) ---
-    widened = [c for c in checked if c.ok and c.in_scope(wide, nm.include_remote_trials)]
+    # --- no-match plan (F10): no eligible trial anywhere in the searched statuses ---
     near_misses: list[NearMiss] = []
     if nm.show_near_misses:
-        misses = (_near_miss(c) for c in checked
-                  if not c.ok and c.in_scope(wide, nm.include_remote_trials))
-        near_misses = [m for m in misses if m is not None]
+        near_misses = [m for m in (_near_miss(c) for c in checked) if m is not None]
     now = _now()
-    alert = _alert(rec, wide, now) if nm.alert_on_new_trials else None
+    alert = _alert(rec, now) if nm.alert_on_new_trials else None
     board = (TumorBoardEntry(ts=now, case_id=case_id, entry="No current match", searched_at=searched_at)
              if nm.log_for_tumor_board else None)
     plan = NoMatchPlan(
         case_id=case_id,
-        searched=SearchSummary(radius_miles=radius, statuses=list(ts.statuses), match_count=0),
-        widened=WidenedSearch(
-            radius_miles=wide,
-            include_remote_trials=nm.include_remote_trials,
-            trials=[_shortlist_trial(c, origin, policy, case_id) for c in widened],
-        ),
+        searched=SearchSummary(statuses=list(ts.statuses), match_count=0),
         near_misses=near_misses,
         alert=alert,
         tumor_board_log=board,
@@ -230,8 +197,6 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
               case_id=case_id)
     if board:
         audit("agent", "tumor_board_log", {"entry": board.entry}, case_id=case_id)
-    audit("agent", "no_match_plan_built", {
-        "widened_trials": [c.trial.trial_id for c in widened],
-        "near_misses": [m.trial_id for m in near_misses],
-    }, case_id=case_id)
+    audit("agent", "no_match_plan_built", {"near_misses": [m.trial_id for m in near_misses]},
+          case_id=case_id)
     return plan
