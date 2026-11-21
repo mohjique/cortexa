@@ -159,6 +159,17 @@ def _wrong_bucket(facts: Facts, want: Bucket) -> Finding | None:
     return None
 
 
+def _any_of(*fs: Finding) -> Finding:
+    """Holds if any part holds. Else unknown if any part is unknown, else fails."""
+    for f in fs:
+        if f.holds:
+            return f
+    unknown = [f for f in fs if f.holds is None]
+    if unknown:
+        return next((f for f in unknown if f.pending), unknown[0])
+    return fs[0]
+
+
 def _not(f: Finding, reason: str | None = None) -> Finding:
     if f.holds is None:
         return f
@@ -280,13 +291,14 @@ def _entity(facts: Facts, entity: str, policy: Policy) -> Finding:
 def _histology(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
     """'Histologically confirmed <entity>, <IDH>, <1p/19q>, CNS WHO grade X or Y'."""
     text = m.string.lower()
-    ent = _ENTITY_RE.search(text)
+    entities = list(dict.fromkeys(_ENTITY_RE.findall(text)))
     parts: list[Finding] = []
-    if ent:
-        parts.append(_entity(facts, ent.group(1), policy))
-    for want in ("mutant", "wildtype"):
-        if re.search(rf"idh[- ]?{want[:4]}", text):
-            parts.append(_marker_is(facts, "idh", want, policy))
+    if entities:
+        # "astrocytoma or oligodendroglioma": any one listed entity is enough.
+        parts.append(_any_of(*(_entity(facts, e, policy) for e in entities)))
+    idh_forms = [w for w in ("mutant", "wildtype") if re.search(rf"idh[- ]?{w[:4]}", text)]
+    if len(idh_forms) == 1:  # both forms listed ("IDH-mutant or IDH-wildtype") = no IDH requirement
+        parts.append(_marker_is(facts, "idh", idh_forms[0], policy))
     if re.search(r"1p/19q[- ]?co[- ]?deleted|1p/19q[- ]?codeletion", text):
         parts.append(_marker_is(facts, "codeletion_1p19q", "codeleted", policy))
     g = _GRADE_RE.search(text)
@@ -298,8 +310,9 @@ def _histology(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
         return _review(NO_RULE_FIELD, "histology not recognized")
     out = _all_of(*parts)
     if out.holds:
-        return _yes("diagnosis", f"diagnosis: {facts.diagnosis}" + (
-            f", grade {facts.grade}" if g else ""))
+        # Rule 4: cite every field the call used, not just the diagnosis.
+        fields = ", ".join(dict.fromkeys(p.field for p in parts))
+        return _yes("diagnosis", f"{out.reason} (fields: {fields})")
     return out
 
 
@@ -318,9 +331,10 @@ def _grade_in(facts: Facts, lo: int, hi: int, policy: Policy) -> Finding:
     if g is None:
         return why
     span = f"{lo}" if lo == hi else f"{lo} to {hi}"
+    src = "grade" if isinstance(facts.grade, int) else "diagnosis"  # read from the diagnosis text
     if lo <= g <= hi:
-        return _yes("grade", f"WHO grade {g} is within {span}")
-    return _no("grade", f"WHO grade {g} is outside {span}")
+        return _yes(src, f"WHO grade {g} is within {span}")
+    return _no(src, f"WHO grade {g} is outside {span}")
 
 
 def _marker_rule(name: str, want: str) -> RuleFn:
@@ -440,7 +454,7 @@ def _first_or_second(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
 
 def _more_than_recurrences(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
     raw = m.group("n")
-    limit = int(raw) if raw.isdigit() else _WORDS[raw]
+    limit = int(raw) if raw.isdigit() else _WORDS[raw.lower()]
     if facts.recurrence_number is None:
         return _missing("recurrence_number", "recurrence number", policy)
     n = facts.recurrence_number
@@ -568,7 +582,13 @@ RULES: list[tuple[re.Pattern[str], RuleFn]] = [
 # ---------------------------------------------------------------------------
 
 _BULLET = re.compile(r"^\s*(?:[*\-•·]|\d+[.)])\s+")
-_HEADER = re.compile(r"^\s*(inclusion|exclusion)\s+criteria\s*:?\s*$", _I)
+# "Inclusion Criteria:", and prefixed forms ClinicalTrials.gov often uses
+# ("Key Exclusion Criteria:", "Main Inclusion Criteria:").
+_HEADER = re.compile(
+    r"^\s*(?:(?:key|main|major|primary|general|additional|other)\s+)?"
+    r"(inclusion|exclusion)\s+criteria\s*:?\s*$",
+    _I,
+)
 
 
 @dataclass(frozen=True)
