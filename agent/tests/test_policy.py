@@ -33,7 +33,7 @@ def write(path: Path, text: str) -> None:
 
 def test_real_policy_is_valid():
     policy = parse_policy(REAL)
-    assert policy.trial_search.default_radius_miles == 100
+    assert not hasattr(policy.trial_search, "default_radius_miles")  # no distance cutoff
     assert policy.status_context()["statuses"] == ["RECRUITING", "NOT_YET_RECRUITING"]
 
 
@@ -66,9 +66,11 @@ def test_locked_safety_settings_cannot_be_loosened(change, match):
     "change,match",
     [
         ({"trial_search.statuses": ["RECRUITING", "ENROLLING_BY_INVITATION"]}, "status_labels missing"),
-        ({"trial_search.no_match_plan.widened_radius_miles": 50}, "widened_radius_miles"),
         ({"eligibility.missing_field_reason_template": "needs pathology"}, "{field}"),
-        ({"trial_search.default_radius_mile": 100}, "Extra inputs"),  # staff typo
+        ({"trial_search.status_label": {}}, "Extra inputs"),  # staff typo
+        # No distance cutoff: a radius setting is rejected, not silently ignored.
+        ({"trial_search.default_radius_miles": 100}, "Extra inputs"),
+        ({"trial_search.no_match_plan.widened_radius_miles": 500}, "Extra inputs"),
         ({"privacy": ...}, "privacy"),
         ({"pre_surgery_detection.inclusion_phrases": []}, "inclusion_phrases"),
         ({"pre_surgery_detection.exclusion_phrases": [""]}, "exclusion_phrases"),
@@ -89,10 +91,10 @@ def test_store_reloads_on_change(tmp_path, audit_log):
     path = tmp_path / "policy.yaml"
     write(path, REAL)
     store = PolicyStore(path)
-    assert store.get().trial_search.default_radius_miles == 100
+    assert store.get() == parse_policy(REAL)
 
-    write(path, edited(**{"trial_search.default_radius_miles": 250}))
-    assert store.get().trial_search.default_radius_miles == 250
+    write(path, edited(**{"classifier.min_confidence_for_auto_suggest": 0.5}))
+    assert store.get().classifier.min_confidence_for_auto_suggest == 0.5
     assert [e.action for e in audit_log.read()] == ["policy_loaded", "policy_reloaded"]
     assert all(e.actor == "system" for e in audit_log.read())
 
@@ -116,8 +118,8 @@ def test_bad_edit_keeps_last_good_policy(tmp_path, audit_log):
     assert "patient_contact" in (store.last_error or "")
     assert audit_log.read()[-1].action == "policy_reload_failed"
 
-    write(path, edited(**{"trial_search.default_radius_miles": 300}))
-    assert store.get().trial_search.default_radius_miles == 300
+    write(path, edited(**{"classifier.min_confidence_for_auto_suggest": 0.85}))
+    assert store.get().classifier.min_confidence_for_auto_suggest == 0.85
     assert store.last_error is None
 
 

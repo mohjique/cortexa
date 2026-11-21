@@ -40,7 +40,8 @@ These apply to every piece of code, prompt and UI string. Enforce them in code, 
 5. **Trial matching:** each eligibility rule is marked `met`, `not_met` or `unknown`, with evidence.
 6. **Any trials match?**
    - **Yes:** doctor reviews the shortlist, with a map and travel time. Both `RECRUITING` and `NOT_YET_RECRUITING` trials are shown, each with its status label.
-   - **No:** no-match plan. Widen the radius and include remote trials, show near misses (fails one rule, or depends on a pending result), set alerts for newly opened trials, and log "no current match" for the tumor board.
+   - **No distance cutoff.** Every eligible trial is shown, however far away, sorted nearest first (trials with no known distance, such as remote-only, last). The patient and doctor decide whether the travel is worth it. Distance sorts and labels trials; it never filters them out.
+   - **No:** no-match plan. Show near misses (fails one rule, or depends on a pending result), set alerts for newly opened trials, and log "no current match" for the tumor board.
 
 ## Repo layout
 
@@ -81,7 +82,7 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Evaluate MedGemma alone on the test set first. If it is weak on brain MRI, use it to write the plain-language findings summary instead of voting.
 
 ### Agent (`agent/`)
-- **ClinicalTrials.gov API v2:** `https://clinicaltrials.gov/api/v2/studies`, no key. Use `filter.overallStatus=RECRUITING,NOT_YET_RECRUITING` (statuses come from `policy.yaml`; show each trial's status label in the UI) and `filter.geo=distance(lat,lon,100mi)`. Site coordinates are in `contactsLocationsModule.locations[].geoPoint`.
+- **ClinicalTrials.gov API v2:** `https://clinicaltrials.gov/api/v2/studies`, no key. Use `filter.overallStatus=RECRUITING,NOT_YET_RECRUITING` (statuses come from `policy.yaml`; show each trial's status label in the UI). No `filter.geo`: the search is nationwide, and the patient's ZIP is used only to compute distance and drive time. Site coordinates are in `contactsLocationsModule.locations[].geoPoint`.
 - **NCI Clinical Trials Search API v2:** `https://clinicaltrialsapi.cancer.gov/api/v2/`, free key in the `X-API-KEY` header. Use it for structured biomarker eligibility.
 - **Geocoding and routing:** ZIP or city only. Nominatim for geocoding, OSRM for drive time.
 - Cache API responses to disk for the demo, in case an API goes down. A committed, synthetic demo cache lives in `agent/demo_cache/` (fake trial IDs `NCT990000xx`). The live-response `cache/` folder stays gitignored.

@@ -28,10 +28,9 @@ trial_search:
   status_labels:                  # shown in the UI; every status above needs one
     RECRUITING: "Recruiting"
     NOT_YET_RECRUITING: "Not yet recruiting: enrollment has not opened"
-  default_radius_miles: 100
+  # No distance cutoff: every eligible trial is shown, sorted nearest first.
+  # Remote trials and trials with no site location are listed last.
   no_match_plan:
-    widened_radius_miles: 500
-    include_remote_trials: true
     show_near_misses: true        # fails exactly one rule, or depends on a pending result
     alert_on_new_trials: true
     log_for_tumor_board: true

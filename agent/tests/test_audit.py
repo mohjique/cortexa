@@ -7,12 +7,12 @@ from agent.audit import AuditLog, audit, audited
 
 
 def test_append_writes_one_json_line(audit_log):
-    audit("agent", "trial_search", {"radius_miles": 100}, case_id="demo-001")
+    audit("agent", "trial_search", {"trials_found": 9}, case_id="demo-001")
     audit("doctor", "decision:confirm_bucket", case_id="demo-002")
     lines = audit_log.path.read_text().splitlines()
     assert len(lines) == 2
     first = json.loads(lines[0])
-    assert first["actor"] == "agent" and first["detail"] == {"radius_miles": 100}
+    assert first["actor"] == "agent" and first["detail"] == {"trials_found": 9}
     assert first["ts"].endswith("Z")
 
 

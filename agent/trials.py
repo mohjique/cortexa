@@ -17,7 +17,7 @@ from pydantic import ValidationError
 from agent import http_cache
 from agent.audit import audit, audited
 from agent.policy import Policy, get_policy
-from agent.schemas import Origin, TrialRecord, TrialSite
+from agent.schemas import TrialRecord, TrialSite
 
 CTGOV_URL = "https://clinicaltrials.gov/api/v2/studies"
 NCI_URL = "https://clinicaltrialsapi.cancer.gov/api/v2/trials"
@@ -122,17 +122,14 @@ def normalize_ctgov(study: dict[str, Any], fetched: http_cache.Fetched, policy: 
 def fetch_ctgov(
     condition: str,
     policy: Policy,
-    origin: Origin | None = None,
-    radius_miles: float | None = None,
     case_id: str | None = None,
 ) -> tuple[list[dict[str, Any]], http_cache.Fetched]:
+    # No filter.geo: there is no distance cutoff (every eligible trial is shown).
     params: dict[str, Any] = {
         "query.cond": condition,
         "filter.overallStatus": ",".join(policy.trial_search.statuses),
         "pageSize": CTGOV_PAGE_SIZE,
     }
-    if origin is not None and radius_miles is not None:
-        params["filter.geo"] = f"distance({origin.lat},{origin.lon},{radius_miles:g}mi)"
     studies: list[dict[str, Any]] = []
     first: http_cache.Fetched | None = None
     for _ in range(CTGOV_MAX_PAGES):
@@ -279,18 +276,15 @@ def _normalize_all(raw: list[dict[str, Any]], fn: Any, fetched: http_cache.Fetch
 @audited("trial_search")
 def search_trials(
     condition: str = DEFAULT_CONDITION,
-    origin: Origin | None = None,
-    radius_miles: float | None = None,
     case_id: str | None = None,
 ) -> list[TrialRecord]:
     """Recruiting trials in policy statuses, merged across both APIs.
 
-    `origin` + `radius_miles` narrow the live ClinicalTrials.gov query only.
-    Distance filtering on the result is the caller's job (geo.nearest_site),
-    since remote trials must survive it.
+    Nationwide: there is no distance cutoff. Callers compute distance with
+    geo.nearest_site to sort and label trials, never to drop them.
     """
     policy = get_policy()
-    raw, fetched = fetch_ctgov(condition, policy, origin, radius_miles, case_id)
+    raw, fetched = fetch_ctgov(condition, policy, case_id=case_id)
     ctgov = _normalize_all(raw, normalize_ctgov, fetched, policy, "ctgov", case_id)
     nci: list[TrialRecord] = []
     got = fetch_nci(condition, case_id)
