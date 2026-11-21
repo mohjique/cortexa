@@ -6,18 +6,54 @@ Run: uvicorn agent.api:app --reload
 from __future__ import annotations
 
 import os
+import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import ValidationError
 
 from agent import workflow
-from agent.audit import get_audit_log
+from agent.audit import DATA_DIR, audit, get_audit_log
 from agent.policy import get_policy
 from agent.schemas import AuditEntry, CaseState, DoctorDecisionAdapter, NonEmptyStr, Schema
-from agent.store import CaseNotFound, CaseRecord, get_store
+from agent.store import CaseExists, CaseNotFound, CaseRecord, get_store
+
+MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+HEATMAP_DIR = DATA_DIR / "heatmaps"
+
+# ---------------------------------------------------------------------------
+# Classifier: CORTEXA_CLASSIFIER=real | stub. Default: real if model.pt exists.
+# ---------------------------------------------------------------------------
+
+_classifier: Any = None
+
+
+def get_classifier() -> Any:
+    global _classifier
+    if _classifier is None:
+        from classifier.real import DEFAULT_MODEL
+
+        choice = os.environ.get("CORTEXA_CLASSIFIER") or ("real" if DEFAULT_MODEL.exists() else "stub")
+        if choice == "real":
+            from classifier.real import ResNetClassifier
+
+            _classifier = ResNetClassifier(heatmap_dir=HEATMAP_DIR)
+        else:
+            from classifier.stub import StubClassifier
+
+            _classifier = StubClassifier()
+        audit("system", "classifier_loaded", {"classifier": type(_classifier).__name__})
+    return _classifier
+
+
+def set_classifier(c: Any) -> None:
+    """Swap the classifier (tests)."""
+    global _classifier
+    _classifier = c
 
 
 @asynccontextmanager
@@ -47,6 +83,59 @@ def _get(case_id: str) -> CaseRecord:
 @app.get("/cases", response_model=list[CaseState])
 def list_cases() -> list[CaseState]:
     return get_store().list_cases()
+
+
+@app.post("/cases", response_model=CaseState, status_code=201)
+async def create_case(request: Request, case_id: str | None = None, filename: str | None = None) -> CaseState:
+    """Upload an MRI image (raw bytes as the request body) and classify it.
+
+    `fetch("/cases?case_id=demo-016", {method: "POST", body: file})`.
+    Creates the case, runs the classifier and moves it to confirm_bucket.
+    The result is a suspected bucket only; the doctor confirms (rules 1, 2).
+    Synthetic or public-dataset images only (rule 9). The image is not stored.
+    """
+    image = await request.body()
+    if not image:
+        raise HTTPException(422, "empty upload: send the image bytes as the request body")
+    if len(image) > MAX_UPLOAD_BYTES:
+        raise HTTPException(413, "image larger than 20 MB")
+    case_id = case_id or f"case-{uuid.uuid4().hex[:8]}"
+    store = get_store()
+    try:
+        store.get(case_id)
+        raise HTTPException(409, f"case {case_id} already exists")
+    except CaseNotFound:
+        pass
+    except ValueError as exc:  # bad case_id format
+        raise HTTPException(422, str(exc)) from None
+    # Classify before creating the case, so a bad upload leaves nothing behind.
+    clf = get_classifier()
+    try:
+        output = clf.classify(case_id, image, filename)
+    except ValueError as exc:  # BadImage, or a schema error from the classifier
+        audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
+        raise HTTPException(422, f"could not classify: {exc}") from None
+    try:
+        store.create(case_id)
+    except CaseExists:
+        raise HTTPException(409, f"case {case_id} already exists") from None
+    audit("agent", "tool_call:classifier",
+          {"classifier": type(clf).__name__, "suspected_bucket": output.suspected_bucket},
+          case_id=case_id)
+    return workflow.attach_classification(case_id, output).state
+
+
+@app.get("/cases/{case_id}/heatmap")
+def get_heatmap(case_id: str) -> FileResponse:
+    """The Grad-CAM overlay for the case's classification (PNG)."""
+    rec = _get(case_id)
+    path = rec.classifier.heatmap_path if rec.classifier else None
+    if not path:
+        raise HTTPException(404, "no heatmap for this case")
+    p = Path(path).resolve()
+    if HEATMAP_DIR.resolve() not in p.parents or not p.is_file():  # only serve our own heatmaps
+        raise HTTPException(404, "no heatmap for this case")
+    return FileResponse(p, media_type="image/png")
 
 
 @app.get("/cases/{case_id}", response_model=CaseState)

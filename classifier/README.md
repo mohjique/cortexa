@@ -82,3 +82,9 @@ The border band is the outer 12% of each side, where frames and burned-in text s
 **Bottom line:** the check rules out the obvious frame and text shortcut. It does not show that every call is driven by the lesion, which is one more reason the doctor confirms every bucket.
 
 **Demo images:** heat on head 0.63–0.96. demo-023 (glioma called meningioma, 0.78) has its heatmap explaining the wrong call, which is useful to show judges.
+
+## Serving the model (F2.5)
+
+`classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is `None` until MedGemma is wired in.
+
+The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is `real` when `artifacts/classifier/model.pt` exists, otherwise `stub`; `CORTEXA_MODEL_PATH` overrides the path.
