@@ -22,3 +22,12 @@ Owner: computer engineer.
 | `NCI_API_KEY` | unset | Live NCI calls. Unset in live mode = NCI is skipped and logged. |
 
 Every search, geocode, drive-time call, fallback and dropped record is in the audit log.
+
+## Eligibility checker (F8)
+
+- `agent/eligibility.py`: `check_trial(trial, facts)` → one `EligibilityResult` per criterion bullet. Deterministic: `split_criteria` splits the text into inclusion and exclusion bullets, and the first matching rule in `RULES` decides. No LLM call. Build `Facts` with `Facts.from_results(doctor_results)`, or by hand at the pre-op screen.
+- A missing field is `unknown`. Pathology fields use `eligibility.missing_field_reason_template` from `policy.yaml`; other fields say "not recorded". A `pending` result is `unknown` with a reason starting `pending result:` (`is_pending`). `passes(rows)` is the shortlist rule: no `not_met`, nothing pending.
+- A bullet no rule covers is `unknown`, `evidence_field: doctor_review`. Live trials will have many of these, and the doctor reviews them.
+- "Enroll before surgery" bullets match `pre_surgery_detection.inclusion_phrases` in `policy.yaml`.
+- Rule 10: `Facts` has no mutation check field. TMB criteria read `tmb_clia` only.
+- `python -m agent.eligibility_eval`: agreement with `gold_eligibility` in `clinical/patients/`. Mode `entered` uses the `enter_results` blocks as is. Mode `profile` fills `recurrence_number`, `comorbidities`, `can_use_phone_or_tablet` and `tmb_clia` from the profile.
