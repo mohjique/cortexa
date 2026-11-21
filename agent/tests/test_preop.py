@@ -73,6 +73,39 @@ def test_nearest_site_from_case_zip(case_store):
     assert site is not None and site.city == "Austin" and site.distance_miles > 0
 
 
+def test_flags_sorted_nearest_first_no_site_last(monkeypatch):
+    from agent import geo
+    from agent.schemas import NearestSite, Origin
+
+    # Trials are processed in input order, so hand out distances in that order.
+    ids = ["NCT99000091", "NCT99000092", "NCT99000093"]
+    distances = iter([900.0, None, 40.0])
+
+    def fake_nearest_site(*args, **kwargs):
+        d = next(distances)
+        return None if d is None else NearestSite(city="X", distance_miles=d)
+
+    monkeypatch.setattr(geo, "nearest_site", fake_nearest_site)
+    trials = [trial(trial_id=t, title="[SYNTHETIC] Neoadjuvant glioblastoma study") for t in ids]
+    origin = Origin(zip="77840", lat=30.6, lon=-96.3)
+    flagged = find_pre_surgery_trials(trials, get_policy(), origin=origin)
+    assert [f.trial_id for f in flagged] == ["NCT99000093", "NCT99000091", "NCT99000092"]
+
+
+def test_preop_search_has_no_radius(case_store, monkeypatch):
+    import agent.preop as preop
+
+    seen = {}
+
+    def spy(**kw):
+        seen.update(kw)
+        return search_trials()
+
+    monkeypatch.setattr(preop, "search_trials", spy)
+    preop.preop_screen_hook(case_store.create("c1", zip="77840"), get_policy())
+    assert seen.get("radius_miles") is None and seen.get("origin") is None
+
+
 def test_no_zip_means_no_nearest_site(case_store):
     from agent.preop import preop_screen_hook
 

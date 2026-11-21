@@ -168,7 +168,7 @@ A trial is flagged when its inclusion criteria contain a `pre_surgery_detection.
 
 **`screen_id`** is a content hash of the screen (flags, statuses, criteria, sites, tests). It changes whenever any of those change, so a review is always tied to the screen the doctor saw.
 
-**Location.** The case record carries the patient's ZIP (`zip`, ZIP only, safety rule 6). The screen geocodes it, searches within `trial_search.default_radius_miles`, and sets `nearest_site` on each flag. Without a ZIP, or if geocoding fails (`preop_location_unavailable` in the audit log), the screen still runs with `nearest_site: null`.
+**Location.** The case record carries the patient's ZIP (`zip`, ZIP only, safety rule 6). The screen searches nationwide (no distance cutoff), geocodes the ZIP to set `nearest_site` on each flag, and sorts `pre_surgery_trials` nearest first; flags with no `nearest_site` go last. Distance is for sorting and display only, never a filter. Without a ZIP, or if geocoding fails (`preop_location_unavailable` in the audit log), the screen still runs with `nearest_site: null`.
 
 **Agent failures after a doctor action.** If an agent stage fails after a decision or rescreen is saved, the API still returns 200 with the saved state (`waiting_on: agent`), and the failure is audited as `stage_failed:<stage>`. The decision is not undone. Retry with `POST /cases/{case_id}/run`, which returns 503 if the stage fails again.
 

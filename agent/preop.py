@@ -16,7 +16,9 @@ The case has no surgical history at pre-op, so the screen cannot rule a trial
 out for "prior brain surgery". It flags the trial anyway and the doctor
 decides at the gate (rule 3: unknown is never guessed).
 
-Location: only the case's ZIP is geocoded (rule 6). Without a ZIP, or if
+Location: only the case's ZIP is geocoded (rule 6). Distance is for sorting
+and display only, never a filter: the search is nationwide and flags are
+ordered nearest first, with no-site flags last. Without a ZIP, or if
 geocoding fails, the screen still runs with no `nearest_site`.
 
 `tests_needed` is still empty: which biopsy answers decide which trials comes
@@ -102,6 +104,10 @@ def find_pre_surgery_trials(
                 nearest_site=site,
             )
         )
+    # Nearest first; no known site (remote, no coordinates, no ZIP) goes last.
+    found.sort(
+        key=lambda f: (f.nearest_site is None, f.nearest_site.distance_miles if f.nearest_site else 0.0)
+    )
     return found
 
 
@@ -119,8 +125,8 @@ def _origin(rec: CaseRecord) -> Origin | None:
 def preop_screen_hook(rec: CaseRecord, policy: Policy) -> PreOpScreen:
     """Default pre-op hook. Searches trials (demo cache unless live) and flags pre-surgery ones."""
     origin = _origin(rec)
-    radius = policy.trial_search.default_radius_miles if origin else None
-    trials = search_trials(origin=origin, radius_miles=radius, case_id=rec.case_id, policy=policy)
+    # Nationwide on purpose: the ZIP only fills in nearest_site (no distance cutoff).
+    trials = search_trials(case_id=rec.case_id, policy=policy)
     flagged = find_pre_surgery_trials(trials, policy, origin, rec.case_id)
     audit(
         "agent",
