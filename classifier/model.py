@@ -39,6 +39,45 @@ def eval_transform(size: int = IMG_SIZE) -> transforms.Compose:
     ])
 
 
+class RandomDegrade:
+    """Randomly degrade a [0,1] image tensor the way real scans degrade.
+
+    Written from scratch (never trained on the dataset's blurred / noisy /
+    motion files, which stay a held-out check). Covers the same families:
+    Gaussian, speckle and salt-and-pepper noise; blur; motion ghosting.
+    The first model, trained without this, called 86 of 264 noisy copies of
+    real tumors "no tumor", mostly with high confidence.
+    """
+
+    def __init__(self, p: float = 0.5) -> None:
+        self.p = p
+        self.blur = transforms.GaussianBlur(kernel_size=7, sigma=(0.5, 2.0))
+
+    def __call__(self, x: torch.Tensor) -> torch.Tensor:
+        if torch.rand(()) >= self.p:
+            return x
+        kind = int(torch.randint(0, 5, ()))
+        if kind == 0:  # gaussian noise
+            x = x + torch.randn_like(x[:1]) * float(torch.empty(()).uniform_(0.02, 0.15))
+        elif kind == 1:  # speckle (multiplicative)
+            x = x * (1 + torch.randn_like(x[:1]) * float(torch.empty(()).uniform_(0.05, 0.4)))
+        elif kind == 2:  # salt and pepper
+            amount = float(torch.empty(()).uniform_(0.005, 0.06))
+            r = torch.rand_like(x[:1])
+            x = torch.where(r < amount / 2, torch.zeros_like(x), x)
+            x = torch.where(r > 1 - amount / 2, torch.ones_like(x), x)
+        elif kind == 3:  # blur
+            x = self.blur(x)
+        else:  # motion: faint shifted copies along the phase-encode axis (ghosting)
+            dim = 1 + int(torch.randint(0, 2, ()))
+            ghost = torch.zeros_like(x)
+            for _ in range(int(torch.randint(1, 4, ()))):
+                ghost += torch.roll(x, int(torch.randint(8, 40, ())), dims=dim)
+            w = float(torch.empty(()).uniform_(0.08, 0.3))
+            x = (1 - w) * x + w * ghost / ghost.amax().clamp(min=1e-6) * x.amax()
+        return x.clamp(0, 1)
+
+
 def train_transform(size: int = IMG_SIZE) -> transforms.Compose:
     return transforms.Compose([
         transforms.Grayscale(num_output_channels=3),
@@ -47,6 +86,7 @@ def train_transform(size: int = IMG_SIZE) -> transforms.Compose:
         transforms.RandomRotation(10),
         transforms.ColorJitter(brightness=0.15, contrast=0.15),
         transforms.ToTensor(),
+        RandomDegrade(p=0.5),
         transforms.Normalize(MEAN, STD),
     ])
 

@@ -18,8 +18,10 @@ images, so a model scored on them is partly scored on images it trained on.
 3. We ignore the Kaggle folders and split whole clusters, stratified by class:
    demo_pool (issue #22) / test / calib / train. A cluster never straddles two
    splits, so no image in demo_pool, test or calib has a copy in train.
-4. Each blurred / noisy / motion copy is matched back to its clean source. Only
-   copies of test images are kept (split robust_<kind>); the rest are excluded.
+4. Each blurred / noisy / motion copy is matched back to its clean source and
+   follows its split: copies of train / calib images join train / calib,
+   copies of test images become the held-out robust_<kind> check, copies of
+   demo_pool images are excluded.
 
 The CSV holds file names, labels and hashes only, never pixels, so it is
 committed and Colab trains on exactly the same split.
@@ -55,6 +57,18 @@ THUMB = 32
 # only when no other cluster comes within VARIANT_MARGIN of it.
 VARIANT_CORR_MIN = 0.95
 VARIANT_MARGIN = 0.01
+# A copy follows its source's split, so it never leaks across splits:
+# - train / calib: extra degraded examples (calib gets harder, so the fitted
+#   temperature stops over-trusting the model on clean, easy scans)
+# - test: held-out robustness check, never trained on
+# - demo_pool: kept out entirely
+VARIANT_SPLIT = {
+    "train": "train",
+    "calib": "calib",
+    "test": "robust_{kind}",
+    "demo_pool": "excluded_demo_pool",
+    "dropped_label_conflict": "excluded_label_conflict",
+}
 
 # Demo pool sizes (issue #22 needs 12 / 5 / 3 / 3; extra glioma so demo-023,
 # a glioma the model gets wrong or is unsure about, can be found after training).
@@ -262,7 +276,7 @@ def build_split() -> list[dict]:
             split, source = "excluded_unmatched", ""
         else:
             source = clean[src]["path"]
-            split = f"robust_{v['origin']}" if split_of[roots[src]] == "test" else "excluded_not_test"
+            split = VARIANT_SPLIT[split_of[roots[src]]].format(kind=v["origin"])
         out.append({**v, "split": split, "cluster": "", "source": source, "match_corr": corr})
     return out
 

@@ -20,15 +20,17 @@ python -m classifier.train --out artifacts/classifier   # or Colab: classifier/t
 
 **Dedupe.** A pair is a duplicate when the bytes match, or pHash is within 10 bits *and* 32x32 thumbnail correlation is >= 0.975. Hashes alone chained different patients (dark axial T1 post-contrast slices hash alike) into mixed-class clusters; every cross-class pair above 0.95 correlation was a different patient when checked by eye, max 0.967. True duplicates sit at 0.99-1.0. The largest cluster is one no-tumor slice repeated 35 times at different contrast, 32 in Kaggle Training and 3 in Testing.
 
-**Split** (by cluster, stratified, seed 20261121; a cluster never spans two splits):
+**Split** (by cluster, stratified, seed 20261121; a cluster never spans two splits). Each blurred / noisy / motion copy follows its source image's split.
 
 | split | glioma | meningioma | no_tumor | pituitary | total | used for |
 |---|---|---|---|---|---|---|
-| train | 1185 | 1227 | 1490 | 1313 | 5215 | weights |
-| calib | 158 | 164 | 201 | 174 | 697 | best epoch + temperature |
-| test | 238 | 246 | 303 | 264 | 1051 | reported accuracy |
-| demo_pool | 40 | 8 | 6 | 6 | 60 | demo images (issue #22), never trained on or reported |
-| robust_blurred / noisy / motion | | | | | 264 / 264 / 87 | copies of **test** images only |
+| train | 1780 | 1913 | 2323 | 1998 | 8014 | weights: 5215 clean + 2799 degraded copies of those same scans |
+| calib | 214 | 262 | 411 | 271 | 1158 | best epoch + temperature: 697 clean + 461 copies (harder, so confidence is not fitted on easy scans only) |
+| test | 238 | 246 | 303 | 264 | 1051 | reported accuracy, clean only |
+| demo_pool | 40 | 8 | 6 | 6 | 60 | demo images (issue #22), never trained on or reported; their 35 copies are excluded |
+| robust_blurred / noisy / motion | | | | | 264 / 264 / 87 | copies of **test** images only, never trained on |
+
+The robust sets come from the same generator as the training copies, so they measure "this dataset's noise", not noise in general. `RandomDegrade` in `model.py` adds independently written noise, blur and motion ghosting to training images so the model is not tuned to one generator.
 
 Demo pool images are single, unduplicated scans. Reported test accuracy excludes them.
 
