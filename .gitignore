@@ -1,0 +1,29 @@
+# Secrets
+.env
+.env.*
+*.key
+
+# Data and models (never commit)
+data/
+datasets/
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+artifacts/
+cache/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.ipynb_checkpoints/
+
+# Node
+node_modules/
+dist/
+
+# OS
+.DS_Store

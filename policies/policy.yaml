@@ -1,0 +1,43 @@
+# Cortexa runtime policy. Loaded at startup and on change.
+# Clinical wording is owned by the premed teammate. Edits here must change
+# agent behavior without code changes.
+
+classifier:
+  min_confidence_for_auto_suggest: 0.80   # below this, flag "needs review"
+  flag_on_model_disagreement: true
+  label_prefix: "Suspected"               # never "Diagnosis"
+
+approvals:
+  required:
+    - confirm_bucket
+    - enter_results
+    - review_shortlist
+
+eligibility:
+  missing_field_status: unknown
+  missing_field_reason_template: "needs pathology: {field}"
+  require_evidence_citation: true
+
+trial_search:
+  statuses: [RECRUITING, NOT_YET_RECRUITING]
+  default_radius_miles: 100
+  no_match_plan:
+    widened_radius_miles: 500
+    include_remote_trials: true
+    show_near_misses: true        # fails exactly one rule, or depends on a pending result
+    alert_on_new_trials: true
+    log_for_tumor_board: true
+
+mutation_check:
+  run_only_for: recurrent_glioma
+  require_broad_sequencing: true  # exome or genome; skip small panels
+  false_alarm_rate: 0.01
+  never_route_to_immunotherapy_on_mutation_count: true
+
+privacy:
+  geocode_fields_allowed: [zip, city]
+  patient_contact: never
+
+audit:
+  log_every_tool_call: true
+  log_every_approval: true

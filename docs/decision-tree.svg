@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="680" height="1250" viewBox="0 0 680 1250" role="img">
+<title>Cortexa decision tree</title>
+<style>
+.bg{fill:#FFFFFF}
+.box{fill:#F1EFE8;stroke:#888780;stroke-width:0.5}
+.th{font:500 14px -apple-system,Segoe UI,Helvetica,Arial,sans-serif;fill:#2C2C2A}
+.ts{font:400 12px -apple-system,Segoe UI,Helvetica,Arial,sans-serif;fill:#5F5E5A}
+.c-purple rect, rect.c-purple{fill:#EEEDFE;stroke:#534AB7;stroke-width:0.5}
+.c-purple .th{fill:#3C3489}.c-purple .ts{fill:#534AB7}
+.c-teal rect, rect.c-teal{fill:#E1F5EE;stroke:#0F6E56;stroke-width:0.5}
+.c-teal .th{fill:#085041}.c-teal .ts{fill:#0F6E56}
+.arr{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+.ln{stroke:#5F5E5A;stroke-width:1.5;fill:none}
+</style>
+<defs><marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="#5F5E5A" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker></defs>
+<rect class="bg" x="0" y="0" width="680" height="1250"/>
+<g><rect class="box" x="240" y="30" width="200" height="44" rx="8"/><text class="th" x="340" y="52" text-anchor="middle" dominant-baseline="central">MRI uploaded</text></g>
+<line x1="340" y1="74" x2="340" y2="102" class="arr" marker-end="url(#arrow)"/>
+<g class="c-purple"><rect x="200" y="104" width="280" height="56" rx="8"/><text class="th" x="340" y="122" text-anchor="middle" dominant-baseline="central">Classifier + MedGemma</text><text class="ts" x="340" y="142" text-anchor="middle" dominant-baseline="central">Suspected bucket + confidence</text></g>
+<line x1="340" y1="160" x2="340" y2="188" class="arr" marker-end="url(#arrow)"/>
+<g class="c-teal"><rect x="200" y="190" width="280" height="56" rx="8"/><text class="th" x="340" y="208" text-anchor="middle" dominant-baseline="central">Doctor confirms bucket</text><text class="ts" x="340" y="228" text-anchor="middle" dominant-baseline="central">Low confidence flagged</text></g>
+<path d="M340 246 L340 262" class="ln"/>
+<path d="M107 262 L572 262" class="ln"/>
+<line x1="107" y1="262" x2="107" y2="274" class="arr" marker-end="url(#arrow)"/>
+<line x1="262" y1="262" x2="262" y2="274" class="arr" marker-end="url(#arrow)"/>
+<line x1="417" y1="262" x2="417" y2="274" class="arr" marker-end="url(#arrow)"/>
+<line x1="572" y1="262" x2="572" y2="274" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="40" y="276" width="135" height="44" rx="8"/><text class="th" x="107" y="298" text-anchor="middle" dominant-baseline="central">No tumor</text></g>
+<g><rect class="box" x="195" y="276" width="135" height="44" rx="8"/><text class="th" x="262" y="298" text-anchor="middle" dominant-baseline="central">Meningioma</text></g>
+<g><rect class="box" x="350" y="276" width="135" height="44" rx="8"/><text class="th" x="417" y="298" text-anchor="middle" dominant-baseline="central">Glioma</text></g>
+<g><rect class="box" x="505" y="276" width="135" height="44" rx="8"/><text class="th" x="572" y="298" text-anchor="middle" dominant-baseline="central">Pituitary</text></g>
+<line x1="107" y1="320" x2="107" y2="348" class="arr" marker-end="url(#arrow)"/>
+<line x1="262" y1="320" x2="262" y2="348" class="arr" marker-end="url(#arrow)"/>
+<line x1="417" y1="320" x2="417" y2="348" class="arr" marker-end="url(#arrow)"/>
+<line x1="572" y1="320" x2="572" y2="348" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="40" y="350" width="135" height="56" rx="8"/><text class="th" x="107" y="368" text-anchor="middle" dominant-baseline="central">Stop</text><text class="ts" x="107" y="388" text-anchor="middle" dominant-baseline="central">No trial search</text></g>
+<g class="c-teal"><rect x="195" y="350" width="135" height="56" rx="8"/><text class="th" x="262" y="368" text-anchor="middle" dominant-baseline="central">Watch or treat?</text><text class="ts" x="262" y="388" text-anchor="middle" dominant-baseline="central">Doctor decides</text></g>
+<g class="c-purple"><rect x="350" y="350" width="135" height="56" rx="8"/><text class="th" x="417" y="368" text-anchor="middle" dominant-baseline="central">Pre-op screen</text><text class="ts" x="417" y="388" text-anchor="middle" dominant-baseline="central">Tests needed</text></g>
+<g><rect class="box" x="505" y="350" width="135" height="56" rx="8"/><text class="th" x="572" y="368" text-anchor="middle" dominant-baseline="central">Hormone labs</text><text class="ts" x="572" y="388" text-anchor="middle" dominant-baseline="central">Endocrine first</text></g>
+<path d="M230 406 L230 422 L107 422 L107 434" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="186" y="440">watch</text>
+<g><rect class="box" x="40" y="436" width="135" height="56" rx="8"/><text class="th" x="107" y="454" text-anchor="middle" dominant-baseline="central">Rescan later</text><text class="ts" x="107" y="474" text-anchor="middle" dominant-baseline="central">No trial search</text></g>
+<line x1="290" y1="406" x2="290" y2="518" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="298" y="424">treat</text>
+<line x1="417" y1="406" x2="417" y2="518" class="arr" marker-end="url(#arrow)"/>
+<path d="M572 406 L572 548 L452 548" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="190" y="520" width="260" height="56" rx="8"/><text class="th" x="320" y="538" text-anchor="middle" dominant-baseline="central">Surgery + pathology</text><text class="ts" x="320" y="558" text-anchor="middle" dominant-baseline="central">Lab tests the tissue</text></g>
+<line x1="320" y1="576" x2="320" y2="602" class="arr" marker-end="url(#arrow)"/>
+<g class="c-teal"><rect x="190" y="604" width="260" height="56" rx="8"/><text class="th" x="320" y="622" text-anchor="middle" dominant-baseline="central">Doctor enters results</text><text class="ts" x="320" y="642" text-anchor="middle" dominant-baseline="central">Diagnosis, grade, markers</text></g>
+<line x1="320" y1="660" x2="320" y2="686" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="190" y="688" width="260" height="56" rx="8"/><text class="th" x="320" y="706" text-anchor="middle" dominant-baseline="central">Recurrent glioma?</text><text class="ts" x="320" y="726" text-anchor="middle" dominant-baseline="central">From treatment history</text></g>
+<path d="M320 744 L320 760" class="ln"/>
+<path d="M180 760 L500 760" class="ln"/>
+<line x1="180" y1="760" x2="180" y2="778" class="arr" marker-end="url(#arrow)"/>
+<line x1="500" y1="760" x2="500" y2="778" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="50" y="780" width="260" height="56" rx="8"/><text class="th" x="180" y="798" text-anchor="middle" dominant-baseline="central">No: everything else</text><text class="ts" x="180" y="818" text-anchor="middle" dominant-baseline="central">New glioma, meningioma, pituitary</text></g>
+<g><rect class="box" x="370" y="780" width="260" height="56" rx="8"/><text class="th" x="500" y="798" text-anchor="middle" dominant-baseline="central">Yes: recurrent glioma</text><text class="ts" x="500" y="818" text-anchor="middle" dominant-baseline="central">After prior treatment</text></g>
+<line x1="500" y1="836" x2="500" y2="862" class="arr" marker-end="url(#arrow)"/>
+<g class="c-purple"><rect x="370" y="864" width="260" height="56" rx="8"/><text class="th" x="500" y="882" text-anchor="middle" dominant-baseline="central">Mutation check</text><text class="ts" x="500" y="902" text-anchor="middle" dominant-baseline="central">Skip if no broad sequencing</text></g>
+<path d="M180 836 L180 988 L188 988" class="arr" marker-end="url(#arrow)"/>
+<path d="M500 920 L500 988 L452 988" class="arr" marker-end="url(#arrow)"/>
+<g class="c-purple"><rect x="190" y="960" width="260" height="56" rx="8"/><text class="th" x="320" y="978" text-anchor="middle" dominant-baseline="central">Trial matching</text><text class="ts" x="320" y="998" text-anchor="middle" dominant-baseline="central">Met, not met, unknown</text></g>
+<line x1="320" y1="1016" x2="320" y2="1042" class="arr" marker-end="url(#arrow)"/>
+<g><rect class="box" x="190" y="1044" width="260" height="56" rx="8"/><text class="th" x="320" y="1062" text-anchor="middle" dominant-baseline="central">Any trials match?</text><text class="ts" x="320" y="1082" text-anchor="middle" dominant-baseline="central">Recruiting, in range</text></g>
+<line x1="320" y1="1100" x2="320" y2="1126" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="330" y="1114">yes</text>
+<path d="M450 1072 L565 1072 L565 1126" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="507" y="1062" text-anchor="middle">no</text>
+<g class="c-teal"><rect x="190" y="1128" width="260" height="56" rx="8"/><text class="th" x="320" y="1146" text-anchor="middle" dominant-baseline="central">Doctor reviews shortlist</text><text class="ts" x="320" y="1166" text-anchor="middle" dominant-baseline="central">Map + travel time</text></g>
+<g class="c-purple"><rect x="490" y="1128" width="150" height="56" rx="8"/><text class="th" x="565" y="1146" text-anchor="middle" dominant-baseline="central">No-match plan</text><text class="ts" x="565" y="1166" text-anchor="middle" dominant-baseline="central">Widen, watch, log</text></g>
+<rect class="c-purple" x="180" y="1212" width="14" height="14" rx="3"/><text class="ts" x="200" y="1219" dominant-baseline="central">AI or agent step</text>
+<rect class="c-teal" x="340" y="1212" width="14" height="14" rx="3"/><text class="ts" x="360" y="1219" dominant-baseline="central">Doctor decision</text>
+</svg>
