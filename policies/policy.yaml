@@ -8,8 +8,13 @@ classifier:
   label_prefix: "Suspected"               # never "Diagnosis"
 
 approvals:
+  # Code enforces all six gates. Removing one here only logs a warning.
+  # confirm_bucket, enter_results and review_shortlist are locked (safety rule 2).
   required:
     - confirm_bucket
+    - watch_or_treat
+    - hormone_labs
+    - surgery_or_meds
     - enter_results
     - review_shortlist
 
