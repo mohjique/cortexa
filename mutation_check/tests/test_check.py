@@ -172,3 +172,19 @@ def test_summary_never_claims_an_unsimulated_limit(no_engine):
     assert out["sbs11_call"] == "inconclusive" and out["detection_limit_95"] is None
     assert "not established at 30 mutations" in out["summary"]
     assert "even if it made up all of them" not in out["summary"]
+
+
+# ---- review follow-ups (PR #10) ----------------------------------------------------------------
+
+def test_counts_96_rejects_booleans():
+    req = _request("demo-016")
+    req["counts_96"] = [True] + req["counts_96"][1:]
+    with pytest.raises(ValueError, match="non-negative integers"):
+        run_mutation_check(req, false_alarm_rate=FAR)
+
+
+def test_unknown_engine_verdict_is_unavailable_not_keyerror(no_engine, monkeypatch):
+    real = check._report
+    monkeypatch.setattr(check, "_report", lambda *a: {**real(*a), "verdict": "maybe"})
+    with pytest.raises(MutationCheckUnavailable, match="unknown verdict"):
+        run_mutation_check(_request("demo-016"), false_alarm_rate=FAR)

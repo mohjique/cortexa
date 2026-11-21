@@ -84,7 +84,8 @@ def _counts(request: dict[str, Any]) -> list[int]:
     if has_snvs:
         return counts_from_snvs(request["snvs"])
     c = request["counts_96"]
-    if len(c) != 96 or any((not isinstance(x, int)) or x < 0 for x in c):
+    # bool is a subclass of int in Python, so True/False must be excluded explicitly.
+    if len(c) != 96 or any(isinstance(x, bool) or not isinstance(x, int) or x < 0 for x in c):
         raise ValueError("counts_96 must be 96 non-negative integers in COSMIC row order")
     return list(c)
 
@@ -136,6 +137,8 @@ def _report(case_id: str, counts: list[int], far: float) -> dict[str, Any]:
 
 
 def _to_contract(case_id: str, rep: dict[str, Any], far: float, include_limits: bool) -> dict[str, Any]:
+    if rep.get("verdict") not in CALL:
+        raise MutationCheckUnavailable(f"engine returned an unknown verdict {rep.get('verdict')!r}")
     n = rep["n_mutations"]
     exp = {k: (v / n if n else 0.0) for k, v in rep["background_exposures"].items()}
     exp[rep["target"]] = rep["target_fraction"] if n else 0.0
