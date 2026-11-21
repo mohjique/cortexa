@@ -1,0 +1,209 @@
+[
+ {
+  "case_id": "demo-001",
+  "kaggle_label": "no_tumor",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/No-tumor/BT-MRI NO Train (382).jpg",
+  "split": "demo_pool",
+  "model_pred": "no_tumor",
+  "model_confidence": 0.9992,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-002",
+  "kaggle_label": "no_tumor",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/No-tumor/BT-MRI NO Train (1422).jpg",
+  "split": "demo_pool",
+  "model_pred": "no_tumor",
+  "model_confidence": 0.9996,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-003",
+  "kaggle_label": "no_tumor",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/No-tumor/BT-MRI NO Train (288).jpg",
+  "split": "demo_pool",
+  "model_pred": "no_tumor",
+  "model_confidence": 0.9959,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-004",
+  "kaggle_label": "meningioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Meningioma/BT-MRI  ME Train (1163).jpg",
+  "split": "demo_pool",
+  "model_pred": "meningioma",
+  "model_confidence": 0.9996,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-005",
+  "kaggle_label": "meningioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Meningioma/BT-MRI  ME Train (489).jpg",
+  "split": "demo_pool",
+  "model_pred": "meningioma",
+  "model_confidence": 0.9997,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-006",
+  "kaggle_label": "meningioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Testing/Meningioma/BT-MRI ME Test (237).jpg",
+  "split": "demo_pool",
+  "model_pred": "meningioma",
+  "model_confidence": 0.9999,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-007",
+  "kaggle_label": "meningioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Meningioma/BT-MRI  ME Train (63).jpg",
+  "split": "demo_pool",
+  "model_pred": "meningioma",
+  "model_confidence": 0.9986,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-008",
+  "kaggle_label": "meningioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Meningioma/BT-MRI  ME Train (583).jpg",
+  "split": "demo_pool",
+  "model_pred": "meningioma",
+  "model_confidence": 0.9996,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-009",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Testing/Glioma/BT-MRI Test GL (14).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9995,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-010",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (1061).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9991,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-011",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (1002).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9992,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-012",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (609).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9995,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-013",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (594).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9996,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-014",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (869).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9997,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-015",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (800).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9997,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-016",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (825).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9991,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-017",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (1102).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9994,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-018",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (885).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9996,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-019",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (752).jpg",
+  "split": "demo_pool",
+  "model_pred": "glioma",
+  "model_confidence": 0.9994,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-020",
+  "kaggle_label": "pituitary",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Pituitary/BT-MRI PI Train (401).jpg",
+  "split": "demo_pool",
+  "model_pred": "pituitary",
+  "model_confidence": 0.9997,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-021",
+  "kaggle_label": "pituitary",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Testing/Pituitary/BT-MRI PI Test (103).jpg",
+  "split": "demo_pool",
+  "model_pred": "pituitary",
+  "model_confidence": 0.9997,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-022",
+  "kaggle_label": "pituitary",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Pituitary/BT-MRI PI Train (1244).jpg",
+  "split": "demo_pool",
+  "model_pred": "pituitary",
+  "model_confidence": 0.9988,
+  "flagged_uncertain_at_0_99": false
+ },
+ {
+  "case_id": "demo-023",
+  "kaggle_label": "glioma",
+  "image_file": "BT-MRI Dataset/BT-MRI Dataset/Training/Glioma/BT-MRI GL Train  (1242).jpg",
+  "split": "test",
+  "model_pred": "meningioma",
+  "model_confidence": 0.7828,
+  "flagged_uncertain_at_0_99": true
+ }
+]

@@ -91,10 +91,10 @@ def test_store_reloads_on_change(tmp_path, audit_log):
     path = tmp_path / "policy.yaml"
     write(path, REAL)
     store = PolicyStore(path)
-    assert store.get().classifier.min_confidence_for_auto_suggest == 0.80
+    assert store.get() == parse_policy(REAL)
 
-    write(path, edited(**{"classifier.min_confidence_for_auto_suggest": 0.9}))
-    assert store.get().classifier.min_confidence_for_auto_suggest == 0.9
+    write(path, edited(**{"classifier.min_confidence_for_auto_suggest": 0.5}))
+    assert store.get().classifier.min_confidence_for_auto_suggest == 0.5
     assert [e.action for e in audit_log.read()] == ["policy_loaded", "policy_reloaded"]
     assert all(e.actor == "system" for e in audit_log.read())
 

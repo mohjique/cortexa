@@ -1,0 +1,9 @@
+# Classifier (training + local inference). Colab already has torch/torchvision.
+# Local CPU build: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+torch>=2.3
+torchvision>=0.18
+imagehash>=4.3
+pillow>=10
+numpy>=1.26
+kaggle>=1.6
+six  # kaggle CLI imports it but does not declare it

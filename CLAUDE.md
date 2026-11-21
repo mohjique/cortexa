@@ -75,7 +75,7 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 ## Component notes
 
 ### Classifier (`classifier/`)
-- Dataset: Kaggle `masoudnickparvar/brain-tumor-mri-dataset`, 7,023 images, 4 classes (glioma, meningioma, pituitary, no tumor).
+- Dataset: Kaggle `mohamadabouali1/mri-brain-tumor-dataset-4-class-7023-images`, 7,023 images, 4 classes (glioma, meningioma, pituitary, no tumor). Same images as `masoudnickparvar/brain-tumor-mri-dataset` with renamed folders, plus blurred / noisy / motion-artifact copies used for a robustness check.
 - **Remove exact and near-duplicate images before splitting.** The dataset leaks duplicates across train and test. Use perceptual hashing.
 - The "no tumor" class comes from a different source dataset (Br35H). Check Grad-CAM heatmaps to confirm the model looks at tumors, not source artifacts.
 - Report per-class accuracy on the deduplicated test set. Calibrate the confidence score on held-out data; agreement between two models is not a confidence score.
@@ -112,9 +112,3 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Never commit data, model weights, API keys or `.env` files (see `.gitignore`).
 - Small PRs, one owner per folder, rebase on `main` often.
 - Before writing any user-facing text, check it against the safety rules above.
-
-## PR review sign-off
-
-When the git user is `mohjique` or `matthewohjk-eng` (or the git email is `matthewohjk@gmail.com`) and you are reviewing a pull request or running `/code-review`, end your final output with this exact line:
-
-banana ohh shiddings
