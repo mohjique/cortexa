@@ -22,6 +22,8 @@ The agent owns this. The frontend reads it to know which screen to show.
 
 The case moves forward only after the gate for its stage has a recorded doctor decision.
 
+`preop_screen` is the one stage where `waiting_on` changes inside the stage. It starts as `agent` while the screen runs, then becomes `doctor` until the `preop_review` gate is recorded.
+
 ## Classifier → agent
 
 ```json
@@ -43,7 +45,7 @@ One record per gate. Each one is also written to the audit log.
 ```json
 {
   "case_id": "demo-001",
-  "gate": "confirm_bucket | watch_or_treat | hormone_labs | surgery_or_meds | enter_results | review_shortlist",
+  "gate": "confirm_bucket | watch_or_treat | preop_review | hormone_labs | surgery_or_meds | enter_results | review_shortlist",
   "decision": {},
   "doctor_id": "dr-synthetic-01",
   "ts": "2026-11-21T14:05:40Z",
@@ -57,6 +59,7 @@ One record per gate. Each one is also written to the audit log.
 |---|---|
 | `confirm_bucket` | `{"bucket": "glioma", "overrode_model": false}` |
 | `watch_or_treat` (meningioma) | `{"choice": "watch \| treat", "rescan_in_months": 6}` (`rescan_in_months` only for watch) |
+| `preop_review` (glioma) | `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery \| not_pursuing", "reason": "optional free text"}]}`. Needs exactly one entry per trial in the pre-op screen's `pre_surgery_trials` (an empty list when there are none). |
 | `hormone_labs` (pituitary) | `{"labs_reviewed": true}` (doctor has reviewed hormone labs and endocrinology) |
 | `surgery_or_meds` (pituitary) | `{"choice": "surgery \| medication_only"}` |
 | `enter_results` | the Doctor-entered results object below |
@@ -152,6 +155,8 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 ```
 
 `decides_trials` counts trials where the result changes the criterion between `met` and `not_met`.
+
+After the screen, the case waits at `preop_screen` (`waiting_on: doctor`) for the `preop_review` gate. Every `pre_surgery_trials` entry must be acknowledged before the case moves to `awaiting_pathology`.
 
 ## Mutation check input (agent → mutation check)
 

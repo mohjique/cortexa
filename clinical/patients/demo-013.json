@@ -60,6 +60,10 @@
       "bucket": "glioma",
       "overrode_model": false
     },
+    "preop_review": {
+      "tests_reviewed": true,
+      "pre_surgery_trials": []
+    },
     "enter_results": {
       "case_id": "demo-013",
       "confirmed_bucket": "glioma",

@@ -6,6 +6,11 @@ every gate check lives in `submit_decision`, in code, never in the LLM
 decision for that stage's gate.
 
 Agent stages (pre-op screen, mutation check, matching) run through `AgentHooks`.
+The pre-op screen is the one agent stage that also has a doctor gate: the
+agent runs it (waiting_on=agent), then the case stays at preop_screen with
+waiting_on=doctor until `preop_review` is recorded. Trials that need
+enrollment before surgery are lost once the case moves on, so no flagged
+trial can be skipped.
 The mutation check default is the real check (`agent.mutation`); pre-op screen
 and matching defaults are still stubs, so the whole flow runs end to end.
 """
@@ -31,6 +36,7 @@ from agent.schemas import (
     MutationCheckRan,
     MutationCheckSkipped,
     NoMatchPlan,
+    PreOpReviewRecord,
     PreOpScreen,
     ReviewShortlistRecord,
     SearchSummary,
@@ -52,6 +58,7 @@ ALL_GATES: frozenset[str] = frozenset(get_args(Gate))
 GATE_AT_STAGE: dict[str, Gate] = {
     "confirm_bucket": "confirm_bucket",
     "watch_or_treat": "watch_or_treat",
+    "preop_screen": "preop_review",  # after the agent runs the screen
     "hormone_labs": "hormone_labs",
     "surgery_or_meds": "surgery_or_meds",
     "awaiting_pathology": "enter_results",  # results arrive from the lab
@@ -63,7 +70,7 @@ WAITING_ON: dict[str, WaitingOn] = {
     "intake": "agent",
     "confirm_bucket": "doctor",
     "watch_or_treat": "doctor",
-    "preop_screen": "agent",
+    "preop_screen": "agent",  # set to doctor once the screen is done
     "hormone_labs": "doctor",
     "surgery_or_meds": "doctor",
     "awaiting_pathology": "pathology",
@@ -79,6 +86,8 @@ assert set(WAITING_ON) == set(get_args(Stage)), "every stage needs a waiting_on"
 assert set(GATE_AT_STAGE.values()) == ALL_GATES, "every gate needs a stage"
 
 AGENT_STAGES: frozenset[str] = frozenset({"preop_screen", "mutation_check", "matching"})
+# Agent stages that end in a doctor gate instead of moving on by themselves.
+GATED_AGENT_STAGES: frozenset[str] = frozenset({"preop_screen"})
 FINAL_STAGES: frozenset[str] = frozenset({"stopped", "rescan", "no_match"})
 
 _BUCKET_NEXT: dict[str, Stage] = {
@@ -134,6 +143,8 @@ def next_stage(rec: CaseRecord, policy: Policy) -> Stage:
     if stage == "watch_or_treat":
         return "rescan" if st.treatment_path == "watch" else "awaiting_pathology"
     if stage == "preop_screen":
+        if rec.preop is None:
+            raise WorkflowError("preop_screen needs the screen result first")
         return "awaiting_pathology"
     if stage == "hormone_labs":
         return "surgery_or_meds"
@@ -285,10 +296,19 @@ def run_agent(case_id: str) -> CaseRecord:
     store = get_store()
     with _lock:
         rec = store.get(case_id)
-        while rec.state.stage in AGENT_STAGES:
+        while rec.state.stage in AGENT_STAGES and rec.state.waiting_on == "agent":
             policy = get_policy()
             _run_agent_stage(rec, policy)
-            _move(rec, policy)
+            if rec.state.stage in GATED_AGENT_STAGES:
+                rec.state.waiting_on = "doctor"  # stay here until the doctor's gate
+                audit(
+                    "agent",
+                    "waiting_on_doctor",
+                    {"stage": rec.state.stage, "gate": GATE_AT_STAGE[rec.state.stage]},
+                    case_id=rec.case_id,
+                )
+            else:
+                _move(rec, policy)
             rec = store.save(rec)
         return rec
 
@@ -330,6 +350,10 @@ def _check(rec: CaseRecord, d: DoctorDecision) -> DoctorDecision:
         want = expected or "no doctor gate"
         raise WrongGate(f"case is at {rec.state.stage} (expects {want}), got {d.gate}")
 
+    if rec.state.waiting_on == "agent":
+        # e.g. preop_screen before the agent has finished the screen
+        raise WrongGate(f"case is at {rec.state.stage} and the agent has not finished it")
+
     if isinstance(d, ConfirmBucketRecord):
         # Server decides overrode_model; the client's value is not trusted.
         overrode = (
@@ -350,6 +374,19 @@ def _check(rec: CaseRecord, d: DoctorDecision) -> DoctorDecision:
             raise InvalidDecision(
                 f"results treatment_path {r.pituitary.treatment_path} does not match "
                 f"case treatment_path {rec.state.treatment_path}"
+            )
+
+    elif isinstance(d, PreOpReviewRecord):
+        if rec.preop is None:
+            raise InvalidDecision("no pre-op screen to review")
+        flagged = {t.trial_id for t in rec.preop.pre_surgery_trials}
+        acked = {a.trial_id for a in d.decision.pre_surgery_trials}
+        if acked - flagged:
+            raise InvalidDecision(f"not a pre-surgery trial on the screen: {sorted(acked - flagged)}")
+        if flagged - acked:
+            raise InvalidDecision(
+                f"every pre-surgery trial needs pursue_before_surgery or not_pursuing; "
+                f"missing {sorted(flagged - acked)}"
             )
 
     elif isinstance(d, ReviewShortlistRecord):

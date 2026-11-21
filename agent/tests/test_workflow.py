@@ -10,6 +10,7 @@ from agent.schemas import (
     ConfirmBucketRecord,
     DoctorDecisionAdapter,
     MutationCheckSkipped,
+    PreOpScreen,
     Shortlist,
 )
 from agent.workflow import AgentHooks, InvalidDecision, WrongGate, submit_decision
@@ -63,6 +64,14 @@ def shortlist_hook(rec, policy):
     return Shortlist.model_validate(data, context=policy.status_context())
 
 
+def preop_with_trial_hook(rec, policy):
+    data = fixture("preop_screen.json") | {"case_id": rec.case_id}
+    return PreOpScreen.model_validate(data, context=policy.status_context())
+
+
+PREOP_OK = {"tests_reviewed": True, "pre_surgery_trials": []}
+
+
 def actions(audit_log):
     return [e.action for e in audit_log.read(CID)]
 
@@ -100,11 +109,52 @@ def test_meningioma_treat_waits_on_pathology(case_store):
     assert rec.state.treatment_path == "surgery"
 
 
-def test_glioma_runs_preop_then_waits_on_pathology(case_store):
+def test_glioma_runs_preop_then_waits_on_doctor(case_store):
     new_case(case_store)
     rec = decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
-    assert rec.state.stage == "awaiting_pathology"
+    assert rec.state.stage == "preop_screen" and rec.state.waiting_on == "doctor"
     assert rec.preop is not None and rec.preop.label.startswith("Suspected glioma")
+    rec = decide("preop_review", PREOP_OK)
+    assert rec.state.stage == "awaiting_pathology" and rec.state.waiting_on == "pathology"
+
+
+def test_preop_review_gates_even_with_no_pre_surgery_trials(case_store):
+    new_case(case_store)
+    decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    with pytest.raises(WrongGate, match="expects preop_review"):
+        decide("enter_results", glioma_results())
+    assert workflow.run_agent(CID).state.stage == "preop_screen"  # agent can't skip it
+
+
+def test_preop_review_must_ack_every_pre_surgery_trial(case_store, audit_log):
+    workflow.set_hooks(AgentHooks(preop_screen=preop_with_trial_hook))
+    new_case(case_store)
+    decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    with pytest.raises(InvalidDecision, match=r"missing \['NCT99000003'\]"):
+        decide("preop_review", PREOP_OK)
+    assert "decision_rejected:preop_review" in actions(audit_log)
+    assert case_store.get(CID).state.stage == "preop_screen"
+
+    stray = {"trial_id": "NCT99000009", "action": "not_pursuing"}
+    with pytest.raises(InvalidDecision, match="not a pre-surgery trial"):
+        decide("preop_review", PREOP_OK | {"pre_surgery_trials": [stray]})
+
+    ack = {"trial_id": "NCT99000003", "action": "pursue_before_surgery"}
+    rec = decide("preop_review", PREOP_OK | {"pre_surgery_trials": [ack]})
+    assert rec.state.stage == "awaiting_pathology"
+    assert "decision:preop_review" in actions(audit_log)
+
+
+def test_preop_review_rejected_before_screen_runs(case_store):
+    def boom(rec, policy):
+        raise RuntimeError("api down")
+
+    workflow.set_hooks(AgentHooks(preop_screen=boom))
+    new_case(case_store)
+    with pytest.raises(RuntimeError):
+        decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    with pytest.raises(WrongGate, match="agent has not finished"):
+        decide("preop_review", PREOP_OK)
 
 
 def test_pituitary_needs_labs_gate_before_surgery_or_meds(case_store):
@@ -140,6 +190,7 @@ def test_recurrent_glioma_with_exome_runs_mutation_check(case_store, audit_log):
     workflow.set_hooks(AgentHooks(mutation_check=workflow.stub_mutation_check))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     rec = decide("enter_results", glioma_results())
     assert rec.mutation is not None and rec.mutation.ran is True
     assert rec.mutation.sbs11_call == "inconclusive"
@@ -150,6 +201,7 @@ def test_recurrent_glioma_with_exome_runs_mutation_check(case_store, audit_log):
 def test_recurrent_glioma_without_broad_sequencing_skips(case_store, audit_log):
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     rec = decide(
         "enter_results",
         glioma_results(broad_sequencing_available=False, sequencing="panel"),
@@ -162,6 +214,7 @@ def test_recurrent_glioma_without_broad_sequencing_skips(case_store, audit_log):
 def test_new_glioma_skips_mutation_check(case_store):
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     rec = decide("enter_results", glioma_results(recurrent=False, recurrence_number=0))
     m = rec.mutation
     assert isinstance(m, MutationCheckSkipped) and m.skip_reason == "not_recurrent_glioma"
@@ -174,6 +227,7 @@ def to_shortlist(case_store):
     workflow.set_hooks(AgentHooks(matching=shortlist_hook))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     return decide("enter_results", glioma_results(recurrent=False, recurrence_number=0))
 
 
@@ -236,8 +290,10 @@ def test_results_bucket_must_match_confirmed(case_store):
 def test_every_decision_and_stage_change_audited(case_store, audit_log):
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     acts = actions(audit_log)
-    assert "decision:confirm_bucket" in acts
+    assert "decision:confirm_bucket" in acts and "decision:preop_review" in acts
+    assert "waiting_on_doctor" in acts
     assert acts.count("stage_changed") == 3  # intake->confirm, ->preop, ->pathology
 
 
@@ -257,7 +313,8 @@ def test_failed_hook_leaves_case_at_agent_stage_and_retries(case_store, audit_lo
     assert "stage_failed:preop_screen" in actions(audit_log)
 
     workflow.set_hooks(AgentHooks())
-    assert workflow.run_agent(CID).state.stage == "awaiting_pathology"
+    rec = workflow.run_agent(CID)
+    assert rec.state.stage == "preop_screen" and rec.state.waiting_on == "doctor"
 
 
 def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
@@ -268,6 +325,7 @@ def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
     workflow.set_hooks(AgentHooks(matching=empty))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("preop_review", PREOP_OK)
     with pytest.raises(workflow.WorkflowError, match="empty Shortlist"):
         decide("enter_results", glioma_results(recurrent=False, recurrence_number=0))
     rec = case_store.get(CID)
@@ -281,4 +339,4 @@ def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
 def test_gate_policy_gap_reported():
     missing = workflow.check_gate_policy(get_policy())
     assert set(missing) <= workflow.ALL_GATES
-    assert {"confirm_bucket", "enter_results", "review_shortlist"}.isdisjoint(missing)
+    assert {"confirm_bucket", "preop_review", "enter_results", "review_shortlist"}.isdisjoint(missing)

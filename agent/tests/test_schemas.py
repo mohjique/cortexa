@@ -19,6 +19,7 @@ CASES = {
     "classifier_output.json": s.ClassifierOutput,
     "decision_confirm_bucket.json": s.DoctorDecisionAdapter,
     "decision_watch_or_treat.json": s.DoctorDecisionAdapter,
+    "decision_preop_review.json": s.DoctorDecisionAdapter,
     "decision_surgery_or_meds.json": s.DoctorDecisionAdapter,
     "decision_enter_results.json": s.DoctorDecisionAdapter,
     "decision_review_shortlist.json": s.DoctorDecisionAdapter,
@@ -111,6 +112,16 @@ BAD = [
     ("decision_watch_or_treat.json", _set("decision.choice", "treat"), "only allowed when choice is watch"),
     ("decision_review_shortlist.json", _set("decision.reject.0.reason", "  "), "at least 1"),
     ("decision_review_shortlist.json", _set("decision.keep", ["NCT99000004"]), "only once"),
+    ("decision_preop_review.json", _set("decision.tests_reviewed", False), "tests_reviewed"),
+    ("decision_preop_review.json", _set("decision.pre_surgery_trials.0.action", "maybe"), "action"),
+    (
+        "decision_preop_review.json",
+        _set(
+            "decision.pre_surgery_trials",
+            [{"trial_id": "NCT99000003", "action": "not_pursuing"}] * 2,
+        ),
+        "only once",
+    ),
     ("decision_enter_results.json", _set("decision.case_id", "demo-999"), "must match"),
     # results
     ("results_glioma.json", _set("zip", "123 Main St, Bryan TX"), "pattern"),

@@ -273,6 +273,29 @@ class SurgeryOrMedsDecision(Schema):
     choice: Literal["surgery", "medication_only"]
 
 
+class PreSurgeryTrialAck(Schema):
+    """Doctor's call on one trial that needs enrollment before surgery."""
+
+    trial_id: TrialId
+    action: Literal["pursue_before_surgery", "not_pursuing"]
+    reason: str | None = None
+
+
+class PreOpReviewDecision(Schema):
+    """Glioma: doctor has reviewed the tests the biopsy must answer and
+    acknowledged every pre-surgery trial. The window closes at surgery."""
+
+    tests_reviewed: Literal[True]
+    pre_surgery_trials: list[PreSurgeryTrialAck] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_ack_per_trial(self) -> PreOpReviewDecision:
+        ids = [a.trial_id for a in self.pre_surgery_trials]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a pre-surgery trial may be acknowledged only once")
+        return self
+
+
 class TrialRejection(Schema):
     trial_id: TrialId
     reason: NonEmptyStr
@@ -308,6 +331,11 @@ class WatchOrTreatRecord(_DecisionRecord):
     decision: WatchOrTreatDecision
 
 
+class PreOpReviewRecord(_DecisionRecord):
+    gate: Literal["preop_review"]
+    decision: PreOpReviewDecision
+
+
 class HormoneLabsRecord(_DecisionRecord):
     gate: Literal["hormone_labs"]
     decision: HormoneLabsDecision
@@ -338,6 +366,7 @@ DoctorDecision = Annotated[
     Union[
         ConfirmBucketRecord,
         WatchOrTreatRecord,
+        PreOpReviewRecord,
         HormoneLabsRecord,
         SurgeryOrMedsRecord,
         EnterResultsRecord,
@@ -349,6 +378,7 @@ DoctorDecisionAdapter: TypeAdapter[DoctorDecision] = TypeAdapter(DoctorDecision)
 Gate = Literal[
     "confirm_bucket",
     "watch_or_treat",
+    "preop_review",
     "hormone_labs",
     "surgery_or_meds",
     "enter_results",

@@ -8,11 +8,13 @@ classifier:
   label_prefix: "Suspected"               # never "Diagnosis"
 
 approvals:
-  # Code enforces all six gates. Removing one here only logs a warning.
-  # confirm_bucket, enter_results and review_shortlist are locked (safety rule 2).
+  # Code enforces all seven gates. Removing one here only logs a warning.
+  # confirm_bucket, preop_review, enter_results and review_shortlist are locked (safety rule 2).
+  # preop_review: doctor reviews the biopsy tests and acknowledges every trial that needs enrollment before surgery.
   required:
     - confirm_bucket
     - watch_or_treat
+    - preop_review
     - hormone_labs
     - surgery_or_meds
     - enter_results

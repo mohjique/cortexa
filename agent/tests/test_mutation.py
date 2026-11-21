@@ -57,6 +57,7 @@ def run_to_results(case_store, case_id, results):
     out = fixture("classifier_output.json") | {"case_id": case_id, "suspected_bucket": "glioma"}
     workflow.attach_classification(case_id, ClassifierOutput.model_validate(out))
     decide(case_id, "confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide(case_id, "preop_review", {"tests_reviewed": True, "pre_surgery_trials": []})
     return decide(case_id, "enter_results", results)
 
 

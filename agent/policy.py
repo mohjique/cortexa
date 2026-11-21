@@ -27,7 +27,10 @@ POLICY_PATH = Path(
 )
 
 # Gates rule 2 names explicitly. Staff may add gates, never remove these.
-LOCKED_GATES: frozenset[str] = frozenset({"confirm_bucket", "enter_results", "review_shortlist"})
+# preop_review is locked too: a missed enroll-before-surgery trial can't be recovered.
+LOCKED_GATES: frozenset[str] = frozenset(
+    {"confirm_bucket", "preop_review", "enter_results", "review_shortlist"}
+)
 GEOCODE_FIELDS_SAFE: frozenset[str] = frozenset({"zip", "city"})
 
 Positive = Annotated[float, Field(gt=0)]

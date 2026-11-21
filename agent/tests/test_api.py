@@ -45,8 +45,14 @@ def test_post_decision_advances(client):
         f"/cases/{CID}/decisions",
         json=body("confirm_bucket", {"bucket": "glioma", "overrode_model": False}),
     )
-    assert r.status_code == 200 and r.json()["stage"] == "awaiting_pathology"
+    assert r.status_code == 200 and r.json()["stage"] == "preop_screen"
+    assert r.json()["waiting_on"] == "doctor"
     assert client.get(f"/cases/{CID}/record").json()["preop"] is not None
+    r = client.post(
+        f"/cases/{CID}/decisions",
+        json=body("preop_review", {"tests_reviewed": True, "pre_surgery_trials": []}),
+    )
+    assert r.status_code == 200 and r.json()["stage"] == "awaiting_pathology"
 
 
 def test_wrong_gate_409(client):
