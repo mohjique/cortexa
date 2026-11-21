@@ -1,0 +1,9 @@
+{
+  "case_id": "demo-001",
+  "suspected_bucket": "glioma",
+  "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
+  "medgemma_bucket": "glioma",
+  "confidence": 0.88,
+  "needs_review": false,
+  "heatmap_path": "artifacts/demo-001_gradcam.png"
+}

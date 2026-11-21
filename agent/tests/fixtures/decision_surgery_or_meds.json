@@ -1,0 +1,7 @@
+{
+  "case_id": "demo-004",
+  "gate": "surgery_or_meds",
+  "decision": {"choice": "medication_only"},
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T14:05:40Z"
+}

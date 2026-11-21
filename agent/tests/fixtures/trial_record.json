@@ -1,0 +1,17 @@
+{
+  "trial_id": "NCT99000001",
+  "title": "[SYNTHETIC] IDH inhibitor in recurrent IDH-mutant astrocytoma",
+  "source": "ctgov+nci",
+  "recruitment_status": "RECRUITING",
+  "phases": ["PHASE2"],
+  "conditions": ["Astrocytoma, IDH-mutant"],
+  "criteria_text": "Inclusion Criteria: ...",
+  "min_age_years": 18,
+  "max_age_years": null,
+  "remote_participation": false,
+  "sites": [
+    {"facility": "Synthetic Neuro-Oncology Center A", "city": "Houston", "state": "TX", "zip": "77030", "lat": 29.7079, "lon": -95.4012}
+  ],
+  "fetched_at": "2026-11-21T13:00:00Z",
+  "from_cache": true
+}

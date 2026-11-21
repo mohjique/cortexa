@@ -20,6 +20,9 @@ eligibility:
 
 trial_search:
   statuses: [RECRUITING, NOT_YET_RECRUITING]
+  status_labels:                  # shown in the UI; every status above needs one
+    RECRUITING: "Recruiting"
+    NOT_YET_RECRUITING: "Not yet recruiting: opens soon, cannot enroll yet"
   default_radius_miles: 100
   no_match_plan:
     widened_radius_miles: 500

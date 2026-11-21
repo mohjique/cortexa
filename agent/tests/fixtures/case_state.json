@@ -1,0 +1,9 @@
+{
+  "case_id": "demo-001",
+  "stage": "confirm_bucket",
+  "suspected_bucket": "glioma",
+  "confirmed_bucket": null,
+  "treatment_path": null,
+  "waiting_on": "doctor",
+  "updated_at": "2026-11-21T14:03:12Z"
+}

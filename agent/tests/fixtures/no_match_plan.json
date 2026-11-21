@@ -1,0 +1,23 @@
+{
+  "case_id": "demo-003",
+  "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
+  "widened": {"radius_miles": 500, "include_remote": true, "trials": []},
+  "near_misses": [
+    {
+      "trial_id": "NCT99000007",
+      "title": "[SYNTHETIC] Radiation dose study in high-grade meningioma",
+      "near_miss_type": "fails_one_rule",
+      "blocking": [
+        {"trial_id": "NCT99000007", "criterion_text": "WHO grade 3 meningioma", "status": "not_met", "evidence_field": "grade", "reason": "grade 2, trial needs grade 3"}
+      ],
+      "nearest_site": {"city": "New Orleans", "state": "LA", "distance_miles": 376.1, "drive_minutes": 360}
+    }
+  ],
+  "alert": {
+    "alert_id": "alert-demo-003-1",
+    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840", "radius_miles": 500},
+    "notify": "care_team_in_app",
+    "created_at": "2026-11-21T15:10:00Z"
+  },
+  "tumor_board_log": {"ts": "2026-11-21T15:10:00Z", "case_id": "demo-003", "entry": "No current match", "searched_at": "2026-11-21T15:09:58Z"}
+}

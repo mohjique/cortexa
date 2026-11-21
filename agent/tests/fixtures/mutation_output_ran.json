@@ -1,0 +1,9 @@
+{
+  "case_id": "demo-002",
+  "ran": true,
+  "total_mutations": 1340,
+  "sbs11_call": "detected",
+  "false_alarm_rate": 0.01,
+  "exposures": {"SBS1": 0.12, "SBS5": 0.18, "SBS11": 0.70},
+  "note": "Context only. Does not decide eligibility."
+}

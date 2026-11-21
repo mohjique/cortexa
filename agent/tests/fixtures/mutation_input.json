@@ -1,0 +1,8 @@
+{
+  "case_id": "demo-002",
+  "sequencing": "exome",
+  "reference": "GRCh38",
+  "snvs": [
+    {"chrom": "chr7", "pos": 55191822, "ref": "C", "alt": "T", "context": "ACG"}
+  ]
+}

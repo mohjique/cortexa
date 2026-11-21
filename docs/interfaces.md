@@ -77,9 +77,12 @@ One record per gate. Each one is also written to the audit log.
   "age": 54,
   "zip": "77840",
   "broad_sequencing_available": false,
+  "sequencing": "exome | genome | panel | none | null",
   "pituitary": null
 }
 ```
+
+`sequencing` is optional. When set, it must agree with `broad_sequencing_available` (`exome` or `genome` means true). The mutation check needs it to tell exome/genome from a panel.
 
 For pituitary cases, `pituitary` holds hormone and imaging results. For a medication-only case, the doctor enters these directly with no pathology. Glioma marker fields are then `unknown`.
 
@@ -225,7 +228,7 @@ Shown at the `review_shortlist` gate. A trial is on the shortlist when no criter
 }
 ```
 
-`status_label` is `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
+`status_label` comes from `trial_search.status_labels` in `policy.yaml` (today `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`). Allowed `recruitment_status` values are `trial_search.statuses`, so staff can add a status without a code change. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
 
 ## No-match plan → frontend
 

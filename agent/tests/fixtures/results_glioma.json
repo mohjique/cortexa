@@ -1,0 +1,16 @@
+{
+  "case_id": "demo-002",
+  "confirmed_bucket": "glioma",
+  "diagnosis": "Glioblastoma, IDH-wildtype",
+  "grade": 4,
+  "idh": "wildtype",
+  "codeletion_1p19q": "intact",
+  "mgmt": "methylated",
+  "recurrent": true,
+  "prior_treatments": ["surgery", "radiation", "temozolomide"],
+  "age": 54,
+  "zip": "77840",
+  "broad_sequencing_available": true,
+  "sequencing": "exome",
+  "pituitary": null
+}

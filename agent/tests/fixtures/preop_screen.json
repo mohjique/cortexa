@@ -1,0 +1,20 @@
+{
+  "case_id": "demo-001",
+  "trials_considered": 7,
+  "tests_needed": [
+    {"field": "idh", "label": "IDH mutation status", "current_value": "pending", "decides_trials": 3, "trial_ids": ["NCT99000001", "NCT99000004", "NCT99000007"]},
+    {"field": "codeletion_1p19q", "label": "1p/19q codeletion", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000007"]},
+    {"field": "mgmt", "label": "MGMT promoter methylation", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000004"]},
+    {"field": "grade", "label": "WHO grade", "current_value": "pending", "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"]}
+  ],
+  "pre_surgery_trials": [
+    {
+      "trial_id": "NCT99000003",
+      "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
+      "recruitment_status": "NOT_YET_RECRUITING",
+      "criterion_text": "Must enroll before planned surgical resection",
+      "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110}
+    }
+  ],
+  "label": "Suspected glioma. Biopsy results pending."
+}

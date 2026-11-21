@@ -1,0 +1,8 @@
+{
+  "case_id": "demo-001",
+  "gate": "confirm_bucket",
+  "decision": {"bucket": "glioma", "overrode_model": false},
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T14:05:40Z",
+  "note": "optional free text"
+}
