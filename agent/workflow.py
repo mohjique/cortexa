@@ -192,7 +192,6 @@ def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     return NoMatchPlan(
         case_id=rec.case_id,
         searched=SearchSummary(
-            radius_miles=policy.trial_search.default_radius_miles,
             statuses=list(policy.trial_search.statuses),
             match_count=0,
         ),

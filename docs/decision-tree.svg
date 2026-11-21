@@ -67,13 +67,13 @@
 <path d="M500 920 L500 988 L452 988" class="arr" marker-end="url(#arrow)"/>
 <g class="c-purple"><rect x="190" y="960" width="260" height="56" rx="8"/><text class="th" x="320" y="978" text-anchor="middle" dominant-baseline="central">Trial matching</text><text class="ts" x="320" y="998" text-anchor="middle" dominant-baseline="central">Met, not met, unknown</text></g>
 <line x1="320" y1="1016" x2="320" y2="1042" class="arr" marker-end="url(#arrow)"/>
-<g><rect class="box" x="190" y="1044" width="260" height="56" rx="8"/><text class="th" x="320" y="1062" text-anchor="middle" dominant-baseline="central">Any trials match?</text><text class="ts" x="320" y="1082" text-anchor="middle" dominant-baseline="central">Recruiting or not yet, in range</text></g>
+<g><rect class="box" x="190" y="1044" width="260" height="56" rx="8"/><text class="th" x="320" y="1062" text-anchor="middle" dominant-baseline="central">Any trials match?</text><text class="ts" x="320" y="1082" text-anchor="middle" dominant-baseline="central">Recruiting or not yet, any distance</text></g>
 <line x1="320" y1="1100" x2="320" y2="1126" class="arr" marker-end="url(#arrow)"/>
 <text class="ts" x="330" y="1114">yes</text>
 <path d="M450 1072 L565 1072 L565 1126" class="arr" marker-end="url(#arrow)"/>
 <text class="ts" x="507" y="1062" text-anchor="middle">no</text>
-<g class="c-teal"><rect x="190" y="1128" width="260" height="56" rx="8"/><text class="th" x="320" y="1146" text-anchor="middle" dominant-baseline="central">Doctor reviews shortlist</text><text class="ts" x="320" y="1166" text-anchor="middle" dominant-baseline="central">Map + travel time</text></g>
-<g class="c-purple"><rect x="490" y="1128" width="150" height="56" rx="8"/><text class="th" x="565" y="1146" text-anchor="middle" dominant-baseline="central">No-match plan</text><text class="ts" x="565" y="1166" text-anchor="middle" dominant-baseline="central">Widen, watch, log</text></g>
+<g class="c-teal"><rect x="190" y="1128" width="260" height="56" rx="8"/><text class="th" x="320" y="1146" text-anchor="middle" dominant-baseline="central">Doctor reviews shortlist</text><text class="ts" x="320" y="1166" text-anchor="middle" dominant-baseline="central">Nearest first, map + travel time</text></g>
+<g class="c-purple"><rect x="490" y="1128" width="150" height="56" rx="8"/><text class="th" x="565" y="1146" text-anchor="middle" dominant-baseline="central">No-match plan</text><text class="ts" x="565" y="1166" text-anchor="middle" dominant-baseline="central">Near misses, watch, log</text></g>
 <rect class="c-purple" x="180" y="1212" width="14" height="14" rx="3"/><text class="ts" x="200" y="1219" dominant-baseline="central">AI or agent step</text>
 <rect class="c-teal" x="340" y="1212" width="14" height="14" rx="3"/><text class="ts" x="360" y="1219" dominant-baseline="central">Doctor decision</text>
 </svg>

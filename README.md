@@ -37,9 +37,9 @@ flowchart TD
     REC -- "yes: recurrent glioma" --> MC["Mutation check<br/>skip if no broad sequencing"]
     MC --> TM
 
-    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, in range"}
-    ANY -- yes --> SL["Doctor reviews shortlist<br/>map + travel time"]
-    ANY -- no --> NM["No-match plan<br/>widen, watch, log"]
+    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, any distance"}
+    ANY -- yes --> SL["Doctor reviews shortlist<br/>nearest first, map + travel time"]
+    ANY -- no --> NM["No-match plan<br/>near misses, watch, log"]
 
     classDef ai fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef doc fill:#E1F5EE,stroke:#0F6E56,color:#085041

@@ -30,7 +30,6 @@ POLICY_PATH = Path(
 LOCKED_GATES: frozenset[str] = frozenset({"confirm_bucket", "enter_results", "review_shortlist"})
 GEOCODE_FIELDS_SAFE: frozenset[str] = frozenset({"zip", "city"})
 
-Positive = Annotated[float, Field(gt=0)]
 
 
 class PolicyError(Exception):
@@ -74,8 +73,6 @@ class EligibilityPolicy(Schema):
 
 
 class NoMatchPolicy(Schema):
-    widened_radius_miles: Positive
-    include_remote_trials: bool
     show_near_misses: bool
     alert_on_new_trials: bool
     log_for_tumor_board: bool
@@ -84,7 +81,8 @@ class NoMatchPolicy(Schema):
 class TrialSearchPolicy(Schema):
     statuses: Annotated[list[NonEmptyStr], Field(min_length=1)]
     status_labels: dict[str, NonEmptyStr]
-    default_radius_miles: Positive
+    # No distance cutoff: every eligible trial is shown, nearest first.
+    # Distance sorts and labels trials; it never filters them out.
     no_match_plan: NoMatchPolicy
 
     @model_validator(mode="after")
@@ -92,8 +90,6 @@ class TrialSearchPolicy(Schema):
         unlabeled = [s for s in self.statuses if s not in self.status_labels]
         if unlabeled:
             raise ValueError(f"status_labels missing for {unlabeled}")
-        if self.no_match_plan.widened_radius_miles < self.default_radius_miles:
-            raise ValueError("no_match_plan.widened_radius_miles must be >= default_radius_miles")
         return self
 
 
