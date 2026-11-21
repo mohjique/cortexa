@@ -250,7 +250,16 @@ Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutatio
 
 Shown at the `review_shortlist` gate. A trial is on the shortlist when no criterion is `not_met` and none is waiting on a `pending` result.
 
-There is no distance cutoff: every eligible trial is listed, however far away. `trials` is sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
+Each trial is in one of two groups, the way coordinators sort a prescreen:
+
+| `group` | Meaning | `needs_test_fields` |
+|---|---|---|
+| `eligible` | Eligible on what we know. Any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
+| `needs_test` | At least one `unknown` on a key field listed in `trial_search.key_unknown_fields` in `policy.yaml` (today `idh`, `codeletion_1p19q`, `mgmt`, `tmb_clia`). | The key fields left unknown, in policy order, e.g. `["tmb_clia"]`. Each has an `unknown` row in `eligibility` whose `reason` says which test decides it. |
+
+A `needs_test` trial is not a match yet. Show it under its own heading, for example "Needs a test: CLIA TMB result". Near misses are unchanged and only appear in the no-match plan.
+
+There is no distance cutoff: every eligible trial is listed, however far away. `trials` lists the `eligible` group first, then `needs_test`. Within each group, trials are sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
 
 ```json
 {
@@ -268,7 +277,9 @@ There is no distance cutoff: every eligible trial is listed, however far away. `
       "summary": {"met": 5, "not_met": 0, "unknown": 1},
       "eligibility": ["<Agent eligibility output>"],
       "mutation_context": null,
-      "doctor_decision": "pending | keep | reject"
+      "doctor_decision": "pending | keep | reject",
+      "group": "eligible | needs_test",
+      "needs_test_fields": []
     }
   ]
 }

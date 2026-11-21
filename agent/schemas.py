@@ -606,6 +606,10 @@ class EligibilitySummary(Schema):
     unknown: Annotated[int, Field(ge=0)]
 
 
+ShortlistGroup = Literal["eligible", "needs_test"]
+SHORTLIST_GROUP_ORDER: dict[str, int] = {"eligible": 0, "needs_test": 1}
+
+
 class ShortlistTrial(Schema):
     trial_id: TrialId
     title: NonEmptyStr
@@ -617,6 +621,11 @@ class ShortlistTrial(Schema):
     eligibility: list[EligibilityResult]
     mutation_context: MutationCheckRan | None = None
     doctor_decision: Literal["pending", "keep", "reject"] = "pending"
+    # eligible: open questions are routine screening-visit items.
+    # needs_test: an unknown on a key field (trial_search.key_unknown_fields);
+    # needs_test_fields names the result(s) that would decide it.
+    group: ShortlistGroup = "eligible"
+    needs_test_fields: list[NonEmptyStr] = []
 
     @model_validator(mode="after")
     def _consistent(self, info: ValidationInfo) -> ShortlistTrial:
@@ -640,6 +649,12 @@ class ShortlistTrial(Schema):
             raise ValueError("a shortlist trial cannot have any not_met criterion")
         if self.nearest_site is None and not self.remote_participation:
             raise ValueError("nearest_site required unless the trial allows remote participation")
+        if (self.group == "needs_test") != bool(self.needs_test_fields):
+            raise ValueError("needs_test_fields must be set exactly when group is needs_test")
+        unknown_fields = {e.evidence_field for e in self.eligibility if e.status == "unknown"}
+        missing = [f for f in self.needs_test_fields if f not in unknown_fields]
+        if missing:
+            raise ValueError(f"needs_test_fields {missing} have no unknown eligibility row")
         return self
 
 
@@ -655,7 +670,8 @@ def distance_sort_key(site: NearestSite | None) -> tuple[bool, float]:
 
 
 class Shortlist(Schema):
-    """Every eligible trial, with no distance cutoff, sorted nearest first."""
+    """Every eligible trial, no distance cutoff: "eligible" group first, then
+    "needs_test", each sorted nearest first."""
 
     case_id: NonEmptyStr
     origin: Origin
@@ -664,9 +680,11 @@ class Shortlist(Schema):
 
     @model_validator(mode="after")
     def _nearest_first(self) -> Shortlist:
-        keys = [distance_sort_key(t.nearest_site) for t in self.trials]
+        keys = [(SHORTLIST_GROUP_ORDER[t.group], distance_sort_key(t.nearest_site))
+                for t in self.trials]
         if keys != sorted(keys):
-            raise ValueError("shortlist trials must be sorted nearest first, unknown distance last")
+            raise ValueError("shortlist trials must be grouped (eligible, then needs_test) and "
+                             "sorted nearest first within each group, unknown distance last")
         return self
 
 

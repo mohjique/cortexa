@@ -5,6 +5,11 @@
 trial and keeps every one that passes. A trial passes when no criterion is
 `not_met` and none waits on a `pending` result (interfaces.md).
 
+Passing trials are split into two groups, the way coordinators sort them:
+"eligible" (any unknowns are routine screening-visit items) and "needs_test"
+(an unknown on a key field from `trial_search.key_unknown_fields`, such as
+IDH or a CLIA TMB result). The group names the test that would decide it.
+
 There is no distance cutoff. The search is nationwide, and distance only
 sorts the shortlist: nearest first, trials with no known distance
 (remote-only) last. The patient and doctor decide whether travel is worth it.
@@ -39,6 +44,7 @@ from agent.schemas import (
     TrialAlert,
     TrialRecord,
     TumorBoardEntry,
+    SHORTLIST_GROUP_ORDER,
     distance_sort_key,
 )
 from agent.store import CaseRecord
@@ -77,7 +83,14 @@ def _sort_key(c: Checked) -> tuple[tuple[bool, float], str]:
     return (distance_sort_key(c.site), c.trial.trial_id)
 
 
+def needs_test_fields(rows: list[EligibilityResult], key_fields: list[str]) -> list[str]:
+    """Key fields (policy order) that some row leaves unknown."""
+    unknown = {r.evidence_field for r in rows if r.status == "unknown"}
+    return [f for f in key_fields if f in unknown]
+
+
 def _shortlist_trial(c: Checked, origin: Origin, policy: Policy, case_id: str) -> ShortlistTrial:
+    tests = needs_test_fields(c.rows, policy.trial_search.key_unknown_fields)
     site = c.site
     if site is not None:
         # Drive time only for trials that are shown (one OSRM call each).
@@ -93,6 +106,8 @@ def _shortlist_trial(c: Checked, origin: Origin, policy: Policy, case_id: str) -
             "nearest_site": site,
             "summary": summarize(c.rows),
             "eligibility": c.rows,
+            "group": "needs_test" if tests else "eligible",
+            "needs_test_fields": tests,
         },
         context=policy.status_context(),
     )
@@ -171,9 +186,16 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
             case_id=case_id,
             origin=origin,
             statuses_searched=list(ts.statuses),
-            trials=[_shortlist_trial(c, origin, policy, case_id) for c in hits],
+            trials=sorted(
+                (_shortlist_trial(c, origin, policy, case_id) for c in hits),
+                key=lambda t: (SHORTLIST_GROUP_ORDER[t.group], distance_sort_key(t.nearest_site),
+                               t.trial_id),
+            ),
         )
-        audit("agent", "shortlist_built", {"trials": [t.trial_id for t in shortlist.trials]},
+        audit("agent", "shortlist_built",
+              {"trials": [t.trial_id for t in shortlist.trials],
+               "needs_test": {t.trial_id: t.needs_test_fields for t in shortlist.trials
+                              if t.group == "needs_test"}},
               case_id=case_id)
         return shortlist
 

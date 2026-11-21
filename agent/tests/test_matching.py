@@ -17,6 +17,7 @@ from agent.schemas import (
     MutationCheckRan,
     NoMatchPlan,
     Shortlist,
+    ShortlistTrial,
 )
 from agent.store import CaseRecord
 from agent.workflow import AgentHooks, submit_decision
@@ -62,9 +63,9 @@ def policy_with(tmp_path):
 # --- every demo patient lands where the clinical team expects --------------
 
 
-# With no distance cutoff these recurrent-glioma cases also pass trials their
-# expected_trials do not list yet (team decision pending, see PR #30):
-# NCT99000009 with TMB unknown (no CLIA result), and remote NCT99000008.
+# Shortlisted trials clinical/ has not added to expected_trials yet (PR #30
+# decision): remote NCT99000008 for 016/017 goes in expected_trials, and
+# NCT99000009 is recorded as "needs a test" (CLIA TMB) for 016 to 019.
 NOT_YET_IN_EXPECTED = {
     "demo-016": {"NCT99000008", "NCT99000009"},
     "demo-017": {"NCT99000008", "NCT99000009"},
@@ -124,11 +125,70 @@ def test_no_distance_cutoff_far_trial_is_shortlisted():
     assert t.trial_id == "NCT99000007" and t.nearest_site and t.nearest_site.distance_miles > 300
 
 
-def test_shortlist_sorted_nearest_first():
+def test_shortlist_grouped_then_sorted_nearest_first():
     out = match("demo-016", recurrence_number=1, can_use_phone_or_tablet=True)
     assert isinstance(out, Shortlist)
-    miles = [t.nearest_site.distance_miles for t in out.trials if t.nearest_site]
-    assert miles == sorted(miles) and len(miles) == 3
+    groups = [t.group for t in out.trials]
+    assert groups == sorted(groups, key=["eligible", "needs_test"].index)
+    for g in ("eligible", "needs_test"):
+        miles = [t.nearest_site.distance_miles for t in out.trials if t.group == g and t.nearest_site]
+        assert miles == sorted(miles)
+    assert sum(1 for t in out.trials if t.nearest_site) == 3
+
+
+# --- shortlist groups (PR #30) --------------------------------------------------
+
+
+def test_demo_016_groups():
+    out = match("demo-016")
+    assert isinstance(out, Shortlist)
+    by_id = {t.trial_id: t for t in out.trials}
+    assert by_id["NCT99000002"].group == "eligible"
+    assert by_id["NCT99000002"].needs_test_fields == []
+    assert by_id["NCT99000008"].group == "eligible"  # remote; phone use is routine
+    tmb = by_id["NCT99000009"]
+    assert tmb.group == "needs_test" and tmb.needs_test_fields == ["tmb_clia"]
+    assert out.trials[-1].trial_id == "NCT99000009"
+
+
+@pytest.mark.parametrize("case_id", ["demo-016", "demo-017", "demo-018", "demo-019"])
+def test_tmb_trial_needs_a_test_never_eligible(case_id):
+    """Rule 10: SBS11/mutation counts never make the immunotherapy trial a match."""
+    out = match(case_id)
+    assert isinstance(out, Shortlist)
+    t = {t.trial_id: t for t in out.trials}["NCT99000009"]
+    assert t.group == "needs_test" and "tmb_clia" in t.needs_test_fields
+
+
+def test_clia_tmb_result_decides_the_trial():
+    high = {t.trial_id: t for t in match("demo-016", tmb_clia=12.0).trials}
+    assert high["NCT99000009"].group == "eligible" and high["NCT99000009"].needs_test_fields == []
+    low = {t.trial_id for t in match("demo-016", tmb_clia=3.0).trials}
+    assert "NCT99000009" not in low
+
+
+def test_key_fields_come_from_policy(policy_with):
+    policy_with(lambda y: y.replace("key_unknown_fields: [idh, codeletion_1p19q, mgmt, tmb_clia]",
+                                    "key_unknown_fields: [idh, can_use_phone_or_tablet]"))
+    out = match("demo-016")
+    assert isinstance(out, Shortlist)
+    by_id = {t.trial_id: t for t in out.trials}
+    assert by_id["NCT99000009"].group == "eligible"
+    assert by_id["NCT99000008"].needs_test_fields == ["can_use_phone_or_tablet"]
+
+
+def test_schema_rejects_inconsistent_group():
+    out = match("demo-016")
+    assert isinstance(out, Shortlist)
+    t = {t.trial_id: t for t in out.trials}["NCT99000009"].model_dump()
+    with pytest.raises(ValueError):
+        ShortlistTrial.model_validate(t | {"group": "eligible"})
+    with pytest.raises(ValueError):
+        ShortlistTrial.model_validate(t | {"needs_test_fields": ["idh"]})
+    d = out.model_dump()
+    d["trials"] = list(reversed(d["trials"]))
+    with pytest.raises(ValueError):
+        Shortlist.model_validate(d)
 
 
 def test_search_is_nationwide(monkeypatch):
