@@ -1,6 +1,5 @@
 # Patient profiles guide: 23 synthetic demo cases
 
-**Owner:** premed teammate
 **Goal:** write 23 fake patient profiles that walk the app through every branch of the decision tree (`docs/decision-tree.md`), plus hand-labeled eligibility answers we can test the agent against.
 **Where:** one JSON file per patient in `clinical/patients/`, named `demo-001.json` to `demo-023.json`. Copy `clinical/patients/_template.json` to start.
 
@@ -9,10 +8,10 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 ## Ground rules
 
 1. **Everything is fake.** No real patients, names, addresses or dates of birth. IDs are `demo-001` to `demo-023`.
-2. **ZIP codes only for location.** Use ZIPs that are in the demo cache so the map works offline: `77840` College Station (default), `77030` Houston, `78712` Austin, `75390` Dallas, `78229` San Antonio, `70112` New Orleans, `73104` Oklahoma City. Ask the agent owner before using any other ZIP.
+2. **ZIP codes only for location.** Use ZIPs that are in the demo cache so the map works offline: `77840` College Station (default), `77030` Houston, `78712` Austin, `75390` Dallas, `78229` San Antonio, `70112` New Orleans, `73104` Oklahoma City. Any other ZIP needs an entry in `agent/demo_cache/nominatim/zip_lookup.json`.
 3. **Say "suspected" before pathology.** Radiology reports describe findings ("enhancing mass, suspicious for high-grade glioma"). Only pathology fields hold an actual diagnosis.
 4. **`pending` vs `unknown` (from `docs/interfaces.md`):** `pending` = test ordered, result not back. `unknown` = not tested or not available. Pre-op cases should use `pending`. This is how we show the app saying "unknown, needs pathology" instead of guessing.
-5. **Images come from the computer engineer.** He'll hand you 23 test-set images with true labels. Match each profile's tumor type to the image you're given.
+5. **Each case uses one held-out test-set image.** The profile's tumor type must match the image's true label.
 
 ## Fields
 
@@ -24,8 +23,8 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 |---|---|---|
 | `case_id` | `demo-001` … `demo-023` | |
 | `scenario` | short text | Which branch this case tests (see case list) |
-| `image_file` | filename | From the computer engineer |
-| `kaggle_label` | `glioma`, `meningioma`, `pituitary`, `no_tumor` | True image label, from the computer engineer |
+| `image_file` | filename | Held-out test-set image |
+| `kaggle_label` | `glioma`, `meningioma`, `pituitary`, `no_tumor` | True image label |
 | `age` ★ | integer, 18+ | One trial caps age at 75 |
 | `sex` | `female`, `male` | |
 | `zip` ★ | one of the cached ZIPs above | Drives distance to trial sites |
@@ -81,8 +80,8 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | Field | Allowed values | Notes |
 |---|---|---|
 | `broad_sequencing` | `none`, `panel`, `exome`, `genome` | The mutation check runs only for `exome` or `genome` |
-| `mutation_counts_96` | 96 integers or null | **Leave null.** The mutation-check teammate fills it |
-| `true_sbs11_fraction` | number or null | Answer key, set by the mutation-check teammate. The app never reads it |
+| `mutation_counts_96` | 96 integers or null | Simulated 96-channel counts for recurrent gliomas with exome/genome sequencing; null otherwise |
+| `true_sbs11_fraction` | number or null | Answer key for the simulated counts. The app never reads it |
 
 **Safety note:** trial `NCT99000009` requires high TMB from a CLIA-certified assay. Our mutation check is research context, not a CLIA test, so it must never satisfy that criterion. If `tmb_clia` is `null`, the correct label is `unknown`, even when the mutation check says "detected." The shortlist then shows 009 under **Needs a test: CLIA TMB result**, never as a match.
 
@@ -99,7 +98,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 
 ## The 23 cases
 
-"Target trials" are what the case is designed to exercise in the synthetic cache. Adjust details if something isn't clinically realistic: you're the medical judgment here. If you change a case, update its `expected_*` fields.
+"Target trials" are what the case is designed to exercise in the synthetic cache. Adjust details if something isn't clinically realistic. If you change a case, update its `expected_*` fields.
 
 | ID | Image | Scenario | Key details | Target trials |
 |---|---|---|---|---|
@@ -125,7 +124,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | demo-020 | pituitary | Pituitary, surgery | Non-functioning macroadenoma. `surgery_or_meds: surgery` | none |
 | demo-021 | pituitary | Pituitary, surgery | Growth-hormone-secreting | none |
 | demo-022 | pituitary | Pituitary, meds only | **ACTH-secreting (Cushing disease), not a surgical candidate.** `surgery_or_meds: medication_only`. Please confirm this is realistic | 006 (Houston, opens soon) |
-| demo-023 | glioma | Doctor override | Computer engineer picks an image the model gets wrong or is unsure about. Doctor corrects the bucket | depends on profile |
+| demo-023 | glioma | Doctor override | Uses an image the model gets wrong or is unsure about. Doctor corrects the bucket | depends on profile |
 
 ## Hand-labeled answers (gold eligibility)
 
@@ -163,11 +162,11 @@ Review the medical settings and fix anything unrealistic:
 
 ## Checklist
 
-- [ ] 23 images + labels from the computer engineer
+- [ ] 23 test-set images matched to cases
 - [ ] 23 JSON files in `clinical/patients/`
 - [ ] Radiology report for every case; pathology report for every case past biopsy
 - [ ] Pre-op cases use `pending` markers
-- [ ] demo-016, 017, 018 handed to the mutation-check teammate for `mutation_counts_96`
-- [ ] Gold eligibility labels for at least 10 cases
+- [x] `mutation_counts_96` filled for demo-016, 017, 018
+- [x] Gold eligibility labels for at least 10 cases (16 so far)
 - [x] `policy.yaml` reviewed
 - [ ] No real names, addresses or dates of birth anywhere

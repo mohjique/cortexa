@@ -1,7 +1,5 @@
 # classifier/
 
-Owner: computer engineer.
-
 - Download the Kaggle dataset `mohamadabouali1/mri-brain-tumor-dataset-4-class-7023-images` into `data/brain-tumor-mri/` (gitignored). Its 7,023 Training/Testing images are the same as `masoudnickparvar/brain-tumor-mri-dataset` (identical per-class counts, renamed folders), plus blurred / noisy / motion-artifact copies.
 - Remove exact and near-duplicate images (perceptual hashing) before the train/val/test split.
 - Fine-tune a pretrained ResNet; report per-class accuracy on the deduplicated test set.
