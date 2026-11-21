@@ -27,6 +27,7 @@ from agent.schemas import (
     PreOpScreen,
     Schema,
     Shortlist,
+    Zip,
 )
 
 _CASE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")  # also blocks path traversal
@@ -48,6 +49,8 @@ class CaseRecord(Schema):
     classifier: ClassifierOutput | None = None
     decisions: list[DoctorDecision] = Field(default_factory=list)
     results: DoctorResults | None = None
+    # Patient ZIP only (rule 6: never a full address). Used for trial distances.
+    zip: Zip | None = None
     preop: PreOpScreen | None = None
     mutation: MutationCheckOutput | None = None
     shortlist: Shortlist | None = None
@@ -83,7 +86,9 @@ class CaseStore:
 
     # -- public API ---------------------------------------------------------
 
-    def create(self, case_id: str, suspected_bucket: Bucket | None = None) -> CaseRecord:
+    def create(
+        self, case_id: str, suspected_bucket: Bucket | None = None, zip: str | None = None
+    ) -> CaseRecord:
         with self._lock:
             if case_id in self._cache or self._path(case_id).exists():
                 raise CaseExists(case_id)
@@ -97,6 +102,7 @@ class CaseStore:
                     updated_at=now,
                 ),
                 created_at=now,
+                zip=zip,
             )
             self._write(record)
         audit("agent", "case_created", {"suspected_bucket": suspected_bucket}, case_id=case_id)

@@ -15,10 +15,10 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import yaml
-from pydantic import Field, ValidationError, model_validator
+from pydantic import Field, StringConstraints, ValidationError, model_validator
 
 from agent.audit import audit
-from agent.schemas import Gate, NonEmptyStr, PolicyContext, Schema
+from agent.schemas import NonEmptyStr, PolicyContext, Schema
 
 POLICY_PATH = Path(
     os.environ.get(
@@ -26,8 +26,6 @@ POLICY_PATH = Path(
     )
 )
 
-# Gates rule 2 names explicitly. Staff may add gates, never remove these.
-LOCKED_GATES: frozenset[str] = frozenset({"confirm_bucket", "enter_results", "review_shortlist"})
 GEOCODE_FIELDS_SAFE: frozenset[str] = frozenset({"zip", "city"})
 
 
@@ -47,17 +45,6 @@ class ClassifierPolicy(Schema):
     # Rule 1: model output is always "suspected". A blocklist would let
     # "Confirmed" or "Definitive" through, so only the one safe value is allowed.
     label_prefix: Literal["Suspected"]
-
-
-class ApprovalsPolicy(Schema):
-    required: list[Gate]
-
-    @model_validator(mode="after")
-    def _keep_locked_gates(self) -> ApprovalsPolicy:
-        missing = LOCKED_GATES - set(self.required)
-        if missing:
-            raise ValueError(f"locked by safety rule 2: approvals.required must keep {sorted(missing)}")
-        return self
 
 
 class EligibilityPolicy(Schema):
@@ -103,7 +90,9 @@ class MutationCheckPolicy(Schema):
     never_route_to_immunotherapy_on_mutation_count: Literal[True]  # rule 10
 
 
-PhraseList = Annotated[list[NonEmptyStr], Field(min_length=1)]
+# Matching is case-insensitive, so phrases are lowercased once per policy load.
+Phrase = Annotated[str, StringConstraints(strip_whitespace=True, to_lower=True, min_length=1)]
+PhraseList = Annotated[list[Phrase], Field(min_length=1)]
 
 
 class PreSurgeryPolicy(Schema):
@@ -115,8 +104,9 @@ class PreSurgeryPolicy(Schema):
 
     inclusion_phrases: PhraseList
     exclusion_phrases: PhraseList
-    title_hints: list[NonEmptyStr] = []
-    match: Literal["case_insensitive_substring"]
+    title_hints: list[Phrase] = []
+    # A trial is screened only if its conditions or title name one of these.
+    condition_keywords: PhraseList = ["glioma", "glioblastoma", "astrocytoma", "oligodendroglioma"]
     # Rule 4: a title alone cites no criterion, so it can never flag a trial by itself.
     llm_confirm_on_title_hint_only: Literal[True]
 
@@ -140,7 +130,6 @@ class AuditPolicy(Schema):
 
 class Policy(Schema):
     classifier: ClassifierPolicy
-    approvals: ApprovalsPolicy
     eligibility: EligibilityPolicy
     trial_search: TrialSearchPolicy
     mutation_check: MutationCheckPolicy

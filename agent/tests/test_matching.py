@@ -275,6 +275,9 @@ def test_recurrent_glioma_end_to_end(case_store, real_hooks, audit_log):
         "case_id": cid, "suspected_bucket": "glioma"}
     workflow.attach_classification(cid, ClassifierOutput.model_validate(out))
     decide(cid, "confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    rec = case_store.get(cid)
+    assert rec.state.stage == "preop_screen" and rec.preop
+    decide(cid, "preop_review", p["doctor_decisions"]["preop_review"] | {"screen_id": rec.preop.screen_id})
     assert case_store.get(cid).state.stage == "awaiting_pathology"
     rec = decide(cid, "enter_results", p["doctor_decisions"]["enter_results"])
     assert "stage_done:mutation_check" in [e.action for e in audit_log.read(cid)]

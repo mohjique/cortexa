@@ -67,6 +67,9 @@
       "bucket": "pituitary",
       "overrode_model": false
     },
+    "hormone_labs": {
+      "labs_reviewed": true
+    },
     "surgery_or_meds": {
       "choice": "medication_only"
     },

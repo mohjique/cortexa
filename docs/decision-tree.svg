@@ -42,7 +42,9 @@
 <g><rect class="box" x="40" y="436" width="135" height="56" rx="8"/><text class="th" x="107" y="454" text-anchor="middle" dominant-baseline="central">Rescan later</text><text class="ts" x="107" y="474" text-anchor="middle" dominant-baseline="central">No trial search</text></g>
 <line x1="290" y1="406" x2="290" y2="518" class="arr" marker-end="url(#arrow)"/>
 <text class="ts" x="298" y="424">treat</text>
-<line x1="417" y1="406" x2="417" y2="518" class="arr" marker-end="url(#arrow)"/>
+<line x1="417" y1="406" x2="417" y2="434" class="arr" marker-end="url(#arrow)"/>
+<g class="c-teal"><rect x="350" y="436" width="135" height="56" rx="8"/><text class="th" x="417" y="454" text-anchor="middle" dominant-baseline="central">Pre-op review</text><text class="ts" x="417" y="474" text-anchor="middle" dominant-baseline="central">Pre-surgery trials</text></g>
+<line x1="417" y1="492" x2="417" y2="518" class="arr" marker-end="url(#arrow)"/>
 <line x1="572" y1="406" x2="572" y2="434" class="arr" marker-end="url(#arrow)"/>
 <g class="c-teal"><rect x="505" y="436" width="135" height="56" rx="8"/><text class="th" x="572" y="454" text-anchor="middle" dominant-baseline="central">Surgery or meds?</text><text class="ts" x="572" y="474" text-anchor="middle" dominant-baseline="central">Doctor decides</text></g>
 <path d="M540 492 L540 548 L452 548" class="arr" marker-end="url(#arrow)"/>
