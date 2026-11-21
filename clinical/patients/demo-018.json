@@ -296,6 +296,46 @@
       "status": "met",
       "evidence_field": "can_use_phone_or_tablet",
       "note": "can_use_phone_or_tablet: true"
+    },
+    {
+      "trial_id": "NCT99000009",
+      "criterion_type": "inclusion",
+      "criterion_text": "Recurrent glioma",
+      "status": "met",
+      "evidence_field": "recurrent",
+      "note": "recurrent: true"
+    },
+    {
+      "trial_id": "NCT99000009",
+      "criterion_type": "inclusion",
+      "criterion_text": "Tumor mutational burden of 10 mutations/Mb or higher by a CLIA-certified assay",
+      "status": "unknown",
+      "evidence_field": "tmb_clia",
+      "note": "No CLIA TMB result available."
+    },
+    {
+      "trial_id": "NCT99000009",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 44"
+    },
+    {
+      "trial_id": "NCT99000009",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior immune checkpoint inhibitor",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":95,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"},{\"type\":\"radiation\",\"weeks_ago\":72,\"detail\":\"Focal brain radiation\"}] (no immune checkpoint inhibitor)"
+    },
+    {
+      "trial_id": "NCT99000009",
+      "criterion_type": "exclusion",
+      "criterion_text": "Active autoimmune disease",
+      "status": "met",
+      "evidence_field": "comorbidities",
+      "note": "comorbidities: []"
     }
   ]
 }

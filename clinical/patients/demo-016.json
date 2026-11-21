@@ -315,6 +315,38 @@
       "status": "met",
       "evidence_field": "comorbidities",
       "note": "comorbidities: []"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Recurrent glioma of any grade",
+      "status": "met",
+      "evidence_field": "recurrent",
+      "note": "recurrent: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Participation is fully remote from home",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 59"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "exclusion",
+      "criterion_text": "Unable to use a phone or tablet for study visits",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
     }
   ]
 }
