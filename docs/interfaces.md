@@ -254,7 +254,7 @@ Shown at the `review_shortlist` gate. A trial is on the shortlist when no criter
 }
 ```
 
-`status_label` comes from `trial_search.status_labels` in `policy.yaml` (today `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`). Allowed `recruitment_status` values are `trial_search.statuses`, so staff can add a status without a code change. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
+`status_label` comes from `trial_search.status_labels` in `policy.yaml` (today `"Recruiting"` or `"Not yet recruiting: enrollment has not opened"`). Allowed `recruitment_status` values are `trial_search.statuses`, so staff can add a status without a code change. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
 
 ## No-match plan → frontend
 
