@@ -6,7 +6,8 @@ every gate check lives in `submit_decision`, in code, never in the LLM
 decision for that stage's gate.
 
 Agent stages (pre-op screen, mutation check, matching) run through `AgentHooks`.
-The defaults are stubs, so the whole flow runs before the real code exists.
+The mutation check default is the real check (`agent.mutation`); pre-op screen
+and matching defaults are still stubs, so the whole flow runs end to end.
 """
 
 from __future__ import annotations
@@ -18,6 +19,7 @@ from dataclasses import dataclass
 from typing import Literal, get_args
 
 from agent.audit import audit
+from agent.mutation import mutation_check_hook
 from agent.policy import Policy, get_policy
 from agent.schemas import (
     ClassifierOutput,
@@ -25,6 +27,7 @@ from agent.schemas import (
     DoctorDecision,
     EnterResultsRecord,
     Gate,
+    MutationCheckOutput,
     MutationCheckRan,
     MutationCheckSkipped,
     NoMatchPlan,
@@ -158,7 +161,7 @@ def _move(rec: CaseRecord, policy: Policy) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent stage hooks. Stubs until the real pieces land.
+# Agent stage hooks. Pre-op screen and matching are stubs until the real pieces land.
 # ---------------------------------------------------------------------------
 
 
@@ -172,7 +175,7 @@ def stub_preop_screen(rec: CaseRecord, policy: Policy) -> PreOpScreen:
 
 
 def stub_mutation_check(rec: CaseRecord, policy: Policy) -> MutationCheckRan:
-    # Inconclusive = no information, so matching is unchanged (decision tree rule).
+    # Test helper. Inconclusive = no information, so matching is unchanged (decision tree rule).
     return MutationCheckRan(
         case_id=rec.case_id,
         ran=True,
@@ -199,7 +202,8 @@ def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
 @dataclass
 class AgentHooks:
     preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = stub_preop_screen
-    mutation_check: Callable[[CaseRecord, Policy], MutationCheckRan] = stub_mutation_check
+    # None = no trustworthy answer; the hook audits why and matching runs without it.
+    mutation_check: Callable[[CaseRecord, Policy], MutationCheckOutput | None] = mutation_check_hook
     matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = stub_matching
 
 
@@ -216,6 +220,17 @@ def set_hooks(hooks: AgentHooks) -> None:
     _hooks = hooks
 
 
+def _attach_mutation_context(shortlist: Shortlist, mutation: MutationCheckOutput | None) -> None:
+    """Copy the case's mutation result onto each trial. Context only (rule 10).
+
+    Set here, not by the matching hook, so every trial shows the same result
+    the case actually has, and none when the check didn't run.
+    """
+    ctx = mutation if isinstance(mutation, MutationCheckRan) else None
+    for t in shortlist.trials:
+        t.mutation_context = ctx.model_copy() if ctx else None
+
+
 def _run_agent_stage(rec: CaseRecord, policy: Policy) -> None:
     stage = rec.state.stage
     hooks = _hooks
@@ -225,10 +240,17 @@ def _run_agent_stage(rec: CaseRecord, policy: Policy) -> None:
             detail = {"tests_needed": len(rec.preop.tests_needed)}
         elif stage == "mutation_check":
             out = hooks.mutation_check(rec, policy)
-            if not isinstance(out, MutationCheckRan):
-                raise WorkflowError("mutation_check hook must return a MutationCheckRan")
+            if isinstance(out, MutationCheckRan):
+                detail = {"sbs11_call": out.sbs11_call, "total_mutations": out.total_mutations}
+            elif isinstance(out, MutationCheckSkipped):
+                detail = {"skip_reason": out.skip_reason}
+            elif out is None:
+                detail = {"result": "unavailable"}  # treated as no information
+            else:
+                raise WorkflowError(
+                    "mutation_check hook must return MutationCheckRan, MutationCheckSkipped or None"
+                )
             rec.mutation = out
-            detail = {"sbs11_call": out.sbs11_call, "total_mutations": out.total_mutations}
         elif stage == "matching":
             out = hooks.matching(rec, policy)
             if isinstance(out, NoMatchPlan):
@@ -238,6 +260,7 @@ def _run_agent_stage(rec: CaseRecord, policy: Policy) -> None:
                 # No trials means the no-match plan must run; an empty shortlist would skip it.
                 raise WorkflowError("matching hook returned an empty Shortlist; return a NoMatchPlan")
             else:
+                _attach_mutation_context(out, rec.mutation)
                 rec.shortlist, rec.no_match = out, None
                 detail = {"trials": len(out.trials)}
         else:
