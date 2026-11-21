@@ -292,5 +292,7 @@ A near miss fails exactly one criterion, or has no failures but waits on a `pend
 ## Audit log entry
 
 ```json
-{"ts": "2026-11-21T14:03:12Z", "case_id": "demo-001", "actor": "agent | doctor", "action": "trial_search", "detail": {}}
+{"ts": "2026-11-21T14:03:12Z", "case_id": "demo-001", "actor": "agent | doctor | system", "action": "trial_search", "detail": {}}
 ```
+
+`system` is for events no agent or doctor caused, such as startup and policy reloads. `case_id` is `null` for those.
