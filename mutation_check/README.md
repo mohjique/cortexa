@@ -16,6 +16,35 @@ The result is context only. It never decides eligibility, and a high mutation co
 
 Output format: see `docs/interfaces.md` (Mutation check → agent).
 
+## Calling it (agent)
+
+```python
+from mutation_check import run_mutation_check, MutationCheckUnavailable
+
+out = run_mutation_check(request, false_alarm_rate=policy.mutation_check.false_alarm_rate)
+# -> a MutationCheckRan or MutationCheckSkipped dict; validates against agent/schemas.py
+```
+
+- `request` is the Mutation check input (`case_id`, `sequencing`, `reference`, `snvs`). It may carry
+  `counts_96` instead of `snvs` (issue #6), which is how the demo patients' stored catalogs run.
+- The agent decides "recurrent glioma" before calling. The check itself skips anything that isn't exome or
+  genome (`skip_reason: no_broad_sequencing`).
+- `MutationCheckUnavailable` means no trustworthy answer: the engine isn't installed and the catalog isn't a demo
+  case, or `policy.yaml`'s false-alarm rate differs from the calibration's (0.01). Log it and continue matching
+  without the check, as for `inconclusive`. Never substitute a guess.
+- `include_limits=True` adds the four fields proposed in issue #6. Leave it off until the schema has them.
+
+## The engine
+
+Detection runs in [sigdetect](https://github.com/almondshawarma/sigdetect) (private; ask the mutation-check
+owner for access): Poisson fit of non-negative signature exposures, likelihood-ratio test with thresholds
+simulated per mutation count, Currie detection limits. Without it installed, the three demo cases still run from
+`demo_results.json` (precomputed by `python -m mutation_check.make_demo_results`), so nobody else needs sigdetect
+or the COSMIC file to run the app. With it: `pip install -e <sigdetect checkout>`, and the calibration is found at
+`../sigdetect/data/sbs11_calibration.npz` or `$SIGDETECT_CALIBRATION`.
+
+Tests: `python -m pytest mutation_check` (the live-engine tests skip where sigdetect isn't installed).
+
 ## Demo cases
 
 `demo_cases.json` holds synthetic catalogs for the three recurrent-glioma demo patients. Copy each case's

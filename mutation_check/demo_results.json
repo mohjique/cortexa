@@ -1,0 +1,87 @@
+{
+ "_about": "Precomputed sigdetect reports for demo_cases.json (make_demo_results.py). Synthetic.",
+ "false_alarm_rate": 0.01,
+ "results": {
+  "demo-016": {
+   "counts_sha": "d31527573307891b",
+   "report": {
+    "verdict": "detected",
+    "n_mutations": 600,
+    "target_fraction": 0.6088188959853164,
+    "ci95": [
+     0.5071607500239526,
+     0.6904796387623694
+    ],
+    "critical_fraction": 0.12242798362361236,
+    "detection_limit_95": 0.22084909167959166,
+    "false_alarm_rate": 0.01,
+    "lrt": 117.37374870512849,
+    "lrt_threshold": 5.078878693997585,
+    "target": "SBS11",
+    "background_exposures": {
+     "SBS1": 84.50098546833254,
+     "SBS5": 78.75211078167997,
+     "SBS40a": 45.14704544893242,
+     "SBS32": 0.0,
+     "SBS23": 0.0,
+     "SBS30": 26.308520709865324
+    },
+    "summary": "SBS11 was detected at a 1% false-alarm rate: it accounts for an estimated 61% of 600 mutations (95% CI 51% to 69%), and at 600 mutations, SBS11 making up 22% or more of them would be detected 95% of the time."
+   }
+  },
+  "demo-017": {
+   "counts_sha": "93d724157e0a6a48",
+   "report": {
+    "verdict": "too_few_mutations",
+    "n_mutations": 30,
+    "target_fraction": 0.0,
+    "ci95": [
+     0.0,
+     0.1168484939787275
+    ],
+    "critical_fraction": 0.5347067307398355,
+    "detection_limit_95": null,
+    "false_alarm_rate": 0.01,
+    "lrt": 0.0,
+    "lrt_threshold": 4.12606874287628,
+    "target": "SBS11",
+    "background_exposures": {
+     "SBS1": 13.20349253914666,
+     "SBS5": 9.387766932293697,
+     "SBS40a": 1.8723735202055893,
+     "SBS32": 5.5363670083540555,
+     "SBS23": 0.0,
+     "SBS30": 0.0
+    },
+    "summary": "Too few mutations (30) to assess SBS11 at a 1% false-alarm rate: even if SBS11 made up half of them it would be detected less than half the time, and at 30 mutations, SBS11 would not be detected 95% of the time even if it made up all of them, so a non-detection here is not evidence of absence."
+   }
+  },
+  "demo-018": {
+   "counts_sha": "eb555e20f180e742",
+   "report": {
+    "verdict": "not_detected",
+    "n_mutations": 80,
+    "target_fraction": 0.020855547744874938,
+    "ci95": [
+     0.0,
+     0.1452789300607286
+    ],
+    "critical_fraction": 0.3324420722239345,
+    "detection_limit_95": 0.5950203247299638,
+    "false_alarm_rate": 0.01,
+    "lrt": 0.0728509313036767,
+    "lrt_threshold": 4.491597169711085,
+    "target": "SBS11",
+    "background_exposures": {
+     "SBS1": 29.247449134718327,
+     "SBS5": 39.10666954887615,
+     "SBS40a": 8.498258665293259,
+     "SBS32": 1.4791788315222705,
+     "SBS23": 0.0,
+     "SBS30": 0.0
+    },
+    "summary": "SBS11 was not detected at a 1% false-alarm rate; the data allow SBS11 to make up at most 15% of the 80 mutations (95% upper limit), and at 80 mutations, SBS11 making up 60% or more of them would be detected 95% of the time."
+   }
+  }
+ }
+}
