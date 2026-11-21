@@ -124,17 +124,24 @@ def audited(action: str) -> Callable[[F], F]:
             case_id = call_args.get("case_id")
             detail: dict[str, Any] = {"args": {k: _short(v) for k, v in call_args.items()}}
             start = time.perf_counter()
+
+            def elapsed() -> float:
+                return round((time.perf_counter() - start) * 1000, 1)
+
             try:
                 result = fn(*args, **kwargs)
             except Exception as exc:
-                detail.update(ok=False, error=f"{type(exc).__name__}: {exc}")
+                detail.update(ok=False, error=f"{type(exc).__name__}: {exc}", ms=elapsed())
+                try:
+                    audit("agent", action, detail, case_id=case_id)
+                except Exception as audit_exc:
+                    # Keep the tool's error; attach the audit failure to it.
+                    exc.add_note(f"audit write also failed: {type(audit_exc).__name__}: {audit_exc}")
                 raise
-            else:
-                detail.update(ok=True, result=_short(result))
-                return result
-            finally:
-                detail["ms"] = round((time.perf_counter() - start) * 1000, 1)
-                audit("agent", action, detail, case_id=case_id)
+            # Success: an audit failure here must surface (rule 7), so no try.
+            detail.update(ok=True, result=_short(result), ms=elapsed())
+            audit("agent", action, detail, case_id=case_id)
+            return result
 
         return inner  # type: ignore[return-value]
 

@@ -90,6 +90,35 @@ def test_append_decision_saves_and_audits(case_store, audit_log):
     assert entry.detail["decision"] == {"bucket": "glioma", "overrode_model": False}
 
 
+def test_decision_not_saved_if_audit_fails(case_store, audit_log, monkeypatch):
+    """Rule 7: a decision must never exist without its audit entry."""
+    case_store.create("demo-001")
+
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(audit_log, "append", boom)
+    decision = DoctorDecisionAdapter.validate_python(fixture("decision_confirm_bucket.json"))
+    with pytest.raises(OSError):
+        case_store.append_decision(decision)
+    assert CaseStore(case_store.root).get("demo-001").decisions == []
+    assert case_store.get("demo-001").decisions == []
+
+
+def test_failed_save_after_audit_is_logged(case_store, audit_log, monkeypatch):
+    case_store.create("demo-001")
+
+    def boom(record):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(case_store, "save", boom)
+    decision = DoctorDecisionAdapter.validate_python(fixture("decision_confirm_bucket.json"))
+    with pytest.raises(OSError):
+        case_store.append_decision(decision)
+    actions = [e.action for e in audit_log.read("demo-001")]
+    assert actions[-2:] == ["decision:confirm_bucket", "decision_save_failed"]
+
+
 def test_append_decision_unknown_case_fails(case_store):
     decision = DoctorDecisionAdapter.validate_python(fixture("decision_confirm_bucket.json"))
     with pytest.raises(CaseNotFound):
