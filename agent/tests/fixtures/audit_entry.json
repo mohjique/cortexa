@@ -1,1 +1,1 @@
-{"ts": "2026-11-21T14:03:12Z", "case_id": "demo-001", "actor": "agent", "action": "trial_search", "detail": {"radius_miles": 100}}
+{"ts": "2026-11-21T14:03:12Z", "case_id": "demo-001", "actor": "agent", "action": "trial_search", "detail": {"trials_found": 9}}

@@ -11,7 +11,7 @@ Owner: computer engineer.
 
 ## Trial search (F7)
 
-- `agent/trials.py`: `search_trials(condition, origin, radius_miles, case_id)` → merged `TrialRecord` list from ClinicalTrials.gov (primary) and NCI (fills gaps, `source: ctgov+nci`). Statuses from `trial_search.statuses` are filtered client-side too, so a policy edit changes results even on cached data. Closed sites are dropped.
+- `agent/trials.py`: `search_trials(condition, case_id)` → merged `TrialRecord` list from ClinicalTrials.gov (primary) and NCI (fills gaps, `source: ctgov+nci`). Statuses from `trial_search.statuses` are filtered client-side too, so a policy edit changes results even on cached data. Closed sites are dropped. No distance cutoff: the search is nationwide, and distance only sorts and labels trials.
 - `agent/geo.py`: `geocode_zip` (5-digit ZIP only), `haversine_miles`, `nearest_site` (straight line, then OSRM drive time for the closest site only; `None` if OSRM is down).
 - `agent/http_cache.py`: source mode.
 

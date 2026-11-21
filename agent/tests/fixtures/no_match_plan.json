@@ -1,7 +1,6 @@
 {
   "case_id": "demo-003",
-  "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
-  "widened": {"radius_miles": 500, "include_remote_trials": true, "trials": []},
+  "searched": {"statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
   "near_misses": [
     {
       "trial_id": "NCT99000007",
@@ -15,7 +14,7 @@
   ],
   "alert": {
     "alert_id": "alert-demo-003-1",
-    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840", "radius_miles": 500},
+    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840"},
     "notify": "care_team_in_app",
     "created_at": "2026-11-21T15:10:00Z"
   },
