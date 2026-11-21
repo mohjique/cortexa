@@ -55,3 +55,32 @@ Run 1 had no degraded training data and called 86 of 264 noisy copies of real tu
 - `flagged_uncertain` is a warning, not a safety net. At the policy threshold 0.99 (chosen on calib: flags 8/8 calib errors) it flags 20 of 32 test errors and 3.3% of correct calls; at 0.80 it flagged 6 of 32. The doctor confirms every case either way.
 
 **Demo images** (issue #22): `classifier/splits/demo_images.json`. 22 from the demo pool, picked at random (seed 20261121) among correct calls at >= 0.99. demo-023 is a test-split glioma the model calls meningioma at 0.78 (wrong and flagged). Kaggle folder names ("Training") do not matter: none of these images or their duplicates are in our train split.
+
+## Grad-CAM heatmaps and source-artifact check (F2.2)
+
+```
+python -m classifier.gradcam demo                    # artifacts/classifier/heatmaps/demo/<case_id>.png + index.json
+python -m classifier.gradcam check --per-class 120   # artifact_check.json + montage_<class>.png
+```
+
+The "no tumor" class comes from a different source dataset (Br35H), so the model could learn the source instead of anatomy. Check on 120 clean test images per class:
+
+| class | accuracy | border blacked out | heat on head | heat on background | heat in border band |
+|---|---|---|---|---|---|
+| glioma | 97.5% | 98.3% | 0.79 | 0.21 | 0.13 |
+| meningioma | 90.0% | 91.7% | 0.86 | 0.14 | 0.13 |
+| no_tumor | 97.5% | 97.5% | 0.74 | 0.26 | 0.28 |
+| pituitary | 100% | 99.2% | 0.89 | 0.11 | 0.17 |
+
+The border band is the outer 12% of each side, where frames and burned-in text sit.
+
+**What it shows (montages checked by eye):**
+- **No reliance on frame or border artifacts.** Blacking out the border band leaves "no tumor" accuracy unchanged.
+- **Meningioma:** the heat sits on the visible tumor in most images. That is the clearest evidence the model looks at lesions.
+- **No tumor:** the heat spreads over brain tissue, but many images also show a hot spot in the same lower-right position, partly off the head. This is consistent with the higher border share and may be a learned position cue; we have not proven that it is.
+- **Glioma:** the heat is mostly a broad central blob, not clearly on the lesion. Many glioma images in this dataset are coronal or sagittal, while "no tumor" images are axial, so slice orientation may be a shortcut.
+- **Misses look like these failure modes:** a frontal meningioma was called "no tumor" at 0.98, with heat on the back of the head.
+
+**Bottom line:** the check rules out the obvious frame and text shortcut. It does not show that every call is driven by the lesion, which is one more reason the doctor confirms every bucket.
+
+**Demo images:** heat on head 0.63–0.96. demo-023 (glioma called meningioma, 0.78) has its heatmap explaining the wrong call, which is useful to show judges.
