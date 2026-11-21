@@ -30,12 +30,12 @@ def build_model(pretrained: bool = True) -> nn.Module:
     return m
 
 
-def eval_transform(size: int = IMG_SIZE) -> transforms.Compose:
+def eval_transform(size: int = IMG_SIZE, mean=MEAN, std=STD) -> transforms.Compose:
     return transforms.Compose([
         transforms.Grayscale(num_output_channels=3),  # MRIs are grayscale; some JPEGs are RGB
         transforms.Resize((size, size)),
         transforms.ToTensor(),
-        transforms.Normalize(MEAN, STD),
+        transforms.Normalize(mean, std),
     ])
 
 
@@ -144,7 +144,7 @@ class LoadedModel:
         self.model.load_state_dict(ck["state_dict"])
         self.model.eval().to(device)
         self.temperature = float(ck["temperature"])
-        self.transform = eval_transform(ck["img_size"])
+        self.transform = eval_transform(ck["img_size"], ck["mean"], ck["std"])
         self.device = device
         self.meta = ck.get("meta", {})
 

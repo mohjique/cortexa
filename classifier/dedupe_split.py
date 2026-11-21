@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import csv
 import hashlib
+import io
 import random
 from collections import Counter, defaultdict
 from pathlib import Path
@@ -39,7 +40,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from classifier.dataset import BUCKETS, DATA_ROOT, SPLIT_CSV, VARIANT_ORIGINS, find_images
+from classifier.dataset import BUCKETS, CLEAN_ORIGINS, DATA_ROOT, SPLIT_CSV, VARIANT_ORIGINS, find_images
 
 HASH_CACHE = DATA_ROOT / "hashes.csv"  # gitignored with data/
 SEED = 2026_11_21
@@ -88,7 +89,7 @@ def _hashes(path: Path) -> tuple[str, int, int]:
     import imagehash  # only needed here
 
     raw = path.read_bytes()
-    with Image.open(path) as im:
+    with Image.open(io.BytesIO(raw)) as im:  # decode the bytes already read
         g = im.convert("L")
         ph = int(str(imagehash.phash(g)), 16)
         dh = int(str(imagehash.dhash(g)), 16)
@@ -126,16 +127,19 @@ def load_thumbs(rows: list[dict]) -> np.ndarray:
         z = np.load(THUMB_CACHE, allow_pickle=False)
         cache = dict(zip(z["paths"].tolist(), z["thumbs"]))
     out = np.empty((len(paths), THUMB * THUMB), dtype=np.float32)
+    added = False
     for k, path in enumerate(paths):
         v = cache.get(path)
         if v is None:
+            added = True
             with Image.open(DATA_ROOT / path) as im:
                 v = np.asarray(im.convert("L").resize((THUMB, THUMB), Image.BILINEAR), dtype=np.float32).ravel()
             v = v - v.mean()
             v = v / (np.linalg.norm(v) + 1e-8)
             cache[path] = v
         out[k] = v
-    np.savez(THUMB_CACHE, paths=np.array(list(cache)), thumbs=np.stack(list(cache.values())))
+    if added:
+        np.savez(THUMB_CACHE, paths=np.array(list(cache)), thumbs=np.stack(list(cache.values())))
     return out
 
 
@@ -146,23 +150,28 @@ def _as_u64(rows: list[dict], key: str) -> np.ndarray:
 _POP8 = np.array([bin(i).count("1") for i in range(256)], dtype=np.uint8)
 
 
-def hamming(a: np.ndarray, b: np.ndarray) -> np.ndarray:
-    """Pairwise Hamming distance between two uint64 arrays -> (len(a), len(b)) uint8."""
-    x = a[:, None] ^ b[None, :]
+def _popcount(x: np.ndarray) -> np.ndarray:
+    """Set bits per uint64 element -> uint8 array of the same shape."""
     return _POP8[x.view(np.uint8).reshape(*x.shape, 8)].sum(axis=-1, dtype=np.uint8)
 
 
-def near_pairs(ph: np.ndarray, dh: np.ndarray, p_max: int, d_max: int, chunk: int = 512):
-    """(i, j, pdist, ddist) for i < j with pHash <= p_max and dHash <= d_max."""
+def hamming(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Pairwise Hamming distance between two uint64 arrays -> (len(a), len(b)) uint8."""
+    return _popcount(a[:, None] ^ b[None, :])
+
+
+def near_pairs(ph: np.ndarray, p_max: int, dh: np.ndarray | None = None, chunk: int = 512):
+    """(i, j, pdist, ddist) for i < j with pHash <= p_max. ddist is the dHash
+    distance when `dh` is given (for display only), else None."""
     n = len(ph)
     for s in range(0, n, chunk):
         pd = hamming(ph[s:s + chunk], ph)
-        dd = hamming(dh[s:s + chunk], dh)
-        ii, jj = np.nonzero((pd <= p_max) & (dd <= d_max))
-        for i, j in zip(ii, jj):
-            gi = s + i
-            if gi < j:
-                yield gi, int(j), int(pd[i, j]), int(dd[i, j])
+        ii, jj = np.nonzero(pd <= p_max)
+        keep = s + ii < jj
+        ii, jj = ii[keep], jj[keep]
+        dd = None if dh is None else _popcount(dh[s + ii] ^ dh[jj])
+        for k, (i, j) in enumerate(zip(ii, jj)):
+            yield s + int(i), int(j), int(pd[i, j]), None if dd is None else int(dd[k])
 
 
 # ---------------------------------------------------------------------------
@@ -194,7 +203,7 @@ def cluster_clean(clean: list[dict], thumbs: np.ndarray) -> list[int]:
             uf.union(i, by_md5[r["md5"]])
         else:
             by_md5[r["md5"]] = i
-    for i, j, _, _ in near_pairs(_as_u64(clean, "phash"), _as_u64(clean, "dhash"), CANDIDATE_PHASH_MAX, 64):
+    for i, j, _, _ in near_pairs(_as_u64(clean, "phash"), CANDIDATE_PHASH_MAX):
         if float(thumbs[i] @ thumbs[j]) >= PIXEL_CORR_MIN:
             uf.union(i, j)
     return [uf.find(i) for i in range(len(clean))]
@@ -263,7 +272,7 @@ def match_variants(variants: list[dict], vthumbs: np.ndarray, clean: list[dict],
 
 def build_split() -> list[dict]:
     rows = load_hashes()
-    clean = [r for r in rows if r["origin"] in ("training", "testing")]
+    clean = [r for r in rows if r["origin"] in CLEAN_ORIGINS]
     variants = [r for r in rows if r["origin"] in VARIANT_ORIGINS]
     cthumbs, vthumbs = load_thumbs(clean), load_thumbs(variants)
     roots = cluster_clean(clean, cthumbs)
@@ -288,9 +297,8 @@ def build_split() -> list[dict]:
 
 def cmd_report(sheet_dir: Path) -> None:
     """Distance histogram among clean images + contact sheets of pairs per distance band."""
-    rows = [r for r in load_hashes() if r["origin"] in ("training", "testing")]
-    ph, dh = _as_u64(rows, "phash"), _as_u64(rows, "dhash")
-    pairs = list(near_pairs(ph, dh, 16, 64))
+    rows = [r for r in load_hashes() if r["origin"] in CLEAN_ORIGINS]
+    pairs = list(near_pairs(_as_u64(rows, "phash"), 16, _as_u64(rows, "dhash")))
     hist = Counter(p for _, _, p, _ in pairs)
     print("pHash distance -> pairs (any dHash):")
     for k in range(17):

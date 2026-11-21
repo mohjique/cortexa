@@ -161,7 +161,7 @@ def main() -> None:
                      "note": "test excludes the demo_pool images (issue #22). Dedupe by perceptual hash before split."}
     pred_rows = []
     for k, dl in eval_dl.items():
-        lg, lb = run_logits(model, dl, device)
+        lg, lb = (calib_logits, calib_labels) if k == "calib" else run_logits(model, dl, device)
         raw, cal = torch.softmax(lg, 1), torch.softmax(lg / temperature, 1)
         m = per_class(cal, lb)
         m["ece_uncalibrated"] = expected_calibration_error(raw, lb)
