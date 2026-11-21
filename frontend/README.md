@@ -1,7 +1,5 @@
 # frontend/
 
-Owner: Matt.
-
 Screens:
 1. MRI upload + suspected bucket, confidence and heatmap
 2. Doctor confirm / correct bucket

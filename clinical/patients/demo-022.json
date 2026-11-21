@@ -67,6 +67,9 @@
       "bucket": "pituitary",
       "overrode_model": false
     },
+    "hormone_labs": {
+      "labs_reviewed": true
+    },
     "surgery_or_meds": {
       "choice": "medication_only"
     },
@@ -115,6 +118,7 @@
   "expected_trials": [
     "NCT99000006"
   ],
+  "expected_needs_test": {},
   "expected_preop_flags": [],
   "expected_no_match": false,
   "gold_eligibility": [

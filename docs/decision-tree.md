@@ -16,7 +16,8 @@ flowchart TD
     WT -- watch --> RESCAN["Rescan later<br/>no trial search"]
     WT -- treat --> SP
     C --> GL[Glioma] --> PRE["Pre-op screen<br/>tests needed"]
-    PRE --> SP
+    PRE --> PR["Doctor reviews pre-op<br/>acks pre-surgery trials"]
+    PR --> SP
     C --> PIT[Pituitary] --> HL["Hormone labs<br/>doctor marks labs reviewed"]
     HL --> SM{"Surgery or meds?<br/>doctor decides"}
     SM -- surgery --> SP
@@ -35,7 +36,7 @@ flowchart TD
     classDef ai fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef doc fill:#E1F5EE,stroke:#0F6E56,color:#085041
     class B,PRE,MC,TM,NM ai
-    class C,WT,HL,SM,DR,SL doc
+    class C,WT,PR,HL,SM,DR,SL doc
 ```
 
 ## Rules on top of the tree
@@ -43,6 +44,7 @@ flowchart TD
 - **Missing results never block matching.** Rules that depend on a missing field are marked `unknown: needs pathology`.
 - **Inconclusive mutation check = no information.** Matching continues without it. A high mutation count never routes to immunotherapy trials.
 - **Pre-surgery trials.** The glioma pre-op screen flags trials that require enrollment before surgery.
+- **Pre-op review gate.** Every glioma case stops after the pre-op screen until the doctor marks the biopsy tests reviewed and chooses `pursue_before_surgery` or `not_pursuing` for each flagged pre-surgery trial. None can be skipped. The window closes at surgery, so the gate applies even when no trial is flagged.
 - **Doctor overrides.** If the doctor changes the bucket, the case follows the new bucket's path.
 - **Hormone labs gate.** A pituitary case moves to surgery-or-meds only after the doctor marks the hormone labs reviewed.
 - **Medication-only pituitary cases:** after hormone labs, the doctor chooses surgery or meds only. Meds only skips surgery; the doctor enters hormone and imaging results directly.

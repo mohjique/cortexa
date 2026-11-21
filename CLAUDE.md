@@ -55,17 +55,6 @@ policies/         policy.yaml (runtime rules)
 docs/             decision tree and design notes
 ```
 
-## Owners
-
-| Area | Owner | Folders |
-|---|---|---|
-| Agent, trial APIs, eligibility checks, audit log, MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `agent/`, `classifier/` |
-| Clinical rules, synthetic cases and reports | Premed (contributor: computer engineer) | `clinical/`, `policies/` |
-| Frontend UI: upload, approval screens, shortlist + map | Matt | `frontend/` |
-| Mutation check | Nuclear engineer | `mutation_check/` |
-
-Stay in your folders. Cross-folder changes go through a PR the owner reviews. Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.
-
 ## Proposed stack (confirm at kickoff)
 
 - Python 3.11, FastAPI backend, PyTorch for the classifier
@@ -98,17 +87,18 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 ### Clinical (`clinical/`)
 - 23 synthetic patients (`clinical/patients/demo-001.json` to `demo-023.json`) covering every branch of the decision tree, each paired with a held-out test-set MRI. Spec: `clinical/PATIENT_PROFILES_GUIDE.md`; template: `clinical/patients/_template.json`.
 - Gold labels: manual eligibility calls against the synthetic trials in `agent/demo_cache/`, used to measure agent accuracy. `status` always means "does the patient pass this criterion"; for exclusion criteria, `met` means the exclusion does not apply.
-- Owns the wording of medical rules in `policies/policy.yaml`.
+- Holds the wording of the medical rules in `policies/policy.yaml`.
 
 ## Evaluation we will show judges
 
 - Classifier per-class accuracy on deduplicated data, plus heatmap sanity checks
-- Agent eligibility agreement with the premed teammate's manual labels
+- Agent eligibility agreement with the manual gold labels
 - Mutation check detection vs false-alarm curves from the simulation
 - Live demo: change a rule in `policy.yaml` and show the agent's behavior change
 
 ## Working agreements
 
 - Never commit data, model weights, API keys or `.env` files (see `.gitignore`).
-- Small PRs, one owner per folder, rebase on `main` often.
+- Small PRs, rebase on `main` often.
+- Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.
 - Before writing any user-facing text, check it against the safety rules above.

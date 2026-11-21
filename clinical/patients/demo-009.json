@@ -52,6 +52,16 @@
     "confirm_bucket": {
       "bucket": "glioma",
       "overrode_model": false
+    },
+    "preop_review": {
+      "tests_reviewed": true,
+      "pre_surgery_trials": [
+        {
+          "trial_id": "NCT99000003",
+          "action": "pursue_before_surgery",
+          "reason": "Enrollment not open yet; recheck status before scheduling surgery"
+        }
+      ]
     }
   },
   "expected_path": [
@@ -61,6 +71,7 @@
     "awaiting_pathology"
   ],
   "expected_trials": [],
+  "expected_needs_test": {},
   "expected_preop_flags": [
     "NCT99000003"
   ],
