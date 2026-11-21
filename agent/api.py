@@ -22,7 +22,7 @@ from agent.store import CaseNotFound, CaseRecord, get_store
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    workflow.check_gate_policy(get_policy())
+    get_policy()  # fail fast on a bad policy file
     yield
 
 

@@ -7,18 +7,8 @@ classifier:
   flag_on_model_disagreement: true
   label_prefix: "Suspected"               # never "Diagnosis"
 
-approvals:
-  # Code enforces all seven gates. Removing one here only logs a warning.
-  # confirm_bucket, preop_review, enter_results and review_shortlist are locked (safety rule 2).
-  # preop_review: doctor reviews the biopsy tests and acknowledges every trial that needs enrollment before surgery.
-  required:
-    - confirm_bucket
-    - watch_or_treat
-    - preop_review
-    - hormone_labs
-    - surgery_or_meds
-    - enter_results
-    - review_shortlist
+# Doctor approval gates (safety rule 2) are not configurable here: code
+# requires every gate in schemas.Gate. See agent/workflow.py GATE_AT_STAGE.
 
 eligibility:
   missing_field_status: unknown
@@ -70,7 +60,6 @@ pre_surgery_detection:
   title_hints: ["window-of-opportunity", "neoadjuvant", "pre-operative"]
   # Only trials whose conditions or title name one of these are screened (pre-op is glioma only).
   condition_keywords: [glioma, glioblastoma, astrocytoma, oligodendroglioma]
-  match: case_insensitive_substring
   llm_confirm_on_title_hint_only: true
 
 privacy:

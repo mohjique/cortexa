@@ -45,10 +45,10 @@ def _split_criteria(text: str) -> tuple[str, str]:
 
 
 def _matching_line(section: str, phrases: list[str]) -> str | None:
-    """The first criterion line containing any phrase, cleaned up for display."""
+    """The first criterion line containing any (lowercased) phrase, cleaned up for display."""
     for line in section.splitlines():
         low = line.lower()
-        if any(p.lower() in low for p in phrases):
+        if any(p in low for p in phrases):
             cleaned = line.strip().lstrip("*-• ").strip()
             if cleaned:
                 return cleaned
@@ -66,13 +66,12 @@ def pre_surgery_criterion(trial: TrialRecord, policy: Policy) -> str | None:
 
 def _has_title_hint(trial: TrialRecord, policy: Policy) -> bool:
     title = trial.title.lower()
-    return any(h.lower() in title for h in policy.pre_surgery_detection.title_hints)
+    return any(h in title for h in policy.pre_surgery_detection.title_hints)
 
 
 def _is_glioma_trial(trial: TrialRecord, policy: Policy) -> bool:
-    words = [w.lower() for w in policy.pre_surgery_detection.condition_keywords]
     text = " ".join(trial.conditions + [trial.title]).lower()
-    return any(w in text for w in words)
+    return any(w in text for w in policy.pre_surgery_detection.condition_keywords)
 
 
 def find_pre_surgery_trials(

@@ -4,7 +4,6 @@ from pathlib import Path
 import pytest
 
 from agent import store, workflow
-from agent.policy import get_policy
 from agent.schemas import (
     ClassifierOutput,
     ConfirmBucketRecord,
@@ -367,11 +366,3 @@ def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
     with pytest.raises(workflow.WorkflowError, match="empty Shortlist"):
         workflow.run_agent(CID)
 
-
-# -- policy -----------------------------------------------------------------
-
-
-def test_gate_policy_gap_reported():
-    missing = workflow.check_gate_policy(get_policy())
-    assert set(missing) <= workflow.ALL_GATES
-    assert {"confirm_bucket", "preop_review", "enter_results", "review_shortlist"}.isdisjoint(missing)

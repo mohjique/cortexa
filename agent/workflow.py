@@ -519,20 +519,3 @@ def rescreen_preop(case_id: str, doctor_id: str, reason: str | None = None) -> C
         store.save(rec)
         return _run_agent_after_save(case_id)
 
-
-# ---------------------------------------------------------------------------
-# Startup check
-# ---------------------------------------------------------------------------
-
-
-def check_gate_policy(policy: Policy) -> list[str]:
-    """Gates the code enforces that policy.yaml doesn't list.
-
-    The code requires every gate no matter what policy says (rule 2), so a
-    gap only means the policy file is out of date. Logged as a warning.
-    """
-    missing = sorted(ALL_GATES - set(policy.approvals.required))
-    if missing:
-        log.warning("policy.yaml approvals.required is missing %s; code enforces them anyway", missing)
-        audit("system", "gate_policy_mismatch", {"missing": missing, "enforced": sorted(ALL_GATES)})
-    return missing

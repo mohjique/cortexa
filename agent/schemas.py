@@ -535,7 +535,7 @@ class PreSurgeryTrial(Schema):
     matched_on: Literal["criteria", "title_hint"] = "criteria"
     nearest_site: NearestSite | None = None
     # Set from the preop_review gate; "pending" until the doctor decides.
-    doctor_action: Literal["pending", "pursue_before_surgery", "not_pursuing"] = "pending"
+    doctor_action: Literal["pending", PreSurgeryAction] = "pending"
     doctor_reason: str | None = None
 
 
