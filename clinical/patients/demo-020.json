@@ -70,6 +70,9 @@
       "bucket": "pituitary",
       "overrode_model": false
     },
+    "hormone_labs": {
+      "labs_reviewed": true
+    },
     "surgery_or_meds": {
       "choice": "surgery"
     },
@@ -117,6 +120,7 @@
     "no_match"
   ],
   "expected_trials": [],
+  "expected_needs_test": {},
   "expected_preop_flags": [],
   "expected_no_match": true,
   "gold_eligibility": []

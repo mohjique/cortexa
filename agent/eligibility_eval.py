@@ -1,6 +1,6 @@
 """F8.6: agreement between the eligibility checker and the gold labels.
 
-Gold labels are the premed teammate's manual calls in
+Gold labels are manual eligibility calls in
 `clinical/patients/demo-*.json` (`gold_eligibility`), against the synthetic
 trials in `agent/demo_cache/`. Run from the repo root:
 

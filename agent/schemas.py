@@ -7,6 +7,8 @@ single record are enforced here, in code, not in the LLM.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Annotated, Any, Literal, TypedDict, Union
 
 from pydantic import (
@@ -273,6 +275,41 @@ class SurgeryOrMedsDecision(Schema):
     choice: Literal["surgery", "medication_only"]
 
 
+PreSurgeryAction = Literal["pursue_before_surgery", "not_pursuing"]
+
+
+class PreSurgeryTrialAck(Schema):
+    """Doctor's call on one trial that needs enrollment before surgery."""
+
+    trial_id: TrialId
+    action: PreSurgeryAction
+    reason: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def _reason_when_declined(self) -> PreSurgeryTrialAck:
+        # Declining closes the window for good, so the tumor board must see why.
+        if self.action == "not_pursuing" and self.reason is None:
+            raise ValueError("reason is required when action is not_pursuing")
+        return self
+
+
+class PreOpReviewDecision(Schema):
+    """Glioma: doctor has reviewed the tests the biopsy must answer and
+    acknowledged every pre-surgery trial. The window closes at surgery."""
+
+    # The screen the doctor reviewed. Rejected if the case's screen has changed since.
+    screen_id: NonEmptyStr
+    tests_reviewed: Literal[True]
+    pre_surgery_trials: list[PreSurgeryTrialAck] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _one_ack_per_trial(self) -> PreOpReviewDecision:
+        ids = [a.trial_id for a in self.pre_surgery_trials]
+        if len(ids) != len(set(ids)):
+            raise ValueError("a pre-surgery trial may be acknowledged only once")
+        return self
+
+
 class TrialRejection(Schema):
     trial_id: TrialId
     reason: NonEmptyStr
@@ -308,6 +345,11 @@ class WatchOrTreatRecord(_DecisionRecord):
     decision: WatchOrTreatDecision
 
 
+class PreOpReviewRecord(_DecisionRecord):
+    gate: Literal["preop_review"]
+    decision: PreOpReviewDecision
+
+
 class HormoneLabsRecord(_DecisionRecord):
     gate: Literal["hormone_labs"]
     decision: HormoneLabsDecision
@@ -338,6 +380,7 @@ DoctorDecision = Annotated[
     Union[
         ConfirmBucketRecord,
         WatchOrTreatRecord,
+        PreOpReviewRecord,
         HormoneLabsRecord,
         SurgeryOrMedsRecord,
         EnterResultsRecord,
@@ -349,6 +392,7 @@ DoctorDecisionAdapter: TypeAdapter[DoctorDecision] = TypeAdapter(DoctorDecision)
 Gate = Literal[
     "confirm_bucket",
     "watch_or_treat",
+    "preop_review",
     "hormone_labs",
     "surgery_or_meds",
     "enter_results",
@@ -485,16 +529,42 @@ class PreSurgeryTrial(Schema):
     trial_id: TrialId
     title: NonEmptyStr
     recruitment_status: RecruitmentStatus
-    criterion_text: NonEmptyStr
+    criterion_text: NonEmptyStr  # the matched criterion line, or "Title: ..." for a title hint
+    # criteria = a criterion line matched. title_hint = only the title suggests it;
+    # shown as "possible, check criteria" and still needs the doctor's answer.
+    matched_on: Literal["criteria", "title_hint"] = "criteria"
     nearest_site: NearestSite | None = None
+    # Set from the preop_review gate; "pending" until the doctor decides.
+    doctor_action: Literal["pending", PreSurgeryAction] = "pending"
+    doctor_reason: str | None = None
+
+
+_DOCTOR_FIELDS = {"doctor_action", "doctor_reason"}
 
 
 class PreOpScreen(Schema):
     case_id: NonEmptyStr
+    # Content hash, set on creation. Changes when any flag, status, criterion or
+    # test changes, so a review of an older screen is rejected.
+    screen_id: str = ""
     trials_considered: Annotated[int, Field(ge=0)]
     tests_needed: list[TestNeeded]
     pre_surgery_trials: list[PreSurgeryTrial] = Field(default_factory=list)
     label: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _set_screen_id(self) -> PreOpScreen:
+        if not self.screen_id:
+            content = {
+                "tests_needed": [t.model_dump(mode="json") for t in self.tests_needed],
+                "pre_surgery_trials": [
+                    t.model_dump(mode="json", exclude=_DOCTOR_FIELDS) for t in self.pre_surgery_trials
+                ],
+                "label": self.label,
+            }
+            digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
+            self.screen_id = f"preop-{digest[:12]}"
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -606,6 +676,10 @@ class EligibilitySummary(Schema):
     unknown: Annotated[int, Field(ge=0)]
 
 
+ShortlistGroup = Literal["eligible", "needs_test"]
+SHORTLIST_GROUP_ORDER: dict[str, int] = {"eligible": 0, "needs_test": 1}
+
+
 class ShortlistTrial(Schema):
     trial_id: TrialId
     title: NonEmptyStr
@@ -617,6 +691,11 @@ class ShortlistTrial(Schema):
     eligibility: list[EligibilityResult]
     mutation_context: MutationCheckRan | None = None
     doctor_decision: Literal["pending", "keep", "reject"] = "pending"
+    # eligible: open questions are routine screening-visit items.
+    # needs_test: an unknown on a key field (trial_search.key_unknown_fields);
+    # needs_test_fields names the result(s) that would decide it.
+    group: ShortlistGroup = "eligible"
+    needs_test_fields: list[NonEmptyStr] = []
 
     @model_validator(mode="after")
     def _consistent(self, info: ValidationInfo) -> ShortlistTrial:
@@ -640,6 +719,12 @@ class ShortlistTrial(Schema):
             raise ValueError("a shortlist trial cannot have any not_met criterion")
         if self.nearest_site is None and not self.remote_participation:
             raise ValueError("nearest_site required unless the trial allows remote participation")
+        if (self.group == "needs_test") != bool(self.needs_test_fields):
+            raise ValueError("needs_test_fields must be set exactly when group is needs_test")
+        unknown_fields = {e.evidence_field for e in self.eligibility if e.status == "unknown"}
+        missing = [f for f in self.needs_test_fields if f not in unknown_fields]
+        if missing:
+            raise ValueError(f"needs_test_fields {missing} have no unknown eligibility row")
         return self
 
 
@@ -655,7 +740,8 @@ def distance_sort_key(site: NearestSite | None) -> tuple[bool, float]:
 
 
 class Shortlist(Schema):
-    """Every eligible trial, with no distance cutoff, sorted nearest first."""
+    """Every eligible trial, no distance cutoff: "eligible" group first, then
+    "needs_test", each sorted nearest first."""
 
     case_id: NonEmptyStr
     origin: Origin
@@ -664,9 +750,11 @@ class Shortlist(Schema):
 
     @model_validator(mode="after")
     def _nearest_first(self) -> Shortlist:
-        keys = [distance_sort_key(t.nearest_site) for t in self.trials]
+        keys = [(SHORTLIST_GROUP_ORDER[t.group], distance_sort_key(t.nearest_site))
+                for t in self.trials]
         if keys != sorted(keys):
-            raise ValueError("shortlist trials must be sorted nearest first, unknown distance last")
+            raise ValueError("shortlist trials must be grouped (eligible, then needs_test) and "
+                             "sorted nearest first within each group, unknown distance last")
         return self
 
 

@@ -1,7 +1,5 @@
 # agent/
 
-Owner: computer engineer.
-
 - Agent loop that follows `docs/decision-tree.md` stage by stage, stopping at every doctor approval gate.
 - Tools: ClinicalTrials.gov API v2 (no key), NCI CTS API v2 (`X-API-KEY`), Nominatim geocoding (ZIP/city only), OSRM drive time.
 - Policy engine: loads `policies/policy.yaml` and enforces it in code, outside the LLM.
@@ -31,3 +29,9 @@ Every search, geocode, drive-time call, fallback and dropped record is in the au
 - "Enroll before surgery" bullets match `pre_surgery_detection.inclusion_phrases` in `policy.yaml`.
 - Rule 10: `Facts` has no mutation check field. TMB criteria read `tmb_clia` only.
 - `python -m agent.eligibility_eval`: agreement with `gold_eligibility` in `clinical/patients/`. Mode `entered` uses the `enter_results` blocks as is. Mode `profile` fills `recurrence_number`, `comorbidities`, `can_use_phone_or_tablet` and `tmb_clia` from the profile.
+
+## Matching: shortlist (F9) and no-match plan (F10)
+
+- `agent/matching.py`: `match_case(rec, policy)` is the workflow's default matching hook. It geocodes the ZIP, searches nationwide, checks every trial, and shortlists every one that passes (`eligibility.passes`). There is no distance cutoff: the shortlist is sorted nearest first, and remote-only trials come last. Drive time is computed only for trials it shows. A non-remote trial with no site coordinates is skipped and audited, because the schema needs a site for it.
+- Empty shortlist → `NoMatchPlan` from `trial_search.no_match_plan`. Near misses fail exactly one rule, or wait on a `pending` result. A trial that fails only on tumor type, new vs recurrent, the secreting hormone or "enroll before surgery" is not a near miss (`NOT_NEAR_MISS_FIELDS`). The plan also sets an in-app alert for the care team and writes a tumor board log entry.
+- `workflow.stub_matching` is kept for state-machine tests.
