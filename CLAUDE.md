@@ -2,7 +2,7 @@
 
 Cortexa is an agentic care management platform that supports physician teams handling suspected brain tumor cases. It classifies a brain MRI into a suspected tumor bucket, guides the team on what the biopsy must answer, and matches confirmed cases to recruiting clinical trials, with a doctor approving every step.
 
-Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 7:30 PM; judging 8:00 to 9:30 PM.
+Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 8:00 PM (official cutoff); team deadline 7:30 PM. Judging 8:00 to 9:30 PM.
 
 The full app logic is in `docs/decision-tree.md` (Mermaid) and `docs/decision-tree.svg`. Treat that tree as the spec. If code and tree disagree, fix the code or update the tree in the same PR.
 
@@ -95,8 +95,8 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Runs only for recurrent gliomas with broad sequencing (exome or genome). Skip small gene panels.
 
 ### Clinical (`clinical/`)
-- 3 to 5 synthetic patients with realistic radiology and pathology reports, written by the premed teammate with the computer engineer.
-- Gold labels: manual eligibility calls for a sample of real recruiting trials, used to measure agent accuracy.
+- 23 synthetic patients (`clinical/patients/demo-001.json` to `demo-023.json`) covering every branch of the decision tree, each paired with a held-out test-set MRI. Spec: `clinical/PATIENT_PROFILES_GUIDE.md`; template: `clinical/patients/_template.json`.
+- Gold labels: manual eligibility calls against the synthetic trials in `agent/demo_cache/`, used to measure agent accuracy. `status` always means "does the patient pass this criterion"; for exclusion criteria, `met` means the exclusion does not apply.
 - Owns the wording of medical rules in `policies/policy.yaml`.
 
 ## Evaluation we will show judges
