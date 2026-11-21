@@ -110,9 +110,16 @@ def test_include_limits_adds_the_issue_6_fields(no_engine):
     assert out["sbs11_fraction_ci95"][0] == 0.0 and out["sbs11_fraction_ci95"][1] < 0.2
     assert out["detection_limit_95"] > out["critical_fraction"] > 0
     assert out["summary"].startswith("SBS11 was not detected")
-    # Until issue #6 lands, the agent's schema must reject these extra keys:
-    with pytest.raises(Exception):
-        _valid(out)
+    # Issue #6 landed: the agent's schema accepts the four fields.
+    parsed = _valid(out)
+    assert isinstance(parsed, schemas.MutationCheckRan) and parsed.summary == out["summary"]
+
+
+@pytest.mark.parametrize("case_id", ["demo-016", "demo-017", "demo-018"])
+def test_include_limits_validates_for_every_demo_case(no_engine, case_id):
+    req = _request(case_id)
+    schemas.MutationCheckInput.model_validate(req)  # counts_96 input is part of the contract now
+    _valid(run_mutation_check(req, false_alarm_rate=FAR, include_limits=True))
 
 
 # ---- live engine (only where sigdetect is installed) -----------------------------------------------

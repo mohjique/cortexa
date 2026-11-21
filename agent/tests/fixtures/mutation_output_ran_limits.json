@@ -1,0 +1,13 @@
+{
+  "case_id": "demo-018",
+  "ran": true,
+  "total_mutations": 80,
+  "sbs11_call": "not_detected",
+  "false_alarm_rate": 0.01,
+  "exposures": {"SBS1": 0.45, "SBS5": 0.55, "SBS11": 0.0},
+  "note": "Context only. Does not decide eligibility.",
+  "sbs11_fraction_ci95": [0.0, 0.1453],
+  "detection_limit_95": 0.595,
+  "critical_fraction": 0.3324,
+  "summary": "SBS11 was not detected at a 1% false-alarm rate; the data allow SBS11 to make up at most 15% of the 80 mutations (95% upper limit), and at 80 mutations, SBS11 making up 60% or more of them would be detected 95% of the time."
+}

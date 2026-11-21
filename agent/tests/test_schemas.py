@@ -26,7 +26,9 @@ CASES = {
     "results_pituitary_meds.json": s.DoctorResults,
     "preop_screen.json": s.PreOpScreen,
     "mutation_input.json": s.MutationCheckInput,
+    "mutation_input_counts.json": s.MutationCheckInput,
     "mutation_output_ran.json": s.MutationCheckOutputAdapter,
+    "mutation_output_ran_limits.json": s.MutationCheckOutputAdapter,
     "mutation_output_skipped.json": s.MutationCheckOutputAdapter,
     "trial_record.json": s.TrialRecord,
     "eligibility_result.json": s.EligibilityResult,
@@ -135,6 +137,25 @@ BAD = [
     ("mutation_input.json", _set("snvs.0.alt", "C"), "must differ"),
     ("mutation_output_ran.json", _set("ran", False), "skip_reason"),
     ("mutation_output_skipped.json", _set("skip_reason", "felt like it"), "skip_reason"),
+    # mutation: counts_96 input (issue #6)
+    ("mutation_input.json", _set("counts_96", [0] * 96), "exactly one of snvs or counts_96"),
+    ("mutation_input_counts.json", lambda d: d.pop("counts_96"), "exactly one of snvs or counts_96"),
+    ("mutation_input_counts.json", _set("counts_96", [1] * 95), "at least 96"),
+    ("mutation_input_counts.json", _set("counts_96", [1] * 97), "at most 96"),
+    ("mutation_input_counts.json", _set("counts_96.0", -1), "greater than or equal"),
+    ("mutation_input_counts.json", _set("counts_96.0", 1.5), "valid integer"),
+    # mutation: optional limit fields (issue #6)
+    ("mutation_output_ran_limits.json", _set("sbs11_fraction_ci95", [0.3, 0.1]), "low must not exceed high"),
+    ("mutation_output_ran_limits.json", _set("sbs11_fraction_ci95", [0.0, 1.2]), "less than or equal"),
+    ("mutation_output_ran_limits.json", _set("sbs11_fraction_ci95", [0.1]), "sbs11_fraction_ci95"),
+    ("mutation_output_ran_limits.json", _set("critical_fraction", 0.7), "must not exceed detection_limit_95"),
+    ("mutation_output_ran_limits.json", _set("detection_limit_95", 1.5), "less than or equal"),
+    ("mutation_output_ran_limits.json", _set("summary", "  "), "at least 1"),
+    (
+        "mutation_output_ran_limits.json",
+        lambda d: d.update(critical_fraction=0.53, detection_limit_95=None),
+        "must be inconclusive",
+    ),
     # trial
     ("trial_record.json", _set("max_age_years", 10), "must not exceed"),
     ("trial_record.json", _set("recruitment_status", "COMPLETED"), "not in policy statuses"),
@@ -235,7 +256,19 @@ def _tmb_row(**kw) -> dict:
 
 
 @pytest.mark.parametrize(
-    "field", ["mutation_context", "sbs11_call", "exposures", "total_mutations", "mutation_context.sbs11_call"]
+    "field",
+    [
+        "mutation_context",
+        "sbs11_call",
+        "exposures",
+        "total_mutations",
+        "mutation_context.sbs11_call",
+        "mutation_context.total_mutations",
+        "counts_96",
+        "sbs11_fraction_ci95",
+        "detection_limit_95",
+        "critical_fraction",
+    ],
 )
 @pytest.mark.parametrize("status", ["met", "not_met"])
 def test_mutation_check_field_cannot_decide(field, status):
@@ -246,6 +279,28 @@ def test_mutation_check_field_cannot_decide(field, status):
 def test_mutation_check_field_may_be_unknown_context():
     row = _tmb_row(status="unknown", reason="needs CLIA TMB; mutation check is context only")
     assert s.EligibilityResult.model_validate(row).status == "unknown"
+
+
+def test_mutation_limits_are_optional():
+    """Existing producers that send none of the issue #6 fields still validate."""
+    out = s.MutationCheckRan.model_validate(load("mutation_output_ran.json"))
+    assert out.sbs11_fraction_ci95 is None and out.detection_limit_95 is None
+    assert out.critical_fraction is None and out.summary is None
+
+
+def test_too_few_mutations_is_inconclusive_with_null_detection_limit():
+    """demo-017: 30 mutations, 95% detection unreachable even at 100% SBS11."""
+    data = mutate(
+        "mutation_output_ran_limits.json",
+        lambda d: d.update(sbs11_call="inconclusive", critical_fraction=0.5347, detection_limit_95=None),
+    )
+    assert s.MutationCheckRan.model_validate(data).sbs11_call == "inconclusive"
+
+
+def test_counts_input_dumps_without_snvs_key():
+    """The mutation check rejects a request carrying both keys, even if one is null."""
+    req = s.MutationCheckInput.model_validate(load("mutation_input_counts.json"))
+    assert "snvs" not in req.model_dump(mode="json", exclude_none=True)
 
 
 def test_clia_tmb_can_decide():
