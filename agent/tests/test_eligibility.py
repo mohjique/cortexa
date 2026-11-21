@@ -205,3 +205,60 @@ def test_other_treatment_type_is_doctor_review():
     c = el.Criterion("inclusion", "Newly diagnosed; no prior radiation or chemotherapy")
     out = el.evaluate(c, f, policy.get_policy())
     assert out.holds is None and out.reason.startswith("doctor review")
+
+
+# --- review fixes (PR #29 review) -------------------------------------------
+
+
+def post(**kw) -> el.Facts:
+    return el.Facts(stage="post_pathology", bucket="glioma", **kw)
+
+
+def test_recurrence_count_word_is_case_insensitive():
+    c = el.Criterion("exclusion", "MORE THAN TWO PRIOR RECURRENCES")
+    f = el.evaluate(c, post(recurrent=True, recurrence_number=3), policy.get_policy())
+    assert f.holds is True  # 3 > 2: exclusion applies
+    assert el.to_row("NCT99000002", c, f).status == "not_met"
+
+
+@pytest.mark.parametrize("prefix", ["Key ", "Main ", "KEY ", ""])
+def test_prefixed_headers_set_criterion_type(prefix):
+    text = (f"{prefix}Inclusion Criteria:\n* Age 18 years or older\n\n"
+            f"{prefix}Exclusion Criteria:\n* Prior bevacizumab")
+    assert [(c.type, c.text) for c in el.split_criteria(text)] == [
+        ("inclusion", "Age 18 years or older"),
+        ("exclusion", "Prior bevacizumab"),
+    ]
+
+
+def test_histology_or_list_accepts_any_listed_entity():
+    c = el.Criterion("inclusion", "Histologically confirmed astrocytoma or oligodendroglioma")
+    f = el.evaluate(c, post(diagnosis="Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+                            idh="mutant", codeletion_1p19q="codeleted", grade=2), policy.get_policy())
+    assert f.holds is True
+    f = el.evaluate(c, post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4),
+                    policy.get_policy())
+    assert f.holds is False
+
+
+def test_histology_both_idh_forms_is_no_idh_requirement():
+    c = el.Criterion("inclusion", "Histologically confirmed IDH-mutant or IDH-wildtype glioma")
+    for idh, dx in (("mutant", "Astrocytoma, IDH-mutant"), ("wildtype", "Glioblastoma, IDH-wildtype")):
+        assert el.evaluate(c, post(diagnosis=dx, idh=idh, grade=3), policy.get_policy()).holds is True
+
+
+def test_histology_met_reason_cites_every_field_used():
+    c = el.Criterion("inclusion", "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3")
+    f = el.evaluate(c, post(diagnosis="Astrocytoma", idh="mutant", grade=3), policy.get_policy())
+    assert f.holds is True
+    assert "IDH status: mutant" in f.reason and "WHO grade 3" in f.reason
+    assert "fields: diagnosis, idh, grade" in f.reason
+
+
+def test_histology_met_reason_uses_resolved_grade():
+    """Grade read from the diagnosis text, grade field still pending."""
+    c = el.Criterion("inclusion", "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4")
+    f = el.evaluate(c, post(diagnosis="Glioblastoma, IDH-wildtype, CNS WHO grade 4",
+                            idh="wildtype", grade="pending"), policy.get_policy())
+    assert f.holds is True
+    assert "pending" not in f.reason and "WHO grade 4" in f.reason
