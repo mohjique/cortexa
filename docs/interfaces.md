@@ -269,11 +269,12 @@ Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutatio
 
 Shown at the `review_shortlist` gate. A trial is on the shortlist when no criterion is `not_met` and none is waiting on a `pending` result.
 
+There is no distance cutoff: every eligible trial is listed, however far away. `trials` is sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
+
 ```json
 {
   "case_id": "demo-001",
   "origin": {"zip": "77840", "lat": 30.628, "lon": -96.3344},
-  "radius_miles": 100,
   "statuses_searched": ["RECRUITING", "NOT_YET_RECRUITING"],
   "trials": [
     {
@@ -296,17 +297,12 @@ Shown at the `review_shortlist` gate. A trial is on the shortlist when no criter
 
 ## No-match plan → frontend
 
-Produced when the shortlist is empty. Settings come from `trial_search.no_match_plan` in `policy.yaml`.
+Produced when the shortlist is empty. Since the search has no distance cutoff, there is no wider search to try: no eligible trial exists anywhere in the searched statuses. Settings come from `trial_search.no_match_plan` in `policy.yaml`.
 
 ```json
 {
   "case_id": "demo-003",
-  "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
-  "widened": {
-    "radius_miles": 500,
-    "include_remote_trials": true,
-    "trials": ["<Shortlist trial>"]
-  },
+  "searched": {"statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
   "near_misses": [
     {
       "trial_id": "NCT99000007",
@@ -318,7 +314,7 @@ Produced when the shortlist is empty. Settings come from `trial_search.no_match_
   ],
   "alert": {
     "alert_id": "alert-demo-003-1",
-    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840", "radius_miles": 500},
+    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840"},
     "notify": "care_team_in_app",
     "created_at": "2026-11-21T15:10:00Z"
   },

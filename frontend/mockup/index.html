@@ -172,8 +172,8 @@ const NODES = [
   {id:'mc',x:370,y:864,w:260,h:56,t:'Mutation check',s:'Skip if no broad sequencing',k:'ai'},
   {id:'tm',x:190,y:960,w:260,h:56,t:'Trial matching',s:'Met, not met, unknown',k:'ai'},
   {id:'any',x:190,y:1044,w:260,h:56,t:'Any trials match?',s:'Recruiting or opens soon',k:'neutral'},
-  {id:'sl',x:190,y:1128,w:260,h:56,t:'Doctor reviews shortlist',s:'Map + travel time',k:'doc'},
-  {id:'nm',x:490,y:1128,w:150,h:56,t:'No-match plan',s:'Widen, watch, log',k:'ai'},
+  {id:'sl',x:190,y:1128,w:260,h:56,t:'Doctor reviews shortlist',s:'Nearest first, map + travel time',k:'doc'},
+  {id:'nm',x:490,y:1128,w:150,h:56,t:'No-match plan',s:'Near misses, watch, log',k:'ai'},
 ];
 const EDGES = {
   'mri>cls':'M340 74 V102','cls>confirm':'M340 160 V188',
@@ -203,22 +203,22 @@ const P = [
  {id:'demo-004',age:47,sex:'M',zip:'77840',sus:'Meningioma',conf:.91,route:[...BASE,'b_men','wot','rescan'],cur:'rescan',scenario:'Small incidental meningioma. Doctor chose watch; rescan in 6 months.'},
  {id:'demo-005',age:79,sex:'F',zip:'77840',sus:'Meningioma',conf:.88,route:[...BASE,'b_men','wot','rescan'],cur:'wot',scenario:'Small meningioma, older patient. Awaiting watch/treat decision.'},
  {id:'demo-006',age:52,sex:'M',zip:'77840',sus:'Meningioma',conf:.94,route:[...BASE,'b_men','wot','sp',...TAIL_NEW,'nm'],cur:'nm',scenario:'Grade 1 after gross total resection. No grade-eligible trials.',flags:['No match']},
- {id:'demo-007',age:61,sex:'F',zip:'77840',sus:'Meningioma',conf:.90,route:[...BASE,'b_men','wot','sp',...TAIL_NEW,'nm'],cur:'nm',scenario:'Grade 2, subtotal resection. NCT99000005 is 155 mi away; found by the widened search.',flags:['Widened search']},
- {id:'demo-008',age:55,sex:'M',zip:'78229',sus:'Meningioma',conf:.89,route:[...BASE,'b_men','wot','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Grade 3, gross total resection. NCT99000005 in range.',flags:['1 trial']},
+ {id:'demo-007',age:61,sex:'F',zip:'77840',sus:'Meningioma',conf:.90,route:[...BASE,'b_men','wot','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Grade 2, subtotal resection. Matches NCT99000005 in San Antonio, 155 mi away. Shown with its distance; the patient decides if the travel is worth it.',shortlist:['NCT99000005'],flags:['1 trial','155 mi']},
+ {id:'demo-008',age:55,sex:'M',zip:'78229',sus:'Meningioma',conf:.89,route:[...BASE,'b_men','wot','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Grade 3, gross total resection. Matches NCT99000005 in San Antonio, near the patient.',shortlist:[{id:'NCT99000005',local:true}],flags:['1 trial']},
  {id:'demo-009',age:58,sex:'F',zip:'77840',sus:'Glioma',conf:.92,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW],cur:'preop',scenario:'Suspected high-grade glioma. Markers pending. Pre-surgery trial NCT99000003 flagged.',presurg:['NCT99000003'],flags:['Enroll before surgery','Opens soon']},
  {id:'demo-010',age:78,sex:'M',zip:'77840',sus:'Glioma',conf:.86,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW],cur:'preop',scenario:'Suspected glioma, age 78. Markers pending.',presurg:['NCT99000003'],flags:['Enroll before surgery','Opens soon']},
  {id:'demo-011',age:34,sex:'F',zip:'77840',sus:'Glioma',conf:.90,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW],cur:'sp',scenario:'Surgery done; awaiting pathology. IDH and MGMT pending (ordered). 1p/19q not ordered, so unknown.',presurg:['NCT99000003'],flags:['Pathology pending']},
  {id:'demo-012',age:63,sex:'M',zip:'77840',sus:'Glioma',conf:.95,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'nm'],cur:'nm',scenario:'GBM IDH-wildtype, MGMT methylated. NCT99000004 fails on MGMT only (near miss).',flags:['Near miss']},
- {id:'demo-013',age:67,sex:'F',zip:'77840',sus:'Glioma',conf:.94,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'GBM IDH-wildtype, MGMT unmethylated. Matches NCT99000004.',flags:['1 trial']},
- {id:'demo-014',age:39,sex:'M',zip:'77840',sus:'Glioma',conf:.87,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Astrocytoma IDH-mutant, grade 3. Matches NCT99000001.',flags:['1 trial']},
- {id:'demo-015',age:43,sex:'F',zip:'77840',sus:'Glioma',conf:.85,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'nm'],cur:'nm',scenario:'Oligodendroglioma, 1p/19q codeleted. NCT99000007 found by widened search (New Orleans).',flags:['Widened search']},
+ {id:'demo-013',age:67,sex:'F',zip:'77840',sus:'Glioma',conf:.94,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'GBM IDH-wildtype, MGMT unmethylated. Matches NCT99000004.',shortlist:['NCT99000004'],flags:['1 trial']},
+ {id:'demo-014',age:39,sex:'M',zip:'77840',sus:'Glioma',conf:.87,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Astrocytoma IDH-mutant, grade 3. Matches NCT99000001.',shortlist:['NCT99000001'],flags:['1 trial']},
+ {id:'demo-015',age:43,sex:'F',zip:'77840',sus:'Glioma',conf:.85,route:[...BASE,'b_gli','preop','sp',...TAIL_NEW,'sl'],cur:'sl',scenario:'Oligodendroglioma, 1p/19q codeleted. Matches NCT99000007 in New Orleans, 376 mi away.',shortlist:['NCT99000007'],flags:['1 trial','376 mi']},
  {id:'demo-016',age:59,sex:'M',zip:'77840',sus:'Glioma',conf:.93,route:[...BASE,'b_gli','preop','sp',...TAIL_REC,'sl'],cur:'mc',scenario:'Recurrent GBM after temozolomide, exome available. Mutation check running.',flags:['Recurrent','Exome']},
  {id:'demo-017',age:65,sex:'F',zip:'77840',sus:'Glioma',conf:.91,route:[...BASE,'b_gli','preop','sp',...TAIL_REC,'sl'],cur:'tm',scenario:'Recurrent GBM. Mutation check: inconclusive (few mutations). Matching in progress.',flags:['Recurrent','Mutation: inconclusive']},
- {id:'demo-018',age:44,sex:'M',zip:'77840',sus:'Glioma',conf:.89,route:[...BASE,'b_gli','preop','sp',...TAIL_REC,'nm'],cur:'nm',scenario:'Recurrent IDH-mutant astrocytoma. Mutation check: not detected. Widened search finds remote NCT99000008.',flags:['Recurrent','Remote trial']},
- {id:'demo-019',age:62,sex:'F',zip:'77840',sus:'Glioma',conf:.92,route:[...BASE,'b_gli','preop','sp','dr','rec','yes','tm','any','nm'],cur:'nm',scenario:'Recurrent GBM, 3rd recurrence, prior bevacizumab. No sequencing: mutation check skipped.',flags:['Recurrent','Check skipped','No match']},
+ {id:'demo-018',age:44,sex:'M',zip:'77840',sus:'Glioma',conf:.89,route:[...BASE,'b_gli','preop','sp',...TAIL_REC,'sl'],cur:'sl',scenario:'Recurrent IDH-mutant astrocytoma. Mutation check: not detected. Matches NCT99000008, which runs fully from home.',shortlist:['NCT99000008'],flags:['Recurrent','Remote trial']},
+ {id:'demo-019',age:62,sex:'F',zip:'77840',sus:'Glioma',conf:.92,route:[...BASE,'b_gli','preop','sp','dr','rec','yes','tm','any','sl'],cur:'sl',scenario:'Recurrent GBM, 3rd recurrence, prior bevacizumab. No sequencing: mutation check skipped. Matches NCT99000008, which runs fully from home.',shortlist:['NCT99000008'],flags:['Recurrent','Check skipped','Remote trial']},
  {id:'demo-020',age:51,sex:'M',zip:'77840',sus:'Pituitary',conf:.96,route:[...BASE,'b_pit','labs','sm','sp',...TAIL_NEW,'nm'],cur:'labs',scenario:'Non-functioning macroadenoma with visual loss. Doctor reviews hormone labs before surgery or meds.',flags:['Labs to review']},
  {id:'demo-021',age:46,sex:'F',zip:'77840',sus:'Pituitary',conf:.94,route:[...BASE,'b_pit','labs','sm','sp',...TAIL_NEW,'nm'],cur:'sp',scenario:'Growth-hormone-secreting adenoma. Surgery chosen; awaiting pathology.',flags:['Pathology pending']},
- {id:'demo-022',age:69,sex:'M',zip:'77840',sus:'Pituitary',conf:.90,route:[...BASE,'b_pit','labs','sm',...TAIL_NEW,'sl'],cur:'sl',scenario:'ACTH-secreting (Cushing disease), not a surgical candidate. Meds only. NCT99000006 opens soon.',flags:['Meds only','Opens soon']},
+ {id:'demo-022',age:69,sex:'M',zip:'77840',sus:'Pituitary',conf:.90,route:[...BASE,'b_pit','labs','sm',...TAIL_NEW,'sl'],cur:'sl',scenario:'ACTH-secreting (Cushing disease), not a surgical candidate. Meds only. NCT99000006 opens soon.',shortlist:['NCT99000006'],flags:['Meds only','Opens soon']},
  {id:'demo-023',age:49,sex:'F',zip:'77840',sus:'Meningioma',conf:.58,confirmed:'Glioma',route:[...BASE,'b_gli','preop','sp',...TAIL_NEW],cur:'preop',scenario:'Model suggested meningioma (low confidence). Doctor overrode to glioma.',presurg:['NCT99000003'],flags:['Doctor override','Low confidence','Enroll before surgery','Opens soon']},
 ];
 
@@ -238,7 +238,7 @@ const COLS = [
   {key:'sl',owner:'doctor',title:'Shortlist review',nodes:['sl'],
    wait:'Doctor keeps or rejects each trial'},
   {key:'nm',owner:'doctor',title:'No-match plan',nodes:['nm'],
-   wait:'Doctor reviews near misses and the widened search'},
+   wait:'Doctor reviews near misses and trial alerts'},
   {key:'closed',owner:null,title:'Closed / rescan',nodes:['stop','rescan'],
    wait:'Nothing pending: stopped or rescan scheduled'},
 ];
@@ -247,7 +247,7 @@ const NEXT = {
   wot:['doctor','Decide: watch or treat'], preop:['doctor','Review tests needed and pre-surgery trials'], labs:['doctor','Review hormone labs and mark reviewed'],
   sm:['doctor','Decide: surgery or medication'], sp:['pathology','Waiting on pathology report'], dr:['doctor','Enter diagnosis, grade, markers'],
   mc:['agent','Running mutation check'], tm:['agent','Checking eligibility criteria'], any:['agent','Checking eligibility criteria'],
-  sl:['doctor','Review trial shortlist'], nm:['doctor','Review near misses and widened search'], stop:['none','Closed: no trial search'], rescan:['none','Rescan scheduled']
+  sl:['doctor','Review trial shortlist'], nm:['doctor','Review near misses and trial alerts'], stop:['none','Closed: no trial search'], rescan:['none','Rescan scheduled']
 };
 const WAIT_CLASS = {doctor:'doc',agent:'ai',pathology:'warn',none:''};
 const nodeById = Object.fromEntries(NODES.map(n=>[n.id,n]));
@@ -255,7 +255,7 @@ let selected = 'demo-009';
 
 /* ---------- Kanban ---------- */
 function flagChip(f){
-  const cls = /override|low confidence|no match|before surgery/i.test(f)?'danger':/opens soon|pending|near miss|widened|inconclusive|skipped/i.test(f)?'warn':/trial/i.test(f)?'doc':'';
+  const cls = /override|low confidence|no match|before surgery/i.test(f)?'danger':/opens soon|pending|near miss|inconclusive|skipped/i.test(f)?'warn':/trial/i.test(f)?'doc':'';
   return `<span class="chip ${cls}">${f}</span>`;
 }
 /* Actor icons cropped from "Actor Icons.jpeg", "Actor Icons 2.jpeg" and "Actor Icons 3.jpeg" (112px, embedded so this file stays self-contained) */
@@ -361,6 +361,28 @@ function presurgBox(p){
     ? `<div class="box urgent"><h4>Enroll before surgery</h4>This trial only accepts patients before resection. Once surgery happens the patient can no longer join. Mark each trial before the case moves to surgery.${trials}</div>`
     : `<div class="box"><h4>Pre-surgery trial (flagged at pre-op screen)</h4>${trials}</div>`;
 }
+/* Shortlist: every eligible trial, no distance cutoff, nearest first (same order as Shortlist.trials).
+   Sites and distances are from the demo cache (agent/demo_cache, origin ZIP 77840). */
+const SHORTLIST_TRIALS = {
+  NCT99000001:{title:'[SYNTHETIC] IDH inhibitor in newly diagnosed IDH-mutant grade 2-3 astrocytoma',status:'RECRUITING',site:'Houston, TX',miles:84.6,minutes:105},
+  NCT99000004:{title:'[SYNTHETIC] Radiation plus novel agent in newly diagnosed MGMT-unmethylated glioblastoma',status:'RECRUITING',site:'Austin, TX',miles:86.7,minutes:110},
+  NCT99000005:{title:'[SYNTHETIC] Adjuvant therapy after resection of WHO grade 2-3 meningioma',status:'RECRUITING',site:'San Antonio, TX',miles:154.8,minutes:165},
+  NCT99000006:{title:'[SYNTHETIC] Oral medication for ACTH-secreting pituitary adenoma (Cushing disease)',status:'NOT_YET_RECRUITING',site:'Houston, TX',miles:84.6,minutes:105},
+  NCT99000007:{title:'[SYNTHETIC] Chemoradiation strategies in IDH-mutant 1p/19q-codeleted oligodendroglioma',status:'RECRUITING',site:'New Orleans, LA',miles:376.1,minutes:360},
+  NCT99000008:{title:'[SYNTHETIC] Decentralized symptom-management study in recurrent glioma (home participation)',status:'RECRUITING',site:'Oklahoma City, OK',miles:342.0,minutes:330,remote:true}
+};
+function shortlistBox(p){
+  if(!p.shortlist || p.cur!=='sl') return '';
+  const rows = p.shortlist.map(x=>typeof x==='string'?{id:x}:x)
+    .map(x=>({...SHORTLIST_TRIALS[x.id],...x}))
+    .sort((a,b)=>(a.local?0:a.miles??Infinity)-(b.local?0:b.miles??Infinity));
+  const trials = rows.map(t=>`<div class="ptrial">
+      <div><b>${t.id}</b> <span class="chip ${t.status==='RECRUITING'?'doc':'warn'}">${STATUS_LABEL[t.status]}</span>${t.remote?' <span class="chip doc">Remote participation</span>':''}</div>
+      <div class="ptitle">${t.title}</div>
+      <div class="demo">${t.local?`Nearest site: ${t.site} · in the patient's area`:`Nearest site: ${t.site} · ${t.miles} mi · about ${t.minutes} min drive`}${t.remote?' · visits from home':''}</div>
+    </div>`).join('');
+  return `<div class="box"><h4>Trial shortlist (nearest first, no distance cutoff)</h4>Every eligible trial is shown, however far away. The patient and care team decide whether the travel is worth it.${trials}</div>`;
+}
 function renderDetail(p){
   const [who,what]=NEXT[p.cur];
   const gate = who==='doctor'
@@ -374,6 +396,7 @@ function renderDetail(p){
     <div class="kv"><div>Suspected</div><div><b>${p.sus}</b> (${Math.round(p.conf*100)}% confidence)</div>
     ${p.confirmed?`<div>Confirmed</div><div><b>${p.confirmed}</b> (doctor override)</div>`:''}<div>Current step</div><div>${nodeById[p.cur].t}</div></div>
     ${presurgBox(p)}
+    ${shortlistBox(p)}
     ${gate}
     <div class="box"><h4>Scenario</h4>${p.scenario}</div>
     <div class="box"><h4>Route</h4><ol class="steps">${steps}</ol></div>

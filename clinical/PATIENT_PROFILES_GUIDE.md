@@ -92,8 +92,8 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 |---|---|
 | `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `preop_review` (every glioma case) `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "..."}]}` with one entry per `expected_preop_flags` trial (empty list if none). The screen has no surgical history, so it flags NCT99000003 for every suspected glioma; cases with prior surgery decline it as `not_pursuing` with a reason (required for `not_pursuing`). Leave out `screen_id`: it is a hash of the live screen, and the replay test fills it in. `surgery_or_meds` `{"choice": "surgery"}` |
 | `expected_path` | Branches this case should follow, e.g. `["glioma", "preop_screen", "awaiting_pathology", "enter_results", "matching", "review_shortlist"]` (use the `stage` names from `docs/interfaces.md`) |
-| `expected_trials` | Trial IDs you expect on the shortlist at the default 100-mile radius |
-| `expected_no_match` | true if the default search should end in the no-match plan |
+| `expected_trials` | Trial IDs you expect on the shortlist. There is no distance cutoff, so include every eligible trial however far away; the app sorts them nearest first |
+| `expected_no_match` | true if no trial is eligible anywhere, so the case ends in the no-match plan |
 | `gold_eligibility` | Your hand labels (see below) |
 
 ## The 23 cases
@@ -108,19 +108,19 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | demo-004 | meningioma | Meningioma, watched | Small, incidental. `watch_or_treat: watch` | none |
 | demo-005 | meningioma | Meningioma, watched | Small, older patient | none |
 | demo-006 | meningioma | Meningioma, treated | WHO grade 1 after gross total resection | 005 `not_met` (grade). No match |
-| demo-007 | meningioma | Meningioma, treated | Grade 2, subtotal resection, ZIP 77840 | 005 is 155 mi away: no match at 100 mi, found by the widen |
-| demo-008 | meningioma | Meningioma, treated | Grade 3, gross total, ZIP 78229 (San Antonio) | 005 in range: match |
+| demo-007 | meningioma | Meningioma, treated | Grade 2, subtotal resection, ZIP 77840 | 005 is 155 mi away: still a match, listed with its distance |
+| demo-008 | meningioma | Meningioma, treated | Grade 3, gross total, ZIP 78229 (San Antonio) | 005 nearby: match |
 | demo-009 | glioma | Glioma pre-op | Markers `pending`, no prior surgery, ZIP 77840 | 003 pre-surgery flag (Austin, opens soon) |
 | demo-010 | glioma | Glioma pre-op | Markers `pending`, age 78 | 003 flag; later 004 would fail on age |
 | demo-011 | glioma | Glioma pre-op | Some markers `pending`, younger | 003 flag |
 | demo-012 | glioma | New GBM | IDH-wildtype, grade 4, MGMT **methylated** | 004 `not_met` on MGMT only: near miss |
 | demo-013 | glioma | New GBM | IDH-wildtype, grade 4, MGMT **unmethylated**, age ≤ 75, no prior RT/TMZ | 004 match |
 | demo-014 | glioma | New astrocytoma | IDH-mutant, grade 2 or 3, 1p/19q intact, no prior RT/chemo | 001 match |
-| demo-015 | glioma | New oligodendroglioma | IDH-mutant, 1p/19q codeleted | 001 `not_met` (codeletion). 007 in New Orleans, found by the widen |
+| demo-015 | glioma | New oligodendroglioma | IDH-mutant, 1p/19q codeleted | 001 `not_met` (codeletion). 007 in New Orleans (376 mi): match |
 | demo-016 | glioma | Recurrent GBM, exome | 1st recurrence after RT + temozolomide, no bevacizumab, `tmb_clia: null`. Mutation check: **detected** | 002 match. 009 must stay `unknown` |
 | demo-017 | glioma | Recurrent GBM, exome | 1st or 2nd recurrence, few mutations. Mutation check: **inconclusive** | 002 match |
-| demo-018 | glioma | Recurrent IDH-mutant astrocytoma, exome | Little or no prior temozolomide. Mutation check: **not detected** | 002 `not_met` (IDH). No match; widen finds remote 008 |
-| demo-019 | glioma | Recurrent GBM, no sequencing | 3rd recurrence, prior bevacizumab. Mutation check skipped | 002 `not_met`. No match; widen finds remote 008 |
+| demo-018 | glioma | Recurrent IDH-mutant astrocytoma, exome | Little or no prior temozolomide. Mutation check: **not detected** | 002 `not_met` (IDH). Remote 008: match |
+| demo-019 | glioma | Recurrent GBM, no sequencing | 3rd recurrence, prior bevacizumab. Mutation check skipped | 002 `not_met`. Remote 008: match |
 | demo-020 | pituitary | Pituitary, surgery | Non-functioning macroadenoma. `surgery_or_meds: surgery` | none |
 | demo-021 | pituitary | Pituitary, surgery | Growth-hormone-secreting | none |
 | demo-022 | pituitary | Pituitary, meds only | **ACTH-secreting (Cushing disease), not a surgical candidate.** `surgery_or_meds: medication_only`. Please confirm this is realistic | 006 (Houston, opens soon) |
@@ -157,7 +157,7 @@ Optional, if time allows: label 1 or 2 real recruiting trials from ClinicalTrial
 
 Review the medical settings and fix anything unrealistic:
 - `classifier.min_confidence_for_auto_suggest` (0.80)
-- `trial_search.statuses` and `default_radius_miles`
+- `trial_search.statuses` (there is no distance cutoff: every eligible trial is shown, nearest first)
 - The mutation-check rule that blocks immunotherapy routing on mutation count alone
 
 ## Checklist

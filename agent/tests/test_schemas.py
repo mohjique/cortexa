@@ -193,7 +193,6 @@ BAD = [
     ("shortlist.json", _set("origin.zip", "7784"), "pattern"),
     # no-match
     ("no_match_plan.json", _set("searched.match_count", 2), "match_count"),
-    ("no_match_plan.json", _set("widened.radius_miles", 50), "at least the searched"),
     ("no_match_plan.json", _set("near_misses.0.blocking.0.status", "unknown"), "exactly one not_met"),
     ("no_match_plan.json", _set("near_misses.0.near_miss_type", "pending_result"), "cannot have a not_met"),
     ("no_match_plan.json", _set("alert.notify", "patient_sms"), "notify"),
@@ -216,6 +215,46 @@ def test_shortlist_trial_with_not_met_is_rejected():
 
     with pytest.raises(ValidationError, match="cannot have any not_met"):
         s.Shortlist.model_validate(mutate("shortlist.json", make_consistent_not_met))
+
+
+# --- no distance cutoff: nearest first, unknown distance last ---------------
+
+
+def _add_trial(d, trial_id, miles):
+    """Copy trial 0 as another trial; miles=None makes it remote-only."""
+    t = copy.deepcopy(d["trials"][0])
+    t["trial_id"] = trial_id
+    for row in t["eligibility"]:
+        row["trial_id"] = trial_id
+    if miles is None:
+        t["nearest_site"], t["remote_participation"] = None, True
+    else:
+        t["nearest_site"]["distance_miles"] = miles
+    d["trials"].append(t)
+
+
+def test_shortlist_keeps_far_and_remote_trials_nearest_first():
+    def far_then_remote(d):
+        _add_trial(d, "NCT99000007", 376.1)
+        _add_trial(d, "NCT99000008", None)
+
+    out = s.Shortlist.model_validate(mutate("shortlist.json", far_then_remote))
+    assert [t.trial_id for t in out.trials] == ["NCT99000001", "NCT99000007", "NCT99000008"]
+
+
+@pytest.mark.parametrize(
+    "trial_id,miles,reverse",
+    [("NCT99000007", 10.0, False), ("NCT99000008", None, True)],
+    ids=["nearer_trial_after_farther", "remote_before_located"],
+)
+def test_shortlist_out_of_order_is_rejected(trial_id, miles, reverse):
+    def misordered(d):
+        _add_trial(d, trial_id, miles)  # appended after the 84.6 mi trial
+        if reverse:
+            d["trials"].reverse()
+
+    with pytest.raises(ValidationError, match="nearest first"):
+        s.Shortlist.model_validate(mutate("shortlist.json", misordered))
 
 
 # --- policy-driven statuses (safety rule 8) ---------------------------------

@@ -719,12 +719,25 @@ class Origin(Schema):
     lon: Annotated[float, Field(ge=-180, le=180)]
 
 
+def distance_sort_key(site: NearestSite | None) -> tuple[bool, float]:
+    """Nearest first; trials with no known distance (e.g. remote-only) last."""
+    return (site is None, site.distance_miles if site else 0.0)
+
+
 class Shortlist(Schema):
+    """Every eligible trial, with no distance cutoff, sorted nearest first."""
+
     case_id: NonEmptyStr
     origin: Origin
-    radius_miles: Annotated[float, Field(gt=0)]
     statuses_searched: list[RecruitmentStatus]
     trials: list[ShortlistTrial]
+
+    @model_validator(mode="after")
+    def _nearest_first(self) -> Shortlist:
+        keys = [distance_sort_key(t.nearest_site) for t in self.trials]
+        if keys != sorted(keys):
+            raise ValueError("shortlist trials must be sorted nearest first, unknown distance last")
+        return self
 
 
 # ---------------------------------------------------------------------------
@@ -733,15 +746,8 @@ class Shortlist(Schema):
 
 
 class SearchSummary(Schema):
-    radius_miles: Annotated[float, Field(gt=0)]
     statuses: list[RecruitmentStatus]
     match_count: Literal[0]
-
-
-class WidenedSearch(Schema):
-    radius_miles: Annotated[float, Field(gt=0)]
-    include_remote_trials: bool
-    trials: list[ShortlistTrial]
 
 
 class NearMiss(Schema):
@@ -769,7 +775,6 @@ class AlertQuery(Schema):
     bucket: Bucket
     markers: dict[str, str | int] = Field(default_factory=dict)
     zip: Zip
-    radius_miles: Annotated[float, Field(gt=0)]
 
 
 class TrialAlert(Schema):
@@ -789,15 +794,12 @@ class TumorBoardEntry(Schema):
 class NoMatchPlan(Schema):
     case_id: NonEmptyStr
     searched: SearchSummary
-    widened: WidenedSearch | None = None
     near_misses: list[NearMiss] = Field(default_factory=list)
     alert: TrialAlert | None = None
     tumor_board_log: TumorBoardEntry | None = None
 
     @model_validator(mode="after")
     def _consistent(self) -> NoMatchPlan:
-        if self.widened and self.widened.radius_miles < self.searched.radius_miles:
-            raise ValueError("widened radius must be at least the searched radius")
         if self.tumor_board_log and self.tumor_board_log.case_id != self.case_id:
             raise ValueError("tumor_board_log case_id must match")
         return self

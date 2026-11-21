@@ -3,7 +3,7 @@
 # engineer). Edits here must change agent behavior without code changes.
 
 classifier:
-  min_confidence_for_auto_suggest: 0.80   # below this, set flagged_uncertain (doctor still confirms every case)
+  min_confidence_for_auto_suggest: 0.99   # below this, set flagged_uncertain (doctor still confirms every case). 0.99 flags 20 of 32 test errors and 3.3% of correct calls; 0.80 flagged only 6 of 32 (see classifier/README.md)
   flag_on_model_disagreement: true
   label_prefix: "Suspected"               # never "Diagnosis"
 
@@ -20,10 +20,9 @@ trial_search:
   status_labels:                  # shown in the UI; every status above needs one
     RECRUITING: "Recruiting"
     NOT_YET_RECRUITING: "Not yet recruiting: enrollment has not opened"
-  default_radius_miles: 100
+  # No distance cutoff: every eligible trial is shown, sorted nearest first.
+  # Remote trials and trials with no site location are listed last.
   no_match_plan:
-    widened_radius_miles: 500
-    include_remote_trials: true
     show_near_misses: true        # fails exactly one rule, or depends on a pending result
     alert_on_new_trials: true
     log_for_tumor_board: true

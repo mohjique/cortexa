@@ -198,6 +198,12 @@
         }
       ],
       "broad_sequencing_available": true
+    },
+    "review_shortlist": {
+      "keep": [
+        "NCT99000008"
+      ],
+      "reject": []
     }
   },
   "expected_path": [
@@ -208,13 +214,15 @@
     "enter_results",
     "mutation_check",
     "matching",
-    "no_match"
+    "review_shortlist"
   ],
-  "expected_trials": [],
+  "expected_trials": [
+    "NCT99000008"
+  ],
   "expected_preop_flags": [
     "NCT99000003"
   ],
-  "expected_no_match": true,
+  "expected_no_match": false,
   "gold_eligibility": [
     {
       "trial_id": "NCT99000002",

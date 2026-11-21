@@ -136,11 +136,11 @@ def test_live_success_saves_cache_without_api_key(live, monkeypatch, tmp_path):
     state["handler"] = lambda req: httpx.Response(
         200, json=nci if "cancer.gov" in str(req.url) else demo_studies()
     )
-    found = trials.search_trials(origin=ORIGIN, radius_miles=100)
+    found = trials.search_trials()
     assert len(found) == 9 and not any(t.from_cache for t in found)
     ct = next(r for r in calls if "clinicaltrials.gov" in str(r.url))
     assert ct.url.params["filter.overallStatus"] == "RECRUITING,NOT_YET_RECRUITING"
-    assert ct.url.params["filter.geo"] == "distance(30.628,-96.3344,100mi)"
+    assert "filter.geo" not in ct.url.params  # no distance cutoff
     assert next(r for r in calls if "cancer.gov" in str(r.url)).headers["X-API-KEY"] == "secret-key-123"
     saved = list((tmp_path / "cache").rglob("*.json"))
     assert len(saved) == 2

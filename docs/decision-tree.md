@@ -29,9 +29,9 @@ flowchart TD
     REC -- "yes: recurrent glioma" --> MC["Mutation check<br/>skip if no broad sequencing"]
     MC --> TM
 
-    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, in range"}
-    ANY -- yes --> SL["Doctor reviews shortlist<br/>map + travel time"]
-    ANY -- no --> NM["No-match plan<br/>widen, watch, log"]
+    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, any distance"}
+    ANY -- yes --> SL["Doctor reviews shortlist<br/>nearest first, map + travel time"]
+    ANY -- no --> NM["No-match plan<br/>near misses, watch, log"]
 
     classDef ai fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef doc fill:#E1F5EE,stroke:#0F6E56,color:#085041
@@ -50,4 +50,5 @@ flowchart TD
 - **Medication-only pituitary cases:** after hormone labs, the doctor chooses surgery or meds only. Meds only skips surgery; the doctor enters hormone and imaging results directly.
 - **Trial statuses.** Search includes `RECRUITING` and `NOT_YET_RECRUITING`. Every trial shows its status label. A not-yet-recruiting trial is shown as "enrollment has not opened."
 - **What counts as a match:** no criterion `not_met` and none waiting on a `pending` result. A **near miss** fails exactly one criterion, or has no failures but waits on a pending result.
-- **No-match plan:** widen radius and include remote trials, show near misses, alert on newly opened trials, log "no current match" for the tumor board.
+- **No distance cutoff.** Matching searches nationwide. Every eligible trial is on the shortlist, sorted nearest first; trials with no known distance (remote-only) come last. The patient and doctor decide whether the travel is worth it.
+- **No-match plan:** show near misses, alert on newly opened trials, log "no current match" for the tumor board.
