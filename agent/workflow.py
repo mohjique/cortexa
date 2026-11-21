@@ -306,16 +306,39 @@ def attach_classification(case_id: str, output: ClassifierOutput) -> CaseRecord:
             raise WrongGate(f"case is at {rec.state.stage}, not intake")
         if output.case_id != case_id:
             raise InvalidDecision("classifier case_id does not match the case")
+        policy = get_policy()
+        flagged, reasons = uncertainty_flag(output, policy)
+        output = output.model_copy(update={"flagged_uncertain": flagged})
         rec.classifier = output
         rec.state.suspected_bucket = output.suspected_bucket
         audit(
             "agent",
             "classification_attached",
-            {"suspected_bucket": output.suspected_bucket, "confidence": output.confidence},
+            {"suspected_bucket": output.suspected_bucket, "confidence": output.confidence,
+             "flagged_uncertain": flagged, "flag_reasons": reasons},
             case_id=case_id,
         )
-        _move(rec, get_policy())
+        _move(rec, policy)
         return store.save(rec)
+
+
+def uncertainty_flag(output: ClassifierOutput, policy: Policy) -> tuple[bool, list[str]]:
+    """F2.4: `flagged_uncertain` from policy.yaml, plus any flag the classifier set.
+
+    The agent can add a flag but never clears one (the stub flags its
+    arbitrary hash picks). The flag only warns the doctor; every case still
+    goes through confirm_bucket (rule 2).
+    """
+    c = policy.classifier
+    reasons = []
+    if output.flagged_uncertain:
+        reasons.append("classifier_flag")
+    if output.confidence < c.min_confidence_for_auto_suggest:
+        reasons.append(f"confidence {output.confidence:.3f} < {c.min_confidence_for_auto_suggest}")
+    if (c.flag_on_model_disagreement and output.medgemma_bucket is not None
+            and output.medgemma_bucket != output.suspected_bucket):
+        reasons.append("model_disagreement")
+    return bool(reasons), reasons
 
 
 # ---------------------------------------------------------------------------

@@ -36,6 +36,14 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 }
 ```
 
+### Upload endpoint
+
+`POST /cases?case_id=<id>&filename=<name>` with the raw image bytes as the request body, for example `fetch(url, {method: "POST", body: file})`. Both query parameters are optional; without `case_id` the API makes `case-<8 hex>`. The API classifies the image, creates the case and moves it to `confirm_bucket`. It returns the case state (201), or 422 for an unreadable image (no case is created) and 409 if the case exists. The image is not stored.
+
+`GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub).
+
+`flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`, or MedGemma disagreeing when `flag_on_model_disagreement` is set. The agent never clears a flag the classifier set.
+
 ## Doctor decision (approval gates) → agent
 
 One record per gate. Each one is also written to the audit log.
