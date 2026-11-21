@@ -35,3 +35,23 @@ The robust sets come from the same generator as the training copies, so they mea
 Demo pool images are single, unduplicated scans. Reported test accuracy excludes them.
 
 **Model.** ResNet-18 (ImageNet weights), 224 px, class-weighted loss, temperature scaling on calib. `classifier/model.py` holds preprocessing and checkpoint loading for both training and inference. Outputs (`model.pt`, `metrics.json`, `predictions.csv`) go in `artifacts/classifier/` (gitignored).
+
+## Results (run 2, Colab T4, 12 epochs, temperature 0.514)
+
+Deduplicated test set, 1,051 clean images. Demo pool excluded; demo-023's image **is** in it (without it: 97.0% on 1,050).
+
+| | glioma | meningioma | no_tumor | pituitary | overall |
+|---|---|---|---|---|---|
+| test accuracy | 98.7% | 91.5% | 97.7% | 99.6% | **97.0%** |
+| noisy copies of test images | 100% | 93.3% | 100% | 100% | 98.5% (run 1: 61.4%) |
+| blurred copies | 100% | 95.0% | 100% | 100% | 98.9% (run 1: 94.7%) |
+| motion copies | 100% | 90.0% | 96.3% | 100% | 96.6% (run 1: 88.5%) |
+
+Run 1 had no degraded training data and called 86 of 264 noisy copies of real tumors "no tumor".
+
+**Known weaknesses (say these out loud):**
+- Meningioma is the weakest class; 12 of 246 test meningiomas were called "no tumor".
+- Errors are often confident: 19 of 32 test errors are at >= 0.95. Calibration has little to learn from (8 errors in 1,158 calib images).
+- `flagged_uncertain` is a warning, not a safety net. At the policy threshold 0.99 (chosen on calib: flags 8/8 calib errors) it flags 20 of 32 test errors and 3.3% of correct calls; at 0.80 it flagged 6 of 32. The doctor confirms every case either way.
+
+**Demo images** (issue #22): `classifier/splits/demo_images.json`. 22 from the demo pool, picked at random (seed 20261121) among correct calls at >= 0.99. demo-023 is a test-split glioma the model calls meningioma at 0.78 (wrong and flagged). Kaggle folder names ("Training") do not matter: none of these images or their duplicates are in our train split.
