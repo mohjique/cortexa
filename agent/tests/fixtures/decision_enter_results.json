@@ -5,7 +5,7 @@
     "case_id": "demo-001",
     "confirmed_bucket": "glioma",
     "diagnosis": "Glioblastoma, IDH-wildtype",
-    "grade": 4,
+    "grade": "pending",
     "idh": "wildtype",
     "codeletion_1p19q": "unknown",
     "mgmt": "pending",

@@ -15,6 +15,10 @@
     "treatment_path": "medication_only",
     "secreting_hormone": "prolactin",
     "size": "micro",
-    "cavernous_sinus_invasion": "no"
+    "cavernous_sinus_invasion": "no",
+    "surgical_candidate": false,
+    "hormone_levels": {
+      "prolactin_ng_ml": 180.0
+    }
   }
 }

@@ -124,6 +124,16 @@ BAD = [
     ("results_glioma.json", _set("idh", "probably mutant"), "idh"),
     ("results_glioma.json", _set("sequencing", "panel"), "conflicts"),
     ("results_glioma.json", _set("pituitary", {"treatment_path": "surgery", "secreting_hormone": "none", "size": "macro", "cavernous_sinus_invasion": "no"}), "only allowed"),
+    ("results_glioma.json", _set("grade", "probably 4"), "grade"),
+    ("results_glioma.json", _set("recurrence_number", 0), "1 or more"),
+    ("results_glioma.json", _set("tmb_clia", -1), "greater than or equal"),
+    ("results_glioma.json", _set("prior_treatments", ["surgery"]), "prior_treatments"),
+    ("results_glioma.json", _set("prior_treatments.1.extent", "subtotal"), "extent is only allowed for surgery"),
+    ("results_glioma.json", _set("prior_treatments.0.cycles", 3), "cycles is only allowed for temozolomide"),
+    ("results_glioma.json", _set("prior_treatments.0.type", "chemo_maybe"), "type"),
+    ("results_glioma.json", _set("prior_treatments.0.extent", "most_of_it"), "extent"),
+    ("results_pituitary_meds.json", _set("recurrence_number", 2), "must be 0"),
+    ("results_pituitary_meds.json", _set("pituitary.surgical_candidate", "maybe"), "surgical_candidate"),
     ("results_pituitary_meds.json", _set("pituitary", None), "required"),
     ("results_pituitary_meds.json", _set("idh", "wildtype"), "must be 'unknown'"),
     # pre-op
@@ -143,6 +153,7 @@ BAD = [
     ("eligibility_result.json", _set("evidence_field", ""), "at least 1"),
     ("eligibility_result.json", lambda d: d.pop("criterion_text"), "criterion_text"),
     ("eligibility_result.json", _set("status", "likely"), "status"),
+    ("eligibility_result.json", _set("criterion_type", "maybe"), "criterion_type"),
     # shortlist
     ("shortlist.json", _set("trials.0.status_label", "Open"), "status_label"),
     ("shortlist.json", _set("trials.0.summary.met", 5), "does not match"),
@@ -213,6 +224,54 @@ def test_policy_status_without_label_is_rejected():
 
 def test_policy_has_label_for_every_status():
     assert set(POLICY["statuses"]) <= set(POLICY["status_labels"])
+
+
+# --- safety rule 10: mutation check never decides eligibility ---------------
+
+
+def _tmb_row(**kw) -> dict:
+    row = {
+        "trial_id": "NCT99000009",
+        "criterion_type": "inclusion",
+        "criterion_text": "High tumor mutational burden by CLIA-certified assay",
+        "status": "met",
+        "evidence_field": "mutation_context",
+        "reason": "x",
+    }
+    row.update(kw)
+    return row
+
+
+@pytest.mark.parametrize(
+    "field", ["mutation_context", "sbs11_call", "exposures", "total_mutations", "mutation_context.sbs11_call"]
+)
+@pytest.mark.parametrize("status", ["met", "not_met"])
+def test_mutation_check_field_cannot_decide(field, status):
+    with pytest.raises(ValidationError, match="safety rule 10"):
+        s.EligibilityResult.model_validate(_tmb_row(evidence_field=field, status=status))
+
+
+def test_mutation_check_field_may_be_unknown_context():
+    row = _tmb_row(status="unknown", reason="needs CLIA TMB; mutation check is context only")
+    assert s.EligibilityResult.model_validate(row).status == "unknown"
+
+
+def test_clia_tmb_can_decide():
+    assert s.EligibilityResult.model_validate(_tmb_row(evidence_field="tmb_clia")).status == "met"
+
+
+def test_grade_accepts_pending_and_unknown():
+    for value in ("pending", "unknown", 2, None):
+        data = mutate("results_glioma.json", _set("grade", value))
+        assert s.DoctorResults.model_validate(data).grade == value
+
+
+def test_optional_profile_fields_default_to_not_recorded():
+    data = load("results_glioma.json")
+    for key in ("tmb_clia", "recurrence_number", "comorbidities", "can_use_phone_or_tablet"):
+        data.pop(key)
+    r = s.DoctorResults.model_validate(data)
+    assert r.comorbidities is None and r.can_use_phone_or_tablet is None  # unknown, not "none"
 
 
 def test_all_models_forbid_extra():

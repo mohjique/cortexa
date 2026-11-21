@@ -1,5 +1,6 @@
 {
   "trial_id": "NCT99000001",
+  "criterion_type": "inclusion",
   "criterion_text": "Histologically confirmed IDH-mutant glioma",
   "status": "unknown",
   "evidence_field": "idh",

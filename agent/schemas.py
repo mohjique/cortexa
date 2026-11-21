@@ -139,20 +139,63 @@ class PituitaryResults(Schema):
     ]
     size: Literal["micro", "macro", "unknown"]
     cavernous_sinus_invasion: Literal["yes", "no", "unknown"]
+    surgical_candidate: bool | None = None  # None = not assessed
+    hormone_levels: dict[NonEmptyStr, float] = Field(default_factory=dict)  # name_unit -> value
+
+
+TreatmentType = Literal[
+    "surgery",
+    "radiation",
+    "temozolomide",
+    "bevacizumab",
+    "idh_inhibitor",
+    "checkpoint_inhibitor",
+    "pituitary_radiation",
+    "other",
+]
+
+
+class PriorTreatment(Schema):
+    """One past treatment, per clinical/PATIENT_PROFILES_GUIDE.md section 5."""
+
+    type: TreatmentType
+    detail: str | None = None
+    weeks_ago: Annotated[int, Field(ge=0)] | None = None
+    extent: Literal["gross_total", "subtotal", "biopsy_only"] | None = None  # surgery only
+    cycles: Annotated[int, Field(ge=0)] | None = None  # temozolomide only
+
+    @model_validator(mode="after")
+    def _type_specific_fields(self) -> PriorTreatment:
+        if self.extent is not None and self.type != "surgery":
+            raise ValueError("extent is only allowed for surgery")
+        if self.cycles is not None and self.type != "temozolomide":
+            raise ValueError("cycles is only allowed for temozolomide")
+        return self
+
+
+Grade = Annotated[int, Field(ge=1, le=4)] | Literal["pending", "unknown"]
 
 
 class DoctorResults(Schema):
-    """`unknown` = not tested. `pending` = ordered, not back. Never guessed."""
+    """`unknown` = not tested. `pending` = ordered, not back. Never guessed.
+
+    Optional fields left as None mean "not recorded"; the eligibility checker
+    treats them as unknown, never as "no".
+    """
 
     case_id: NonEmptyStr
     confirmed_bucket: Bucket
     diagnosis: NonEmptyStr | None = None
-    grade: Annotated[int, Field(ge=1, le=4)] | None = None
+    grade: Grade | None = None  # None = not applicable (e.g. pituitary)
     idh: Literal["mutant", "wildtype", "pending", "unknown"]
     codeletion_1p19q: Literal["codeleted", "intact", "pending", "unknown"]
     mgmt: Literal["methylated", "unmethylated", "pending", "unknown"]
+    tmb_clia: Annotated[float, Field(ge=0)] | None = None  # mut/Mb, CLIA lab only
     recurrent: bool
-    prior_treatments: list[NonEmptyStr] = Field(default_factory=list)
+    recurrence_number: Annotated[int, Field(ge=0)] | None = None
+    prior_treatments: list[PriorTreatment] = Field(default_factory=list)
+    comorbidities: list[NonEmptyStr] | None = None
+    can_use_phone_or_tablet: bool | None = None
     age: Annotated[int, Field(ge=0, le=120)]
     zip: Zip
     broad_sequencing_available: bool
@@ -161,6 +204,12 @@ class DoctorResults(Schema):
 
     @model_validator(mode="after")
     def _check_consistency(self) -> DoctorResults:
+        if self.recurrence_number is not None:
+            if not self.recurrent and self.recurrence_number != 0:
+                raise ValueError("recurrence_number must be 0 when recurrent is false")
+            if self.recurrent and self.recurrence_number == 0:
+                raise ValueError("recurrence_number must be 1 or more when recurrent is true")
+
         is_pit = self.confirmed_bucket == "pituitary"
         if is_pit and self.pituitary is None:
             raise ValueError("pituitary results required when confirmed_bucket is pituitary")
@@ -345,14 +394,41 @@ class TrialRecord(Schema):
 # ---------------------------------------------------------------------------
 
 
+# Mutation check output fields. Research context only (safety rule 10): they
+# may never be the evidence that passes or fails a criterion. A CLIA lab TMB
+# lives in DoctorResults.tmb_clia instead.
+MUTATION_CHECK_FIELDS: frozenset[str] = frozenset(
+    {"mutation_check", "mutation_context", "sbs11_call", "exposures", "total_mutations"}
+)
+
+
+def _is_mutation_check_field(field: str) -> bool:
+    root = field.split(".", 1)[0]
+    return root in MUTATION_CHECK_FIELDS
+
+
 class EligibilityResult(Schema):
-    """One per criterion. Safety rule 4: always cites field + criterion text."""
+    """One per criterion. Safety rule 4: always cites field + criterion text.
+
+    `status` answers "does the patient pass this criterion?". For an exclusion,
+    `met` means the exclusion does not apply.
+    """
 
     trial_id: TrialId
+    criterion_type: Literal["inclusion", "exclusion"] | None = None
     criterion_text: NonEmptyStr
     status: EligibilityStatus
     evidence_field: NonEmptyStr
     reason: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _mutation_check_never_decides(self) -> EligibilityResult:
+        if self.status != "unknown" and _is_mutation_check_field(self.evidence_field):
+            raise ValueError(
+                f"safety rule 10: mutation check field {self.evidence_field!r} cannot "
+                f"make a criterion {self.status}; use a CLIA result (tmb_clia) or mark unknown"
+            )
+        return self
 
 
 # ---------------------------------------------------------------------------
