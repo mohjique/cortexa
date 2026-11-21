@@ -1,0 +1,39 @@
+{
+  "_comment": "Canned stub outputs (F2.6). Synthetic, not model predictions. Profile is picked by a keyword in the upload filename; checked in this order.",
+  "lowconf": {
+    "suspected_bucket": "glioma",
+    "probabilities": {"glioma": 0.52, "meningioma": 0.38, "pituitary": 0.05, "no_tumor": 0.05},
+    "medgemma_bucket": "glioma",
+    "confidence": 0.55
+  },
+  "disagree": {
+    "suspected_bucket": "meningioma",
+    "probabilities": {"glioma": 0.12, "meningioma": 0.84, "pituitary": 0.02, "no_tumor": 0.02},
+    "medgemma_bucket": "glioma",
+    "confidence": 0.81
+  },
+  "glioma": {
+    "suspected_bucket": "glioma",
+    "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
+    "medgemma_bucket": "glioma",
+    "confidence": 0.88
+  },
+  "meningioma": {
+    "suspected_bucket": "meningioma",
+    "probabilities": {"glioma": 0.04, "meningioma": 0.90, "pituitary": 0.03, "no_tumor": 0.03},
+    "medgemma_bucket": "meningioma",
+    "confidence": 0.87
+  },
+  "pituitary": {
+    "suspected_bucket": "pituitary",
+    "probabilities": {"glioma": 0.03, "meningioma": 0.04, "pituitary": 0.90, "no_tumor": 0.03},
+    "medgemma_bucket": "pituitary",
+    "confidence": 0.86
+  },
+  "no_tumor": {
+    "suspected_bucket": "no_tumor",
+    "probabilities": {"glioma": 0.02, "meningioma": 0.02, "pituitary": 0.02, "no_tumor": 0.94},
+    "medgemma_bucket": "no_tumor",
+    "confidence": 0.92
+  }
+}
