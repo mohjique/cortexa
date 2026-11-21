@@ -15,7 +15,7 @@ The agent reads demo.json at upload time (no GPU in the demo). Whether
 MedGemma's call counts as a second opinion is `classifier.medgemma_vote` in
 policy.yaml; the summary is shown either way.
 
-Rule 1 is enforced here in code, not only in the prompt: `check_summary`
+Rule 1 is enforced in code, not only in the prompt: `agent.findings.check_summary`
 rejects text that diagnoses, names a tumor type without hedging, recommends
 treatment or refers to a specialist. A rejected summary is dropped.
 
@@ -33,6 +33,7 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from agent.findings import check_summary
 from classifier.dataset import BUCKETS, DATA_ROOT, SPLIT_CSV
 
 MODEL_ID = "google/medgemma-4b-it"
@@ -58,33 +59,6 @@ SUMMARY_PROMPT = (
     "the plane and sequence if you can tell, and the location, size and appearance of any mass. "
     "If no abnormality is visible, say so. Write 'suspected' before any tumor type."
 )
-
-# --- rule 1, enforced in code ---------------------------------------------------
-
-_FORBIDDEN = re.compile(
-    r"\b(diagnos(?:is|ed|e|tic of)|confirm(?:s|ed)?|definitive(?:ly)?|certainly|"
-    r"recommend\w*|treat(?:ment|ed)?|surgery|resect\w*|chemo\w*|radiation therapy|"
-    r"refer(?:ral|red)?|specialist|consult\w*|prognosis)\b",
-    re.IGNORECASE,
-)
-_TUMOR = re.compile(r"\b(glioma|glioblastoma|astrocytoma|oligodendroglioma|meningioma|"
-                    r"pituitary (?:adenoma|tumou?r)|adenoma|metasta\w*|lymphoma)\b", re.IGNORECASE)
-_HEDGE = re.compile(r"\b(suspect\w*|suspicious|possible|possibly|may represent|could represent|"
-                    r"consistent with|concerning for|differential)\b", re.IGNORECASE)
-
-
-def check_summary(text: str) -> str | None:
-    """Why the summary breaks rule 1, or None if it is fine to show as a draft."""
-    t = " ".join(text.split())
-    if not t:
-        return "empty"
-    if m := _FORBIDDEN.search(t):
-        return f"forbidden wording: {m.group(0)!r}"
-    for sentence in re.split(r"(?<=[.!?])\s+", t):
-        if _TUMOR.search(sentence) and not _HEDGE.search(sentence):
-            return f"unhedged tumor type: {sentence!r}"
-    return None
-
 
 def parse_choice(answer: str) -> str | None:
     """Bucket from a multiple-choice answer, or None if it can't be read."""
@@ -186,6 +160,17 @@ def run_demo(mg: MedGemma) -> list[dict]:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "demo.json").write_text(json.dumps(out, indent=2), encoding="utf-8")
     return out
+
+
+def cached(case_id: str, path: Path | None = None) -> dict | None:
+    """The precomputed demo result for a case, or None. No GPU, no model load."""
+    path = path or OUT_DIR / "demo.json"
+    if not path.is_file():
+        return None
+    for r in json.loads(path.read_text(encoding="utf-8")):
+        if r.get("case_id") == case_id:
+            return r
+    return None
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -5,6 +5,7 @@
 classifier:
   min_confidence_for_auto_suggest: 0.99   # below this, set flagged_uncertain (doctor still confirms every case). 0.99 flags 20 of 32 test errors and 3.3% of correct calls; 0.80 flagged only 6 of 32 (see classifier/README.md)
   flag_on_model_disagreement: true
+  medgemma_vote: false                    # true = MedGemma's call counts as a second opinion; off until its eval is good enough (classifier/medgemma/eval.json)
   label_prefix: "Suspected"               # never "Diagnosis"
 
 approvals:

@@ -90,3 +90,14 @@ The border band is the outer 12% of each side, where frames and burned-in text s
 `classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is `None` until MedGemma is wired in.
 
 The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is `real` when `artifacts/classifier/model.pt` exists, otherwise `stub`; `CORTEXA_MODEL_PATH` overrides the path.
+
+## MedGemma (F2.3)
+
+MedGemma is evaluated alone first, as CLAUDE.md requires. It runs on a Colab GPU via `classifier/medgemma_colab.ipynb`; the Hugging Face account needs the `google/medgemma-4b-it` terms accepted and an `HF_TOKEN` secret.
+
+- `python -m classifier.medgemma eval --per-class 25` writes `classifier/medgemma/eval.json`: MedGemma alone, multiple choice, per-class accuracy on the deduplicated test split.
+- `python -m classifier.medgemma demo` writes `classifier/medgemma/demo.json`: a findings summary and MedGemma's own call for each of the 23 demo images.
+
+At upload, the API attaches the cached summary by case ID, so the demo needs no GPU. MedGemma's call counts as a second opinion only when `classifier.medgemma_vote: true` is set in policy.yaml; it is off until the eval justifies it.
+
+Rule 1 is enforced in code by `agent/findings.py`, not only in the prompt. A summary that diagnoses, names an unhedged tumor type, recommends treatment or suggests a referral is dropped, and the drop is audited.

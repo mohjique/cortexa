@@ -19,7 +19,7 @@ from pydantic import ValidationError
 from agent import workflow
 from agent.audit import DATA_DIR, audit, get_audit_log
 from agent.policy import get_policy
-from agent.schemas import AuditEntry, CaseState, DoctorDecisionAdapter
+from agent.schemas import AuditEntry, CaseState, ClassifierOutput, DoctorDecisionAdapter
 from agent.store import CaseExists, CaseNotFound, CaseRecord, get_store
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -115,6 +115,7 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     except ValueError as exc:  # BadImage, or a schema error from the classifier
         audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
         raise HTTPException(422, f"could not classify: {exc}") from None
+    output = _with_medgemma(output)
     try:
         store.create(case_id)
     except CaseExists:
@@ -123,6 +124,37 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
           {"classifier": type(clf).__name__, "suspected_bucket": output.suspected_bucket},
           case_id=case_id)
     return workflow.attach_classification(case_id, output).state
+
+
+def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
+    """Add the precomputed MedGemma result (demo cases), if there is one.
+
+    The summary is always added when it passes rule 1. MedGemma's call is
+    added only when `classifier.medgemma_vote` is on in policy.yaml, so it
+    can flag a disagreement. Re-validated, so the rule-1 check always runs.
+    """
+    from classifier.medgemma import cached
+
+    r = cached(output.case_id)
+    if r is None:
+        return output
+    update: dict[str, Any] = {}
+    if r.get("findings_summary"):
+        update["findings_summary"] = r["findings_summary"]
+    vote = get_policy().classifier.medgemma_vote
+    if vote and r.get("medgemma_bucket"):
+        update["medgemma_bucket"] = r["medgemma_bucket"]
+    try:
+        out = ClassifierOutput.model_validate(output.model_dump() | update)
+    except ValidationError as exc:  # summary failed rule 1: drop it, keep the vote
+        update.pop("findings_summary", None)
+        out = ClassifierOutput.model_validate(output.model_dump() | update)
+        audit("agent", "findings_summary_rejected", {"error": str(exc.errors()[0]["msg"])},
+              case_id=output.case_id)
+    audit("agent", "tool_call:medgemma_cache",
+          {"summary": "findings_summary" in update, "vote": vote,
+           "medgemma_bucket": r.get("medgemma_bucket")}, case_id=output.case_id)
+    return out
 
 
 @app.get("/cases/{case_id}/heatmap")

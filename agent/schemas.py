@@ -118,6 +118,18 @@ class ClassifierOutput(Schema):
     # through the confirm_bucket doctor gate, flagged or not.
     flagged_uncertain: bool
     heatmap_path: str | None = None
+    # Draft findings text from MedGemma. Checked against rule 1 below.
+    findings_summary: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def _summary_rule_1(self) -> ClassifierOutput:
+        if self.findings_summary is not None:
+            from agent.findings import check_summary
+
+            problem = check_summary(self.findings_summary)
+            if problem:
+                raise ValueError(f"rule 1: findings_summary rejected ({problem})")
+        return self
 
     @model_validator(mode="after")
     def _check_probabilities(self) -> ClassifierOutput:

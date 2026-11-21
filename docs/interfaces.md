@@ -32,9 +32,12 @@ The case moves forward only after the gate for its stage has a recorded doctor d
   "medgemma_bucket": "glioma",
   "confidence": 0.88,
   "flagged_uncertain": false,
-  "heatmap_path": "artifacts/demo-001_gradcam.png"
+  "heatmap_path": "artifacts/demo-001_gradcam.png",
+  "findings_summary": "Axial T1 post-contrast slice with an enhancing mass in the left frontal lobe, suspected high-grade glioma."
 }
 ```
+
+`findings_summary` is optional draft text from MedGemma, shown to the doctor labeled as an AI draft. The schema rejects any summary that diagnoses, names a tumor type without "suspected" or similar hedging, recommends treatment, or suggests a referral (`agent/findings.py`, rule 1). `medgemma_bucket` is set only when `classifier.medgemma_vote` is on in policy.yaml.
 
 ### Upload endpoint
 
