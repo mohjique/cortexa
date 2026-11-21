@@ -1,0 +1,41 @@
+{
+  "synthetic": true,
+  "fetched_at": "2026-11-21T13:00:00Z",
+  "note": "Synthetic demo cache. Fake trials, fake sites. Not real API output.",
+  "entries": [
+    {
+      "source": "ctgov",
+      "endpoint": "https://clinicaltrials.gov/api/v2/studies",
+      "params": {
+        "query.cond": "brain tumor",
+        "filter.overallStatus": "RECRUITING,NOT_YET_RECRUITING"
+      },
+      "file": "ctgov/studies_brain_tumor.json",
+      "geo_note": "No server-side geo filter applied. Agent computes distance from geoPoint."
+    },
+    {
+      "source": "nci",
+      "endpoint": "https://clinicaltrialsapi.cancer.gov/api/v2/trials",
+      "params": {
+        "diseases.name": "brain tumor"
+      },
+      "file": "nci/trials_brain_tumor.json"
+    },
+    {
+      "source": "nominatim",
+      "params": {
+        "postalcode": "<zip>",
+        "country": "us"
+      },
+      "file": "nominatim/zip_lookup.json"
+    },
+    {
+      "source": "osrm",
+      "params": {
+        "profile": "driving",
+        "from": "77840"
+      },
+      "file": "osrm/drive_times.json"
+    }
+  ]
+}

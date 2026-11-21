@@ -2,6 +2,26 @@
 
 Draft. Agree on these at kickoff, then change them only after telling the team.
 
+All examples use synthetic data. Trial IDs `NCT990000xx` are fake (see `agent/demo_cache/`).
+
+## Case state
+
+The agent owns this. The frontend reads it to know which screen to show.
+
+```json
+{
+  "case_id": "demo-001",
+  "stage": "intake | confirm_bucket | watch_or_treat | preop_screen | hormone_labs | surgery_or_meds | awaiting_pathology | enter_results | mutation_check | matching | review_shortlist | no_match | rescan | stopped",
+  "suspected_bucket": "glioma",
+  "confirmed_bucket": "glioma | meningioma | pituitary | no_tumor | null",
+  "treatment_path": "surgery | medication_only | watch | null",
+  "waiting_on": "doctor | agent | pathology",
+  "updated_at": "2026-11-21T14:03:12Z"
+}
+```
+
+The case moves forward only after the gate for its stage has a recorded doctor decision.
+
 ## Classifier → agent
 
 ```json
@@ -15,6 +35,31 @@ Draft. Agree on these at kickoff, then change them only after telling the team.
   "heatmap_path": "artifacts/demo-001_gradcam.png"
 }
 ```
+
+## Doctor decision (approval gates) → agent
+
+One record per gate. Each one is also written to the audit log.
+
+```json
+{
+  "case_id": "demo-001",
+  "gate": "confirm_bucket | watch_or_treat | surgery_or_meds | enter_results | review_shortlist",
+  "decision": {},
+  "doctor_id": "dr-synthetic-01",
+  "ts": "2026-11-21T14:05:40Z",
+  "note": "optional free text"
+}
+```
+
+`decision` by gate:
+
+| gate | decision |
+|---|---|
+| `confirm_bucket` | `{"bucket": "glioma", "overrode_model": false}` |
+| `watch_or_treat` (meningioma) | `{"choice": "watch \| treat", "rescan_in_months": 6}` (`rescan_in_months` only for watch) |
+| `surgery_or_meds` (pituitary) | `{"choice": "surgery \| medication_only"}` |
+| `enter_results` | the Doctor-entered results object below |
+| `review_shortlist` | `{"keep": ["NCT99000001"], "reject": [{"trial_id": "NCT99000004", "reason": "patient preference"}]}` |
 
 ## Doctor-entered results → agent
 
@@ -31,9 +76,75 @@ Draft. Agree on these at kickoff, then change them only after telling the team.
   "prior_treatments": ["surgery", "radiation", "temozolomide"],
   "age": 54,
   "zip": "77840",
-  "broad_sequencing_available": false
+  "broad_sequencing_available": false,
+  "pituitary": null
 }
 ```
+
+For pituitary cases, `pituitary` holds hormone and imaging results. For a medication-only case, the doctor enters these directly with no pathology. Glioma marker fields are then `unknown`.
+
+```json
+"pituitary": {
+  "treatment_path": "surgery | medication_only",
+  "secreting_hormone": "prolactin | growth_hormone | acth | tsh | none | pending | unknown",
+  "size": "micro | macro | unknown",
+  "cavernous_sinus_invasion": "yes | no | unknown"
+}
+```
+
+`unknown` means not tested or not available. `pending` means ordered, result not back. The eligibility checker treats both as `unknown` but gives a different reason.
+
+## Pre-op screen (glioma) → frontend
+
+Runs after the bucket is confirmed as glioma and before surgery. It lists what the biopsy must answer and how many trials each answer decides.
+
+```json
+{
+  "case_id": "demo-001",
+  "trials_considered": 7,
+  "tests_needed": [
+    {
+      "field": "idh",
+      "label": "IDH mutation status",
+      "current_value": "pending",
+      "decides_trials": 3,
+      "trial_ids": ["NCT99000001", "NCT99000004", "NCT99000007"]
+    },
+    {"field": "codeletion_1p19q", "label": "1p/19q codeletion", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000007"]},
+    {"field": "mgmt", "label": "MGMT promoter methylation", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000004"]},
+    {"field": "grade", "label": "WHO grade", "current_value": "pending", "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"]}
+  ],
+  "pre_surgery_trials": [
+    {
+      "trial_id": "NCT99000003",
+      "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
+      "recruitment_status": "NOT_YET_RECRUITING",
+      "criterion_text": "Must enroll before planned surgical resection",
+      "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110}
+    }
+  ],
+  "label": "Suspected glioma. Biopsy results pending."
+}
+```
+
+`decides_trials` counts trials where the result changes the criterion between `met` and `not_met`.
+
+## Mutation check input (agent → mutation check)
+
+Sent only for recurrent glioma with exome or genome sequencing.
+
+```json
+{
+  "case_id": "demo-002",
+  "sequencing": "exome | genome | panel",
+  "reference": "GRCh38",
+  "snvs": [
+    {"chrom": "chr7", "pos": 55191822, "ref": "C", "alt": "T", "context": "ACG"}
+  ]
+}
+```
+
+`context` is the trinucleotide on the reference strand with `ref` in the middle. If `sequencing` is `panel`, the check does not run.
 
 ## Mutation check → agent
 
@@ -49,7 +160,33 @@ Draft. Agree on these at kickoff, then change them only after telling the team.
 }
 ```
 
+If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no broad sequencing | not recurrent glioma"}`.
+
+## Trial record (agent internal, normalized from both APIs)
+
+```json
+{
+  "trial_id": "NCT99000001",
+  "title": "[SYNTHETIC] ...",
+  "source": "ctgov | nci | ctgov+nci",
+  "recruitment_status": "RECRUITING | NOT_YET_RECRUITING",
+  "phases": ["PHASE2"],
+  "conditions": ["Astrocytoma, IDH-mutant"],
+  "criteria_text": "Inclusion Criteria: ...",
+  "min_age_years": 18,
+  "max_age_years": null,
+  "remote_participation": false,
+  "sites": [
+    {"facility": "Synthetic Neuro-Oncology Center A", "city": "Houston", "state": "TX", "zip": "77030", "lat": 29.7079, "lon": -95.4012}
+  ],
+  "fetched_at": "2026-11-21T13:00:00Z",
+  "from_cache": true
+}
+```
+
 ## Agent eligibility output
+
+One per criterion.
 
 ```json
 {
@@ -60,6 +197,69 @@ Draft. Agree on these at kickoff, then change them only after telling the team.
   "reason": "needs pathology: IDH status"
 }
 ```
+
+## Shortlist → frontend
+
+Shown at the `review_shortlist` gate. A trial is on the shortlist when no criterion is `not_met` and none is waiting on a `pending` result.
+
+```json
+{
+  "case_id": "demo-001",
+  "origin": {"zip": "77840", "lat": 30.628, "lon": -96.3344},
+  "radius_miles": 100,
+  "statuses_searched": ["RECRUITING", "NOT_YET_RECRUITING"],
+  "trials": [
+    {
+      "trial_id": "NCT99000001",
+      "title": "[SYNTHETIC] ...",
+      "recruitment_status": "RECRUITING",
+      "status_label": "Recruiting",
+      "remote_participation": false,
+      "nearest_site": {"facility": "Synthetic Neuro-Oncology Center A", "city": "Houston", "state": "TX", "lat": 29.7079, "lon": -95.4012, "distance_miles": 84.6, "drive_minutes": 105},
+      "summary": {"met": 5, "not_met": 0, "unknown": 1},
+      "eligibility": ["<Agent eligibility output>"],
+      "mutation_context": null,
+      "doctor_decision": "pending | keep | reject"
+    }
+  ]
+}
+```
+
+`status_label` is `"Recruiting"` or `"Not yet recruiting: opens soon, cannot enroll yet"`. `mutation_context` is the Mutation check output when it ran, shown as context only. `distance_miles` is straight-line from the ZIP centroid. `drive_minutes` comes from OSRM.
+
+## No-match plan → frontend
+
+Produced when the shortlist is empty. Settings come from `trial_search.no_match_plan` in `policy.yaml`.
+
+```json
+{
+  "case_id": "demo-003",
+  "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
+  "widened": {
+    "radius_miles": 500,
+    "include_remote": true,
+    "trials": ["<Shortlist trial>"]
+  },
+  "near_misses": [
+    {
+      "trial_id": "NCT99000007",
+      "title": "[SYNTHETIC] ...",
+      "near_miss_type": "fails_one_rule | pending_result",
+      "blocking": ["<Agent eligibility output>"],
+      "nearest_site": {"city": "New Orleans", "state": "LA", "distance_miles": 376.1, "drive_minutes": 360}
+    }
+  ],
+  "alert": {
+    "alert_id": "alert-demo-003-1",
+    "query": {"bucket": "meningioma", "markers": {"grade": 2}, "zip": "77840", "radius_miles": 500},
+    "notify": "care_team_in_app",
+    "created_at": "2026-11-21T15:10:00Z"
+  },
+  "tumor_board_log": {"ts": "2026-11-21T15:10:00Z", "case_id": "demo-003", "entry": "No current match", "searched_at": "2026-11-21T15:09:58Z"}
+}
+```
+
+A near miss fails exactly one criterion, or has no failures but waits on a `pending` result. Alerts go to the care team in the app only. The app never contacts patients.
 
 ## Audit log entry
 

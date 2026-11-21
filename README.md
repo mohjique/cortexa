@@ -27,7 +27,9 @@ flowchart TD
     C --> GL[Glioma] --> PRE["Pre-op screen<br/>tests needed"]
     PRE --> SP
     C --> PIT[Pituitary] --> HL["Hormone labs<br/>endocrine first"]
-    HL --> SP
+    HL --> SM{"Surgery or meds?<br/>doctor decides"}
+    SM -- surgery --> SP
+    SM -- "meds only" --> DR
 
     SP["Surgery + pathology<br/>lab tests the tissue"] --> DR["Doctor enters results<br/>diagnosis, grade, markers"]
     DR --> REC{"Recurrent glioma?<br/>from treatment history"}
@@ -35,14 +37,14 @@ flowchart TD
     REC -- "yes: recurrent glioma" --> MC["Mutation check<br/>skip if no broad sequencing"]
     MC --> TM
 
-    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting, in range"}
+    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, in range"}
     ANY -- yes --> SL["Doctor reviews shortlist<br/>map + travel time"]
     ANY -- no --> NM["No-match plan<br/>widen, watch, log"]
 
     classDef ai fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef doc fill:#E1F5EE,stroke:#0F6E56,color:#085041
     class B,PRE,MC,TM,NM ai
-    class C,WT,DR,SL doc
+    class C,WT,SM,DR,SL doc
 ```
 
 </details>

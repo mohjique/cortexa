@@ -43,7 +43,13 @@
 <line x1="290" y1="406" x2="290" y2="518" class="arr" marker-end="url(#arrow)"/>
 <text class="ts" x="298" y="424">treat</text>
 <line x1="417" y1="406" x2="417" y2="518" class="arr" marker-end="url(#arrow)"/>
-<path d="M572 406 L572 548 L452 548" class="arr" marker-end="url(#arrow)"/>
+<line x1="572" y1="406" x2="572" y2="434" class="arr" marker-end="url(#arrow)"/>
+<g class="c-teal"><rect x="505" y="436" width="135" height="56" rx="8"/><text class="th" x="572" y="454" text-anchor="middle" dominant-baseline="central">Surgery or meds?</text><text class="ts" x="572" y="474" text-anchor="middle" dominant-baseline="central">Doctor decides</text></g>
+<path d="M540 492 L540 548 L452 548" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="534" y="524" text-anchor="end">surgery</text>
+<path d="M610 492 L610 632 L452 632" class="arr" marker-end="url(#arrow)"/>
+<text class="ts" x="616" y="580">meds</text>
+<text class="ts" x="616" y="595">only</text>
 <g><rect class="box" x="190" y="520" width="260" height="56" rx="8"/><text class="th" x="320" y="538" text-anchor="middle" dominant-baseline="central">Surgery + pathology</text><text class="ts" x="320" y="558" text-anchor="middle" dominant-baseline="central">Lab tests the tissue</text></g>
 <line x1="320" y1="576" x2="320" y2="602" class="arr" marker-end="url(#arrow)"/>
 <g class="c-teal"><rect x="190" y="604" width="260" height="56" rx="8"/><text class="th" x="320" y="622" text-anchor="middle" dominant-baseline="central">Doctor enters results</text><text class="ts" x="320" y="642" text-anchor="middle" dominant-baseline="central">Diagnosis, grade, markers</text></g>
@@ -61,7 +67,7 @@
 <path d="M500 920 L500 988 L452 988" class="arr" marker-end="url(#arrow)"/>
 <g class="c-purple"><rect x="190" y="960" width="260" height="56" rx="8"/><text class="th" x="320" y="978" text-anchor="middle" dominant-baseline="central">Trial matching</text><text class="ts" x="320" y="998" text-anchor="middle" dominant-baseline="central">Met, not met, unknown</text></g>
 <line x1="320" y1="1016" x2="320" y2="1042" class="arr" marker-end="url(#arrow)"/>
-<g><rect class="box" x="190" y="1044" width="260" height="56" rx="8"/><text class="th" x="320" y="1062" text-anchor="middle" dominant-baseline="central">Any trials match?</text><text class="ts" x="320" y="1082" text-anchor="middle" dominant-baseline="central">Recruiting, in range</text></g>
+<g><rect class="box" x="190" y="1044" width="260" height="56" rx="8"/><text class="th" x="320" y="1062" text-anchor="middle" dominant-baseline="central">Any trials match?</text><text class="ts" x="320" y="1082" text-anchor="middle" dominant-baseline="central">Recruiting or not yet, in range</text></g>
 <line x1="320" y1="1100" x2="320" y2="1126" class="arr" marker-end="url(#arrow)"/>
 <text class="ts" x="330" y="1114">yes</text>
 <path d="M450 1072 L565 1072 L565 1126" class="arr" marker-end="url(#arrow)"/>

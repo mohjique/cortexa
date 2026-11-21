@@ -18,7 +18,9 @@ flowchart TD
     C --> GL[Glioma] --> PRE["Pre-op screen<br/>tests needed"]
     PRE --> SP
     C --> PIT[Pituitary] --> HL["Hormone labs<br/>endocrine first"]
-    HL --> SP
+    HL --> SM{"Surgery or meds?<br/>doctor decides"}
+    SM -- surgery --> SP
+    SM -- "meds only" --> DR
 
     SP["Surgery + pathology<br/>lab tests the tissue"] --> DR["Doctor enters results<br/>diagnosis, grade, markers"]
     DR --> REC{"Recurrent glioma?<br/>from treatment history"}
@@ -26,14 +28,14 @@ flowchart TD
     REC -- "yes: recurrent glioma" --> MC["Mutation check<br/>skip if no broad sequencing"]
     MC --> TM
 
-    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting, in range"}
+    TM["Trial matching<br/>met, not met, unknown"] --> ANY{"Any trials match?<br/>recruiting or not yet, in range"}
     ANY -- yes --> SL["Doctor reviews shortlist<br/>map + travel time"]
     ANY -- no --> NM["No-match plan<br/>widen, watch, log"]
 
     classDef ai fill:#EEEDFE,stroke:#534AB7,color:#3C3489
     classDef doc fill:#E1F5EE,stroke:#0F6E56,color:#085041
     class B,PRE,MC,TM,NM ai
-    class C,WT,DR,SL doc
+    class C,WT,SM,DR,SL doc
 ```
 
 ## Rules on top of the tree
@@ -42,5 +44,7 @@ flowchart TD
 - **Inconclusive mutation check = no information.** Matching continues without it. A high mutation count never routes to immunotherapy trials.
 - **Pre-surgery trials.** The glioma pre-op screen flags trials that require enrollment before surgery.
 - **Doctor overrides.** If the doctor changes the bucket, the case follows the new bucket's path.
-- **Medication-only pituitary cases** skip surgery; the doctor enters hormone and imaging results directly.
+- **Medication-only pituitary cases:** after hormone labs, the doctor chooses surgery or meds only. Meds only skips surgery; the doctor enters hormone and imaging results directly.
+- **Trial statuses.** Search includes `RECRUITING` and `NOT_YET_RECRUITING`. Every trial shows its status label. A not-yet-recruiting trial is shown as "opens soon, cannot enroll yet."
+- **What counts as a match:** no criterion `not_met` and none waiting on a `pending` result. A **near miss** fails exactly one criterion, or has no failures but waits on a pending result.
 - **No-match plan:** widen radius and include remote trials, show near misses, alert on newly opened trials, log "no current match" for the tumor board.
