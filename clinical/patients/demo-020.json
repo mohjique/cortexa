@@ -1,0 +1,118 @@
+{
+  "case_id": "demo-020",
+  "scenario": "Nonfunctioning sellar mass with visual loss",
+  "image_file": null,
+  "kaggle_label": "pituitary",
+  "age": 51,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "peripheral visual loss"
+  ],
+  "radiology_report": "Sellar MRI shows a 21 x 17 mm lesion with differential enhancement. The lesion extends above the sella. Appearance suggests a pituitary adenoma.",
+  "tumor_location": "sella",
+  "tumor_size_mm": [
+    21,
+    17
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 3,
+    "platelets": 232,
+    "hemoglobin": 14,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 23,
+    "alt": 24
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Gonadotroph pituitary neuroendocrine tumor",
+  "grade": null,
+  "idh": "unknown",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "unknown",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": {
+    "treatment_path": "surgery",
+    "secreting_hormone": "none",
+    "size": "macro",
+    "cavernous_sinus_invasion": "no",
+    "hormone_levels": {
+      "prolactin_ng_ml": 13,
+      "igf1_ng_ml": 150
+    },
+    "surgical_candidate": true
+  },
+  "pathology_report": "Transsphenoidal tissue shows a pituitary neuroendocrine tumor. Tumor nuclei stain for SF1. Findings support the reported lineage.",
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 2,
+      "extent": "gross_total",
+      "detail": "Tumor resection"
+    }
+  ],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "pituitary",
+      "overrode_model": false
+    },
+    "surgery_or_meds": {
+      "choice": "surgery"
+    },
+    "enter_results": {
+      "case_id": "demo-020",
+      "confirmed_bucket": "pituitary",
+      "diagnosis": "Gonadotroph pituitary neuroendocrine tumor",
+      "grade": null,
+      "idh": "unknown",
+      "codeletion_1p19q": "unknown",
+      "mgmt": "unknown",
+      "recurrent": false,
+      "age": 51,
+      "zip": "77840",
+      "pituitary": {
+        "treatment_path": "surgery",
+        "secreting_hormone": "none",
+        "size": "macro",
+        "cavernous_sinus_invasion": "no",
+        "hormone_levels": {
+          "prolactin_ng_ml": 13,
+          "igf1_ng_ml": 150
+        },
+        "surgical_candidate": true
+      },
+      "prior_treatments": [
+        "surgery"
+      ],
+      "broad_sequencing_available": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "hormone_labs",
+    "surgery_or_meds",
+    "awaiting_pathology",
+    "enter_results",
+    "matching",
+    "no_match"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": true,
+  "gold_eligibility": []
+}

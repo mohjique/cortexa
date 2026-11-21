@@ -1,0 +1,138 @@
+{
+  "case_id": "demo-006",
+  "scenario": "Resected grade 1 meningioma",
+  "image_file": null,
+  "kaggle_label": "meningioma",
+  "age": 52,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "new focal seizure"
+  ],
+  "radiology_report": "An enhancing extra-axial mass at the right parietal convexity measures 36 x 26 mm. It has a broad dural attachment. Adjacent cortex is displaced. Findings suggest meningioma.",
+  "tumor_location": "right parietal convexity",
+  "tumor_size_mm": [
+    36,
+    26
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4,
+    "platelets": 218,
+    "hemoglobin": 13,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 25,
+    "alt": 25
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Meningioma, CNS WHO grade 1",
+  "grade": 1,
+  "idh": null,
+  "codeletion_1p19q": null,
+  "mgmt": null,
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": "Sections show meningothelial whorls with bland nuclei. Mitotic activity is low. Findings support CNS WHO grade 1 meningioma.",
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 2,
+      "extent": "gross_total",
+      "detail": "Tumor resection"
+    }
+  ],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "meningioma",
+      "overrode_model": false
+    },
+    "watch_or_treat": {
+      "choice": "treat"
+    },
+    "enter_results": {
+      "case_id": "demo-006",
+      "confirmed_bucket": "meningioma",
+      "diagnosis": "Meningioma, CNS WHO grade 1",
+      "grade": 1,
+      "idh": null,
+      "codeletion_1p19q": null,
+      "mgmt": null,
+      "recurrent": false,
+      "age": 52,
+      "zip": "77840",
+      "pituitary": null,
+      "prior_treatments": [
+        "surgery"
+      ],
+      "broad_sequencing_available": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "watch_or_treat",
+    "awaiting_pathology",
+    "enter_results",
+    "matching",
+    "no_match"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": true,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000005",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed meningioma, CNS WHO grade 2 or 3",
+      "status": "not_met",
+      "evidence_field": "grade",
+      "note": "grade: 1"
+    },
+    {
+      "trial_id": "NCT99000005",
+      "criterion_type": "inclusion",
+      "criterion_text": "Gross total or subtotal resection",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"gross_total\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000005",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 52"
+    },
+    {
+      "trial_id": "NCT99000005",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the meningioma",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"gross_total\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000005",
+      "criterion_type": "exclusion",
+      "criterion_text": "Neurofibromatosis type 2",
+      "status": "met",
+      "evidence_field": "comorbidities",
+      "note": "comorbidities: []"
+    }
+  ]
+}

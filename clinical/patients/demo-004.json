@@ -1,0 +1,71 @@
+{
+  "case_id": "demo-004",
+  "scenario": "Incidental suspected meningioma under surveillance",
+  "image_file": null,
+  "kaggle_label": "meningioma",
+  "age": 47,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "headache"
+  ],
+  "radiology_report": "An enhancing extra-axial mass at the right frontal convexity measures 12 x 8 mm. It has a broad dural attachment. There is no surrounding edema. Findings suggest meningioma.",
+  "tumor_location": "right frontal convexity",
+  "tumor_size_mm": [
+    12,
+    8
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 3,
+    "platelets": 216,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 23,
+    "alt": 28
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": null,
+  "idh": null,
+  "codeletion_1p19q": null,
+  "mgmt": null,
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "meningioma",
+      "overrode_model": false
+    },
+    "watch_or_treat": {
+      "choice": "watch",
+      "rescan_in_months": 6
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "watch_or_treat",
+    "rescan"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": false,
+  "gold_eligibility": []
+}

@@ -1,0 +1,192 @@
+{
+  "case_id": "demo-019",
+  "scenario": "Recurrent Glioblastoma, IDH-wildtype",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 62,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "new focal seizure"
+  ],
+  "radiology_report": "MRI shows a 49 x 24 mm expanding lesion along the resection margin in the right temporal lobe. Surrounding FLAIR abnormality is present. Interval growth raises concern for recurrent tumor.",
+  "tumor_location": "right temporal lobe",
+  "tumor_size_mm": [
+    49,
+    24
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4.5,
+    "platelets": 231,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 22,
+    "alt": 28
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Glioblastoma, IDH-wildtype",
+  "grade": 4,
+  "idh": "wildtype",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "methylated",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": "Sections show an infiltrating glial neoplasm. Microvascular proliferation and necrosis are present, and IDH testing is wildtype. Integrated diagnosis is Glioblastoma, IDH-wildtype, CNS WHO grade 4.",
+  "recurrent": true,
+  "recurrence_number": 3,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 95,
+      "extent": "subtotal",
+      "detail": "Tumor resection"
+    },
+    {
+      "type": "radiation",
+      "weeks_ago": 72,
+      "detail": "Focal brain radiation"
+    },
+    {
+      "type": "temozolomide",
+      "weeks_ago": 32,
+      "cycles": 6
+    },
+    {
+      "type": "bevacizumab",
+      "weeks_ago": 7
+    }
+  ],
+  "weeks_since_radiation": 72,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    },
+    "enter_results": {
+      "case_id": "demo-019",
+      "confirmed_bucket": "glioma",
+      "diagnosis": "Glioblastoma, IDH-wildtype",
+      "grade": 4,
+      "idh": "wildtype",
+      "codeletion_1p19q": "unknown",
+      "mgmt": "methylated",
+      "recurrent": true,
+      "age": 62,
+      "zip": "77840",
+      "pituitary": null,
+      "prior_treatments": [
+        "surgery",
+        "radiation",
+        "temozolomide",
+        "bevacizumab"
+      ],
+      "broad_sequencing_available": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology",
+    "enter_results",
+    "matching",
+    "no_match"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": true,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype",
+      "status": "met",
+      "evidence_field": "diagnosis",
+      "note": "diagnosis: \"Glioblastoma, IDH-wildtype\""
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "First or second recurrence",
+      "status": "not_met",
+      "evidence_field": "recurrence_number",
+      "note": "recurrence_number: 3"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Prior radiation and temozolomide",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":95,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"},{\"type\":\"radiation\",\"weeks_ago\":72,\"detail\":\"Focal brain radiation\"},{\"type\":\"temozolomide\",\"weeks_ago\":32,\"cycles\":6},{\"type\":\"bevacizumab\",\"weeks_ago\":7}]"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 62"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "exclusion",
+      "criterion_text": "More than two prior recurrences",
+      "status": "not_met",
+      "evidence_field": "recurrence_number",
+      "note": "recurrence_number: 3"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior bevacizumab",
+      "status": "not_met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":95,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"},{\"type\":\"radiation\",\"weeks_ago\":72,\"detail\":\"Focal brain radiation\"},{\"type\":\"temozolomide\",\"weeks_ago\":32,\"cycles\":6},{\"type\":\"bevacizumab\",\"weeks_ago\":7}]"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Recurrent glioma of any grade",
+      "status": "met",
+      "evidence_field": "recurrent",
+      "note": "recurrent: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Participation is fully remote from home",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 62"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "exclusion",
+      "criterion_text": "Unable to use a phone or tablet for study visits",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
+    }
+  ]
+}
