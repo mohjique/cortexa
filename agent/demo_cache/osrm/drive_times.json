@@ -1,0 +1,29 @@
+{
+  "origin_zip": "77840",
+  "routes": {
+    "77030": {
+      "drive_minutes": 105,
+      "straight_line_miles": 84.6
+    },
+    "78712": {
+      "drive_minutes": 110,
+      "straight_line_miles": 86.7
+    },
+    "75390": {
+      "drive_minutes": 175,
+      "straight_line_miles": 153.8
+    },
+    "78229": {
+      "drive_minutes": 165,
+      "straight_line_miles": 154.8
+    },
+    "70112": {
+      "drive_minutes": 360,
+      "straight_line_miles": 376.1
+    },
+    "73104": {
+      "drive_minutes": 330,
+      "straight_line_miles": 342.0
+    }
+  }
+}

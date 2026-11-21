@@ -1,0 +1,471 @@
+{
+  "total": 9,
+  "data": [
+    {
+      "nct_id": "NCT99000001",
+      "brief_title": "[SYNTHETIC] IDH inhibitor in newly diagnosed IDH-mutant grade 2-3 astrocytoma",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Newly diagnosed; no prior radiation or chemotherapy",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior treatment with an IDH inhibitor",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "1p/19q codeletion",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [
+        {
+          "name": "IDH1/2 mutation",
+          "eligibility_criterion": "inclusion"
+        },
+        {
+          "name": "1p/19q codeletion",
+          "eligibility_criterion": "exclusion"
+        }
+      ],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center A",
+          "org_city": "Houston",
+          "org_state_or_province": "TX",
+          "org_postal_code": "77030",
+          "org_coordinates": {
+            "lat": 29.7079,
+            "lon": -95.4012
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000002",
+      "brief_title": "[SYNTHETIC] Targeted agent for recurrent IDH-wildtype glioblastoma after temozolomide",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Histologically confirmed glioblastoma, IDH-wildtype",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "First or second recurrence",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior radiation and temozolomide",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "More than two prior recurrences",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "Prior bevacizumab",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [
+        {
+          "name": "IDH wildtype",
+          "eligibility_criterion": "inclusion"
+        }
+      ],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center A",
+          "org_city": "Houston",
+          "org_state_or_province": "TX",
+          "org_postal_code": "77030",
+          "org_coordinates": {
+            "lat": 29.7079,
+            "lon": -95.4012
+          }
+        },
+        {
+          "org_name": "Synthetic Neuro-Oncology Center C",
+          "org_city": "Dallas",
+          "org_state_or_province": "TX",
+          "org_postal_code": "75390",
+          "org_coordinates": {
+            "lat": 32.812,
+            "lon": -96.84
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000003",
+      "brief_title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
+      "current_trial_status": "Approved",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Imaging suspicious for newly diagnosed glioblastoma",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Must enroll before planned surgical resection",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior brain surgery or biopsy for this tumor",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "Prior radiation to the brain",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center B",
+          "org_city": "Austin",
+          "org_state_or_province": "TX",
+          "org_postal_code": "78712",
+          "org_coordinates": {
+            "lat": 30.2849,
+            "lon": -97.7341
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000004",
+      "brief_title": "[SYNTHETIC] Radiation plus novel agent in newly diagnosed MGMT-unmethylated glioblastoma",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 75,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "MGMT promoter unmethylated",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Newly diagnosed, after surgery or biopsy",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 to 75 years",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior radiation to the brain",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "Prior temozolomide",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [
+        {
+          "name": "IDH wildtype",
+          "eligibility_criterion": "inclusion"
+        },
+        {
+          "name": "MGMT promoter unmethylated",
+          "eligibility_criterion": "inclusion"
+        }
+      ],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center B",
+          "org_city": "Austin",
+          "org_state_or_province": "TX",
+          "org_postal_code": "78712",
+          "org_coordinates": {
+            "lat": 30.2849,
+            "lon": -97.7341
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000005",
+      "brief_title": "[SYNTHETIC] Adjuvant therapy after resection of WHO grade 2-3 meningioma",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Histologically confirmed meningioma, CNS WHO grade 2 or 3",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Gross total or subtotal resection",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior radiation to the meningioma",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "Neurofibromatosis type 2",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center D",
+          "org_city": "San Antonio",
+          "org_state_or_province": "TX",
+          "org_postal_code": "78229",
+          "org_coordinates": {
+            "lat": 29.507,
+            "lon": -98.575
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000006",
+      "brief_title": "[SYNTHETIC] Oral medication for ACTH-secreting pituitary adenoma (Cushing disease)",
+      "current_trial_status": "Approved",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "ACTH-secreting pituitary adenoma confirmed by hormone testing",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Persistent disease after surgery, or not a surgical candidate",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Pituitary radiation within the past 2 years",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center A",
+          "org_city": "Houston",
+          "org_state_or_province": "TX",
+          "org_postal_code": "77030",
+          "org_coordinates": {
+            "lat": 29.7079,
+            "lon": -95.4012
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000007",
+      "brief_title": "[SYNTHETIC] Chemoradiation strategies in IDH-mutant 1p/19q-codeleted oligodendroglioma",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Histologically confirmed oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Newly diagnosed",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior radiation to the brain",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [
+        {
+          "name": "IDH1/2 mutation",
+          "eligibility_criterion": "inclusion"
+        },
+        {
+          "name": "1p/19q codeletion",
+          "eligibility_criterion": "inclusion"
+        }
+      ],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center E",
+          "org_city": "New Orleans",
+          "org_state_or_province": "LA",
+          "org_postal_code": "70112",
+          "org_coordinates": {
+            "lat": 29.956,
+            "lon": -90.077
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000008",
+      "brief_title": "[SYNTHETIC] Decentralized symptom-management study in recurrent glioma (home participation)",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Recurrent glioma of any grade",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Participation is fully remote from home",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Unable to use a phone or tablet for study visits",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center F",
+          "org_city": "Oklahoma City",
+          "org_state_or_province": "OK",
+          "org_postal_code": "73104",
+          "org_coordinates": {
+            "lat": 35.48,
+            "lon": -97.5
+          }
+        }
+      ]
+    },
+    {
+      "nct_id": "NCT99000009",
+      "brief_title": "[SYNTHETIC] Checkpoint inhibitor in recurrent glioma with high tumor mutational burden",
+      "current_trial_status": "Active",
+      "eligibility": {
+        "structured": {
+          "min_age_in_years": 18,
+          "max_age_in_years": 999,
+          "sex": "BOTH"
+        },
+        "unstructured": [
+          {
+            "description": "Recurrent glioma",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Tumor mutational burden of 10 mutations/Mb or higher by a CLIA-certified assay",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Age 18 years or older",
+            "inclusion_indicator": true
+          },
+          {
+            "description": "Prior immune checkpoint inhibitor",
+            "inclusion_indicator": false
+          },
+          {
+            "description": "Active autoimmune disease",
+            "inclusion_indicator": false
+          }
+        ]
+      },
+      "biomarkers": [
+        {
+          "name": "Tumor mutational burden high (CLIA assay)",
+          "eligibility_criterion": "inclusion"
+        }
+      ],
+      "sites": [
+        {
+          "org_name": "Synthetic Neuro-Oncology Center C",
+          "org_city": "Dallas",
+          "org_state_or_province": "TX",
+          "org_postal_code": "75390",
+          "org_coordinates": {
+            "lat": 32.812,
+            "lon": -96.84
+          }
+        }
+      ]
+    }
+  ]
+}

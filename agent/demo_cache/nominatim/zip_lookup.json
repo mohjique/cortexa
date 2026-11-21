@@ -1,0 +1,44 @@
+{
+  "77840": {
+    "city": "College Station",
+    "state": "TX",
+    "lat": 30.628,
+    "lon": -96.3344
+  },
+  "77030": {
+    "city": "Houston",
+    "state": "TX",
+    "lat": 29.7079,
+    "lon": -95.4012
+  },
+  "78712": {
+    "city": "Austin",
+    "state": "TX",
+    "lat": 30.2849,
+    "lon": -97.7341
+  },
+  "75390": {
+    "city": "Dallas",
+    "state": "TX",
+    "lat": 32.812,
+    "lon": -96.84
+  },
+  "78229": {
+    "city": "San Antonio",
+    "state": "TX",
+    "lat": 29.507,
+    "lon": -98.575
+  },
+  "70112": {
+    "city": "New Orleans",
+    "state": "LA",
+    "lat": 29.956,
+    "lon": -90.077
+  },
+  "73104": {
+    "city": "Oklahoma City",
+    "state": "OK",
+    "lat": 35.48,
+    "lon": -97.5
+  }
+}
