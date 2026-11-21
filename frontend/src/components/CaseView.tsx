@@ -87,7 +87,12 @@ export default function CaseView() {
               className={`row ${s.case_id === caseId ? "on" : ""}`}
               style={{ display: "block", color: "inherit", textDecoration: "none" }}
             >
-              {s.case_id} · {BUCKET_LABEL[(s.confirmed_bucket ?? s.suspected_bucket)!] ?? "Pending"}
+              {s.case_id} ·{" "}
+              {s.confirmed_bucket
+                ? BUCKET_LABEL[s.confirmed_bucket]
+                : s.suspected_bucket
+                  ? `Suspected ${BUCKET_LABEL[s.suspected_bucket].toLowerCase()}`
+                  : "Pending"}
               <small>{STAGE_LABEL[s.stage]}</small>
             </Link>
           ))}

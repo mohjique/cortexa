@@ -152,87 +152,90 @@ export function PreopReviewForm({ record, onDone }: FormProps) {
     return a.action === null || (a.action === "not_pursuing" && !a.reason.trim());
   });
 
+  // Rescreen sits outside the <form>, so Enter in its reason box can't submit the review.
   return (
-    <form
-      onSubmit={async (e) => {
-        e.preventDefault();
-        if (!tests || open.length) return;
-        const ok = await submit(
-          {
-            gate: "preop_review",
-            decision: {
-              screen_id: preop.screen_id,
-              tests_reviewed: true,
-              pre_surgery_trials: preop.pre_surgery_trials.map((t) => {
-                const a = get(t.trial_id);
-                return { trial_id: t.trial_id, action: a.action!, reason: a.reason.trim() || null };
-              }),
+    <>
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!tests || open.length) return;
+          const ok = await submit(
+            {
+              gate: "preop_review",
+              decision: {
+                screen_id: preop.screen_id,
+                tests_reviewed: true,
+                pre_surgery_trials: preop.pre_surgery_trials.map((t) => {
+                  const a = get(t.trial_id);
+                  return { trial_id: t.trial_id, action: a.action!, reason: a.reason.trim() || null };
+                }),
+              },
             },
-          },
-          note,
-        );
-        if (!ok) await onDone(); // a stale screen_id is rejected: load the current screen
-      }}
-    >
-      <label className="radio">
-        <input type="checkbox" checked={tests} onChange={(e) => setTests(e.target.checked)} /> I have reviewed what the biopsy
-        must answer ({preop.tests_needed.length ? preop.tests_needed.map((t) => t.label).join(", ") : "no tests listed"})
-      </label>
-      {preop.pre_surgery_trials.length > 0 ? (
-        <div style={{ marginTop: 8 }}>
-          <div className="muted" style={{ fontSize: 12 }}>
-            Enroll-before-surgery trials. Answer each one: once surgery happens the patient can no longer join.
-          </div>
-          {preop.pre_surgery_trials.map((t) => {
-            const a = get(t.trial_id);
-            return (
-              <div className="ptrial" key={t.trial_id}>
-                <div>
-                  <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
-                  {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+            note,
+          );
+          if (!ok) await onDone(); // a stale screen_id is rejected: load the current screen
+        }}
+      >
+        <label className="radio">
+          <input type="checkbox" checked={tests} onChange={(e) => setTests(e.target.checked)} /> I have reviewed what the biopsy
+          must answer ({preop.tests_needed.length ? preop.tests_needed.map((t) => t.label).join(", ") : "no tests listed"})
+        </label>
+        {preop.pre_surgery_trials.length > 0 ? (
+          <div style={{ marginTop: 8 }}>
+            <div className="muted" style={{ fontSize: 12 }}>
+              Enroll-before-surgery trials. Answer each one: once surgery happens the patient can no longer join.
+            </div>
+            {preop.pre_surgery_trials.map((t) => {
+              const a = get(t.trial_id);
+              return (
+                <div className="ptrial" key={t.trial_id}>
+                  <div>
+                    <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
+                    {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+                  </div>
+                  <div className="ptitle">{t.title}</div>
+                  <div className="demo">Nearest site: {siteText(t.nearest_site)}</div>
+                  <label className="radio">
+                    <input
+                      type="radio"
+                      name={`pre-${t.trial_id}`}
+                      checked={a.action === "pursue_before_surgery"}
+                      onChange={() => setA(t.trial_id, { action: "pursue_before_surgery" })}
+                    />{" "}
+                    Pursue before surgery
+                  </label>
+                  <label className="radio">
+                    <input
+                      type="radio"
+                      name={`pre-${t.trial_id}`}
+                      checked={a.action === "not_pursuing"}
+                      onChange={() => setA(t.trial_id, { action: "not_pursuing" })}
+                    />{" "}
+                    Not pursuing
+                  </label>
+                  {a.action !== null && (
+                    <input
+                      style={{ width: "100%", marginTop: 4 }}
+                      placeholder={a.action === "not_pursuing" ? "Reason (required)" : "Reason (optional)"}
+                      value={a.reason}
+                      onChange={(e) => setA(t.trial_id, { reason: e.target.value })}
+                    />
+                  )}
                 </div>
-                <div className="ptitle">{t.title}</div>
-                <div className="demo">Nearest site: {siteText(t.nearest_site)}</div>
-                <label className="radio">
-                  <input
-                    type="radio"
-                    name={`pre-${t.trial_id}`}
-                    checked={a.action === "pursue_before_surgery"}
-                    onChange={() => setA(t.trial_id, { action: "pursue_before_surgery" })}
-                  />{" "}
-                  Pursue before surgery
-                </label>
-                <label className="radio">
-                  <input
-                    type="radio"
-                    name={`pre-${t.trial_id}`}
-                    checked={a.action === "not_pursuing"}
-                    onChange={() => setA(t.trial_id, { action: "not_pursuing" })}
-                  />{" "}
-                  Not pursuing
-                </label>
-                {a.action !== null && (
-                  <input
-                    style={{ width: "100%", marginTop: 4 }}
-                    placeholder={a.action === "not_pursuing" ? "Reason (required)" : "Reason (optional)"}
-                    value={a.reason}
-                    onChange={(e) => setA(t.trial_id, { reason: e.target.value })}
-                  />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
-          No enroll-before-surgery trials on this screen.
-        </div>
-      )}
-      <Note value={note} onChange={setNote} />
-      <Submit busy={busy} disabled={!tests || open.length > 0} error={error} label="Record pre-op review" />
-      {open.length > 0 && <div className="faint" style={{ fontSize: 12 }}>{open.length} trial(s) still need an answer</div>}
+              );
+            })}
+          </div>
+        ) : (
+          <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
+            No enroll-before-surgery trials on this screen.
+          </div>
+        )}
+        <Note value={note} onChange={setNote} />
+        <Submit busy={busy} disabled={!tests || open.length > 0} error={error} label="Record pre-op review" />
+        {open.length > 0 && <div className="faint" style={{ fontSize: 12 }}>{open.length} trial(s) still need an answer</div>}
+      </form>
       <RescreenButton caseId={record.state.case_id} onDone={onDone} />
-    </form>
+    </>
   );
 }
 
