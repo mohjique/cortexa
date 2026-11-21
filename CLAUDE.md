@@ -2,7 +2,7 @@
 
 Cortexa is an agentic care management platform that supports physician teams handling suspected brain tumor cases. It classifies a brain MRI into a suspected tumor bucket, guides the team on what the biopsy must answer, and matches confirmed cases to recruiting clinical trials, with a doctor approving every step.
 
-Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 8:00 PM (official cutoff); team deadline 7:30 PM. Judging 8:00 to 9:30 PM.
+Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 7:30 PM (official cutoff); team deadline 6:30 PM. Judging 8:00 to 9:30 PM.
 
 The full app logic is in `docs/decision-tree.md` (Mermaid) and `docs/decision-tree.svg`. Treat that tree as the spec. If code and tree disagree, fix the code or update the tree in the same PR.
 
