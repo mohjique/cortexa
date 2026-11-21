@@ -1,5 +1,6 @@
 {
   "case_id": "demo-001",
+  "screen_id": "preop-0123456789ab",
   "trials_considered": 7,
   "tests_needed": [
     {"field": "idh", "label": "IDH mutation status", "current_value": "pending", "decides_trials": 3, "trial_ids": ["NCT99000001", "NCT99000004", "NCT99000007"]},

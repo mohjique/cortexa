@@ -167,6 +167,16 @@
       "bucket": "glioma",
       "overrode_model": false
     },
+    "preop_review": {
+      "tests_reviewed": true,
+      "pre_surgery_trials": [
+        {
+          "trial_id": "NCT99000003",
+          "action": "not_pursuing",
+          "reason": "Already had brain surgery; trial excludes prior brain surgery or biopsy"
+        }
+      ]
+    },
     "enter_results": {
       "case_id": "demo-016",
       "confirmed_bucket": "glioma",
@@ -201,7 +211,9 @@
     },
     "review_shortlist": {
       "keep": [
-        "NCT99000002"
+        "NCT99000002",
+        "NCT99000008",
+        "NCT99000009"
       ],
       "reject": []
     }
@@ -225,7 +237,9 @@
       "tmb_clia"
     ]
   },
-  "expected_preop_flags": [],
+  "expected_preop_flags": [
+    "NCT99000003"
+  ],
   "expected_no_match": false,
   "gold_eligibility": [
     {
