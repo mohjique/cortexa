@@ -180,9 +180,22 @@
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [
-        "surgery",
-        "radiation",
-        "temozolomide"
+        {
+          "type": "surgery",
+          "weeks_ago": 95,
+          "extent": "subtotal",
+          "detail": "Tumor resection"
+        },
+        {
+          "type": "radiation",
+          "weeks_ago": 72,
+          "detail": "Focal brain radiation"
+        },
+        {
+          "type": "temozolomide",
+          "weeks_ago": 32,
+          "cycles": 6
+        }
       ],
       "broad_sequencing_available": true
     },

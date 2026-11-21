@@ -73,7 +73,12 @@
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [
-        "surgery"
+        {
+          "type": "surgery",
+          "weeks_ago": 2,
+          "extent": "subtotal",
+          "detail": "Tumor resection"
+        }
       ],
       "broad_sequencing_available": false
     },

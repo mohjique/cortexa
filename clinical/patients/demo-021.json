@@ -97,7 +97,12 @@
         "surgical_candidate": true
       },
       "prior_treatments": [
-        "surgery"
+        {
+          "type": "surgery",
+          "weeks_ago": 2,
+          "extent": "gross_total",
+          "detail": "Tumor resection"
+        }
       ],
       "broad_sequencing_available": false
     }

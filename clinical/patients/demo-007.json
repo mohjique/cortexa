@@ -68,15 +68,20 @@
       "confirmed_bucket": "meningioma",
       "diagnosis": "Meningioma, CNS WHO grade 2",
       "grade": 2,
-      "idh": null,
-      "codeletion_1p19q": null,
-      "mgmt": null,
+      "idh": "unknown",
+      "codeletion_1p19q": "unknown",
+      "mgmt": "unknown",
       "recurrent": false,
       "age": 61,
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [
-        "surgery"
+        {
+          "type": "surgery",
+          "weeks_ago": 2,
+          "extent": "subtotal",
+          "detail": "Tumor resection"
+        }
       ],
       "broad_sequencing_available": false
     }
