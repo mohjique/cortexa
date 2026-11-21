@@ -36,7 +36,7 @@ NCI_STATUS_MAP: dict[str, str] = {
 }
 
 # Neither API has a structured "remote" flag. Match on title + criteria.
-# TODO(policy): move to policy.yaml once the premed teammate agrees the wording.
+# TODO(policy): move to policy.yaml once the wording is agreed.
 REMOTE_PATTERNS = (
     r"\bfully remote\b",
     r"\bremote participation\b",
@@ -277,13 +277,16 @@ def _normalize_all(raw: list[dict[str, Any]], fn: Any, fetched: http_cache.Fetch
 def search_trials(
     condition: str = DEFAULT_CONDITION,
     case_id: str | None = None,
+    policy: Policy | None = None,
 ) -> list[TrialRecord]:
     """Recruiting trials in policy statuses, merged across both APIs.
 
     Nationwide: there is no distance cutoff. Callers compute distance with
-    geo.nearest_site to sort and label trials, never to drop them.
+    geo.nearest_site to sort and label trials, never to drop them. Pass
+    `policy` to use the same version the caller is using; otherwise the
+    current one is loaded.
     """
-    policy = get_policy()
+    policy = policy or get_policy()
     raw, fetched = fetch_ctgov(condition, policy, case_id=case_id)
     ctgov = _normalize_all(raw, normalize_ctgov, fetched, policy, "ctgov", case_id)
     nci: list[TrialRecord] = []

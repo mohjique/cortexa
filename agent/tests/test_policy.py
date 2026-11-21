@@ -44,8 +44,6 @@ def test_real_policy_is_valid():
         ({"privacy.geocode_fields_allowed": ["zip", "street_address"]}, "safety rule 6"),
         ({"audit.log_every_tool_call": False}, "log_every_tool_call"),
         ({"audit.log_every_approval": False}, "log_every_approval"),
-        ({"approvals.required": ["confirm_bucket"]}, "safety rule 2"),
-        ({"approvals.required": ["confirm_bucket", "enter_results", "review_shortlist", "auto_approve"]}, "approvals"),
         ({"classifier.label_prefix": "Diagnosis"}, "label_prefix"),
         ({"classifier.label_prefix": "Confirmed"}, "label_prefix"),
         ({"classifier.label_prefix": "Definitive"}, "label_prefix"),
@@ -74,7 +72,6 @@ def test_locked_safety_settings_cannot_be_loosened(change, match):
         ({"privacy": ...}, "privacy"),
         ({"pre_surgery_detection.inclusion_phrases": []}, "inclusion_phrases"),
         ({"pre_surgery_detection.exclusion_phrases": [""]}, "exclusion_phrases"),
-        ({"pre_surgery_detection.match": "regex"}, "match"),
     ],
 )
 def test_bad_edits_rejected(change, match):

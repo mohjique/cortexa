@@ -6,8 +6,16 @@ every gate check lives in `submit_decision`, in code, never in the LLM
 decision for that stage's gate.
 
 Agent stages (pre-op screen, mutation check, matching) run through `AgentHooks`.
-The mutation check default is the real check (`agent.mutation`); pre-op screen
-and matching defaults are still stubs, so the whole flow runs end to end.
+The pre-op screen is the one agent stage that also has a doctor gate: the
+agent runs it (waiting_on=agent), then the case stays at preop_screen with
+waiting_on=doctor until `preop_review` is recorded. Trials that need
+enrollment before surgery are lost once the case moves on, so no flagged
+trial can be skipped. While waiting, the doctor may ask for a fresh screen
+(`rescreen_preop`), for example after a trial's status changes.
+
+Defaults: the mutation check is the real check (`agent.mutation`), the pre-op
+screen is the real pre-surgery detector (`agent.preop`), and matching is the
+real matcher (`agent.matching`). The stubs stay as test helpers.
 """
 
 from __future__ import annotations
@@ -19,8 +27,10 @@ from dataclasses import dataclass
 from typing import Literal, get_args
 
 from agent.audit import audit
+from agent.matching import match_case
 from agent.mutation import mutation_check_hook
 from agent.policy import Policy, get_policy
+from agent.preop import preop_screen_hook
 from agent.schemas import (
     ClassifierOutput,
     ConfirmBucketRecord,
@@ -31,6 +41,7 @@ from agent.schemas import (
     MutationCheckRan,
     MutationCheckSkipped,
     NoMatchPlan,
+    PreOpReviewRecord,
     PreOpScreen,
     ReviewShortlistRecord,
     SearchSummary,
@@ -52,6 +63,7 @@ ALL_GATES: frozenset[str] = frozenset(get_args(Gate))
 GATE_AT_STAGE: dict[str, Gate] = {
     "confirm_bucket": "confirm_bucket",
     "watch_or_treat": "watch_or_treat",
+    "preop_screen": "preop_review",  # after the agent runs the screen
     "hormone_labs": "hormone_labs",
     "surgery_or_meds": "surgery_or_meds",
     "awaiting_pathology": "enter_results",  # results arrive from the lab
@@ -63,7 +75,7 @@ WAITING_ON: dict[str, WaitingOn] = {
     "intake": "agent",
     "confirm_bucket": "doctor",
     "watch_or_treat": "doctor",
-    "preop_screen": "agent",
+    "preop_screen": "agent",  # set to doctor once the screen is done
     "hormone_labs": "doctor",
     "surgery_or_meds": "doctor",
     "awaiting_pathology": "pathology",
@@ -79,6 +91,8 @@ assert set(WAITING_ON) == set(get_args(Stage)), "every stage needs a waiting_on"
 assert set(GATE_AT_STAGE.values()) == ALL_GATES, "every gate needs a stage"
 
 AGENT_STAGES: frozenset[str] = frozenset({"preop_screen", "mutation_check", "matching"})
+# Agent stages that end in a doctor gate instead of moving on by themselves.
+GATED_AGENT_STAGES: frozenset[str] = frozenset({"preop_screen"})
 FINAL_STAGES: frozenset[str] = frozenset({"stopped", "rescan", "no_match"})
 
 _BUCKET_NEXT: dict[str, Stage] = {
@@ -134,6 +148,8 @@ def next_stage(rec: CaseRecord, policy: Policy) -> Stage:
     if stage == "watch_or_treat":
         return "rescan" if st.treatment_path == "watch" else "awaiting_pathology"
     if stage == "preop_screen":
+        if rec.preop is None:
+            raise WorkflowError("preop_screen needs the screen result first")
         return "awaiting_pathology"
     if stage == "hormone_labs":
         return "surgery_or_meds"
@@ -161,11 +177,12 @@ def _move(rec: CaseRecord, policy: Policy) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent stage hooks. Pre-op screen and matching are stubs until the real pieces land.
+# Agent stage hooks. The stubs stay as test helpers.
 # ---------------------------------------------------------------------------
 
 
 def stub_preop_screen(rec: CaseRecord, policy: Policy) -> PreOpScreen:
+    # Test helper: a screen that flags nothing.
     return PreOpScreen(
         case_id=rec.case_id,
         trials_considered=0,
@@ -188,7 +205,7 @@ def stub_mutation_check(rec: CaseRecord, policy: Policy) -> MutationCheckRan:
 
 
 def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
-    # No real search yet, so honestly report no match.
+    # Test helper: reports no match without searching.
     return NoMatchPlan(
         case_id=rec.case_id,
         searched=SearchSummary(
@@ -200,10 +217,10 @@ def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
 
 @dataclass
 class AgentHooks:
-    preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = stub_preop_screen
+    preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = preop_screen_hook
     # None = no trustworthy answer; the hook audits why and matching runs without it.
     mutation_check: Callable[[CaseRecord, Policy], MutationCheckOutput | None] = mutation_check_hook
-    matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = stub_matching
+    matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = match_case
 
 
 _hooks = AgentHooks()
@@ -275,6 +292,20 @@ def _run_agent_stage(rec: CaseRecord, policy: Policy) -> None:
     audit("agent", f"stage_done:{stage}", detail, case_id=rec.case_id)
 
 
+def _run_agent_after_save(case_id: str) -> CaseRecord:
+    """Run agent stages after a doctor action that is already saved.
+
+    A failed hook must not look like a failed decision: the decision stands,
+    the case stays at the agent stage (waiting_on=agent, `stage_failed:*`
+    audited), and the client retries with POST /cases/{id}/run.
+    """
+    try:
+        return run_agent(case_id)
+    except Exception:
+        log.exception("agent stage failed after a saved doctor action; case %s waits on agent", case_id)
+        return get_store().get(case_id)
+
+
 def run_agent(case_id: str) -> CaseRecord:
     """Run agent stages until the case needs a doctor, the lab, or is final.
 
@@ -284,10 +315,19 @@ def run_agent(case_id: str) -> CaseRecord:
     store = get_store()
     with _lock:
         rec = store.get(case_id)
-        while rec.state.stage in AGENT_STAGES:
+        while rec.state.stage in AGENT_STAGES and rec.state.waiting_on == "agent":
             policy = get_policy()
             _run_agent_stage(rec, policy)
-            _move(rec, policy)
+            if rec.state.stage in GATED_AGENT_STAGES:
+                rec.state.waiting_on = "doctor"  # stay here until the doctor's gate
+                audit(
+                    "agent",
+                    "waiting_on_doctor",
+                    {"stage": rec.state.stage, "gate": GATE_AT_STAGE[rec.state.stage]},
+                    case_id=rec.case_id,
+                )
+            else:
+                _move(rec, policy)
             rec = store.save(rec)
         return rec
 
@@ -352,6 +392,10 @@ def _check(rec: CaseRecord, d: DoctorDecision) -> DoctorDecision:
         want = expected or "no doctor gate"
         raise WrongGate(f"case is at {rec.state.stage} (expects {want}), got {d.gate}")
 
+    if rec.state.waiting_on == "agent":
+        # e.g. preop_screen before the agent has finished the screen
+        raise WrongGate(f"case is at {rec.state.stage} and the agent has not finished it")
+
     if isinstance(d, ConfirmBucketRecord):
         # Server decides overrode_model; the client's value is not trusted.
         overrode = (
@@ -372,6 +416,24 @@ def _check(rec: CaseRecord, d: DoctorDecision) -> DoctorDecision:
             raise InvalidDecision(
                 f"results treatment_path {r.pituitary.treatment_path} does not match "
                 f"case treatment_path {rec.state.treatment_path}"
+            )
+
+    elif isinstance(d, PreOpReviewRecord):
+        if rec.preop is None:
+            raise InvalidDecision("no pre-op screen to review")
+        if d.decision.screen_id != rec.preop.screen_id:
+            raise InvalidDecision(
+                f"the pre-op screen changed since it was reviewed ({d.decision.screen_id} -> "
+                f"{rec.preop.screen_id}); reload it and review again"
+            )
+        flagged = {t.trial_id for t in rec.preop.pre_surgery_trials}
+        acked = {a.trial_id for a in d.decision.pre_surgery_trials}
+        if acked - flagged:
+            raise InvalidDecision(f"not a pre-surgery trial on the screen: {sorted(acked - flagged)}")
+        if flagged - acked:
+            raise InvalidDecision(
+                f"every pre-surgery trial needs pursue_before_surgery or not_pursuing; "
+                f"missing {sorted(flagged - acked)}"
             )
 
     elif isinstance(d, ReviewShortlistRecord):
@@ -400,6 +462,23 @@ def _apply(rec: CaseRecord, d: DoctorDecision) -> None:
         if skip is not None:
             rec.mutation = MutationCheckSkipped(case_id=rec.case_id, ran=False, skip_reason=skip)
             audit("agent", "mutation_check_skipped", {"skip_reason": skip}, case_id=rec.case_id)
+    elif isinstance(d, PreOpReviewRecord):
+        assert rec.preop is not None
+        acks = {a.trial_id: a for a in d.decision.pre_surgery_trials}
+        for t in rec.preop.pre_surgery_trials:
+            t.doctor_action = acks[t.trial_id].action
+            t.doctor_reason = acks[t.trial_id].reason
+        # tests_reviewed=true means "reviewed what the screen listed"; record how much that was.
+        audit(
+            "doctor",
+            "preop_review_recorded",
+            {
+                "screen_id": rec.preop.screen_id,
+                "tests_needed_listed": len(rec.preop.tests_needed),
+                "pre_surgery_trials": {t.trial_id: t.doctor_action for t in rec.preop.pre_surgery_trials},
+            },
+            case_id=rec.case_id,
+        )
     elif isinstance(d, ReviewShortlistRecord):
         assert rec.shortlist is not None
         keep = set(d.decision.keep)
@@ -410,6 +489,8 @@ def _apply(rec: CaseRecord, d: DoctorDecision) -> None:
 def submit_decision(decision: DoctorDecision) -> CaseRecord:
     """Record a doctor decision, advance the case, then run any agent stages.
 
+    If an agent stage fails afterwards, the saved state is returned with
+    waiting_on=agent (retry via run_agent); the decision is not undone.
     Raises WrongGate if the gate doesn't match the stage, InvalidDecision if
     it conflicts with the case. Both are audited; the case is unchanged.
     """
@@ -430,22 +511,34 @@ def submit_decision(decision: DoctorDecision) -> CaseRecord:
         _apply(rec, decision)
         _move(rec, get_policy())
         store.save(rec)
-        return run_agent(decision.case_id)
+        return _run_agent_after_save(decision.case_id)
 
 
-# ---------------------------------------------------------------------------
-# Startup check
-# ---------------------------------------------------------------------------
+def rescreen_preop(case_id: str, doctor_id: str, reason: str | None = None) -> CaseRecord:
+    """Doctor asks for a fresh pre-op screen before reviewing it.
 
-
-def check_gate_policy(policy: Policy) -> list[str]:
-    """Gates the code enforces that policy.yaml doesn't list.
-
-    The code requires every gate no matter what policy says (rule 2), so a
-    gap only means the policy file is out of date. Logged as a warning.
+    Only while the case waits on the preop_review gate. The old screen is
+    dropped (its flags stay in the audit log) and the agent runs again, so a
+    trial whose status changed, or a screen made during an API outage, is
+    not stuck as the only option.
     """
-    missing = sorted(ALL_GATES - set(policy.approvals.required))
-    if missing:
-        log.warning("policy.yaml approvals.required is missing %s; code enforces them anyway", missing)
-        audit("system", "gate_policy_mismatch", {"missing": missing, "enforced": sorted(ALL_GATES)})
-    return missing
+    store = get_store()
+    with _lock:
+        rec = store.get(case_id)
+        if rec.state.stage != "preop_screen" or rec.state.waiting_on != "doctor":
+            raise WrongGate(
+                f"rescreen only while preop_screen waits on a doctor; case is at "
+                f"{rec.state.stage} waiting on {rec.state.waiting_on}"
+            )
+        old = [t.trial_id for t in rec.preop.pre_surgery_trials] if rec.preop else []
+        audit(
+            "doctor",
+            "preop_rescreen_requested",
+            {"doctor_id": doctor_id, "reason": reason, "previous_flags": old},
+            case_id=case_id,
+        )
+        rec.preop = None
+        rec.state.waiting_on = "agent"
+        store.save(rec)
+        return _run_agent_after_save(case_id)
+

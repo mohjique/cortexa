@@ -22,6 +22,8 @@ The agent owns this. The frontend reads it to know which screen to show.
 
 The case moves forward only after the gate for its stage has a recorded doctor decision.
 
+`preop_screen` is the one stage where `waiting_on` changes inside the stage. It starts as `agent` while the screen runs, then becomes `doctor` until the `preop_review` gate is recorded.
+
 ## Classifier → agent
 
 ```json
@@ -54,7 +56,7 @@ One record per gate. Each one is also written to the audit log.
 ```json
 {
   "case_id": "demo-001",
-  "gate": "confirm_bucket | watch_or_treat | hormone_labs | surgery_or_meds | enter_results | review_shortlist",
+  "gate": "confirm_bucket | watch_or_treat | preop_review | hormone_labs | surgery_or_meds | enter_results | review_shortlist",
   "decision": {},
   "doctor_id": "dr-synthetic-01",
   "ts": "2026-11-21T14:05:40Z",
@@ -68,6 +70,7 @@ One record per gate. Each one is also written to the audit log.
 |---|---|
 | `confirm_bucket` | `{"bucket": "glioma", "overrode_model": false}` |
 | `watch_or_treat` (meningioma) | `{"choice": "watch \| treat", "rescan_in_months": 6}` (`rescan_in_months` only for watch) |
+| `preop_review` (glioma) | `{"screen_id": "preop-1a2b3c4d5e6f", "tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery \| not_pursuing", "reason": "optional free text"}]}`. Needs exactly one entry per trial in the pre-op screen's `pre_surgery_trials` (an empty list when there are none). `reason` is required for `not_pursuing`. `screen_id` is the screen the doctor reviewed; if the case's screen has changed since (rescreen), the decision is rejected with 422 and must be redone. |
 | `hormone_labs` (pituitary) | `{"labs_reviewed": true}` (doctor has reviewed hormone labs and endocrinology) |
 | `surgery_or_meds` (pituitary) | `{"choice": "surgery \| medication_only"}` |
 | `enter_results` | the Doctor-entered results object below |
@@ -136,6 +139,7 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 ```json
 {
   "case_id": "demo-001",
+  "screen_id": "preop-1a2b3c4d5e6f",
   "trials_considered": 7,
   "tests_needed": [
     {
@@ -155,7 +159,10 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
       "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
       "recruitment_status": "NOT_YET_RECRUITING",
       "criterion_text": "Must enroll before planned surgical resection",
-      "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110}
+      "matched_on": "criteria | title_hint",
+      "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110},
+      "doctor_action": "pending | pursue_before_surgery | not_pursuing",
+      "doctor_reason": null
     }
   ],
   "label": "Suspected glioma. Biopsy results pending."
@@ -163,6 +170,18 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 ```
 
 `decides_trials` counts trials where the result changes the criterion between `met` and `not_met`.
+
+After the screen, the case waits at `preop_screen` (`waiting_on: doctor`) for the `preop_review` gate. Every `pre_surgery_trials` entry must be acknowledged before the case moves to `awaiting_pathology`. The gate copies each choice onto the trial as `doctor_action` and `doctor_reason` (`pending` until then).
+
+A trial is flagged when its inclusion criteria contain a `pre_surgery_detection.inclusion_phrases` phrase, or its exclusion criteria contain an `exclusion_phrases` phrase, and its conditions or title name a `condition_keywords` term (all in `policy.yaml`). `criterion_text` is the line that matched (`matched_on: criteria`). A trial whose title has a `title_hints` phrase but no criterion match is still listed, with `matched_on: title_hint` and `criterion_text: "Title: ..."`. The UI shows it as "Possible: check criteria", and the doctor must answer it like any other. The screen has no surgical history, so it cannot rule a trial out for prior surgery; the doctor does that at the gate.
+
+**Rescreen.** While the case waits on `preop_review`, the doctor can ask for a fresh screen with `POST /cases/{case_id}/preop/rescreen` and body `{"doctor_id": "dr-synthetic-01", "reason": "optional"}`. The old screen is dropped (its flags stay in the audit log as `preop_rescreen_requested`), `waiting_on` goes back to `agent`, and the screen runs again. Returns 409 at any other point.
+
+**`screen_id`** is a content hash of the screen (flags, statuses, criteria, sites, tests). It changes whenever any of those change, so a review is always tied to the screen the doctor saw.
+
+**Location.** The case record carries the patient's ZIP (`zip`, ZIP only, safety rule 6). The screen searches nationwide (no distance cutoff), geocodes the ZIP to set `nearest_site` on each flag, and sorts `pre_surgery_trials` nearest first; flags with no `nearest_site` go last. Distance is for sorting and display only, never a filter. Without a ZIP, or if geocoding fails (`preop_location_unavailable` in the audit log), the screen still runs with `nearest_site: null`.
+
+**Agent failures after a doctor action.** If an agent stage fails after a decision or rescreen is saved, the API still returns 200 with the saved state (`waiting_on: agent`), and the failure is audited as `stage_failed:<stage>`. The decision is not undone. Retry with `POST /cases/{case_id}/run`, which returns 503 if the stage fails again.
 
 ## Mutation check input (agent → mutation check)
 
@@ -261,7 +280,16 @@ Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutatio
 
 Shown at the `review_shortlist` gate. A trial is on the shortlist when no criterion is `not_met` and none is waiting on a `pending` result.
 
-There is no distance cutoff: every eligible trial is listed, however far away. `trials` is sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
+Each trial is in one of two groups, the way coordinators sort a prescreen:
+
+| `group` | Meaning | `needs_test_fields` |
+|---|---|---|
+| `eligible` | Eligible on what we know. Any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
+| `needs_test` | At least one `unknown` on a key field listed in `trial_search.key_unknown_fields` in `policy.yaml` (today `idh`, `codeletion_1p19q`, `mgmt`, `tmb_clia`). | The key fields left unknown, in policy order, e.g. `["tmb_clia"]`. Each has an `unknown` row in `eligibility` whose `reason` says which test decides it. |
+
+A `needs_test` trial is not a match yet. Show it under its own heading, for example "Needs a test: CLIA TMB result". Near misses are unchanged and only appear in the no-match plan.
+
+There is no distance cutoff: every eligible trial is listed, however far away. `trials` lists the `eligible` group first, then `needs_test`. Within each group, trials are sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
 
 ```json
 {
@@ -279,7 +307,9 @@ There is no distance cutoff: every eligible trial is listed, however far away. `
       "summary": {"met": 5, "not_met": 0, "unknown": 1},
       "eligibility": ["<Agent eligibility output>"],
       "mutation_context": null,
-      "doctor_decision": "pending | keep | reject"
+      "doctor_decision": "pending | keep | reject",
+      "group": "eligible | needs_test",
+      "needs_test_fields": []
     }
   ]
 }

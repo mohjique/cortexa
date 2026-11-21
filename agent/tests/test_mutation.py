@@ -14,7 +14,14 @@ from agent.schemas import (
     MutationCheckSkipped,
     Shortlist,
 )
-from agent.workflow import AgentHooks, submit_decision
+from agent.workflow import AgentHooks as _RealHooks, submit_decision
+
+
+def AgentHooks(**kw):
+    """Hooks with stub matching unless a test sets its own (state machine tests)."""
+    kw.setdefault("matching", workflow.stub_matching)
+    return _RealHooks(**kw)
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 PATIENTS = Path(__file__).resolve().parents[2] / "clinical" / "patients"
@@ -56,7 +63,13 @@ def run_to_results(case_store, case_id, results):
     case_store.create(case_id)
     out = fixture("classifier_output.json") | {"case_id": case_id, "suspected_bucket": "glioma"}
     workflow.attach_classification(case_id, ClassifierOutput.model_validate(out))
-    decide(case_id, "confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    rec = decide(case_id, "confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    acks = [
+        {"trial_id": t.trial_id, "action": "not_pursuing", "reason": "test: recurrent glioma"}
+        for t in rec.preop.pre_surgery_trials
+    ]
+    review = {"screen_id": rec.preop.screen_id, "tests_reviewed": True, "pre_surgery_trials": acks}
+    decide(case_id, "preop_review", review)
     return decide(case_id, "enter_results", results)
 
 
