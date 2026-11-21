@@ -138,16 +138,25 @@ def _review(f: str, reason: str) -> Finding:
     return Finding(None, f, f"doctor review: {reason}")
 
 
-def _all_of(*fs: Finding) -> Finding:
-    """Holds only if every part holds. A failing part decides; then unknowns."""
+def _all_of(*fs: Finding, field: str | None = None) -> Finding:
+    """Holds only if every part holds. A failing part decides; then unknowns.
+
+    `field` names the evidence when every part holds (default: the first part's).
+    """
     for f in fs:
         if f.holds is False:
             return f
     unknown = [f for f in fs if f.holds is None]
     if unknown:
-        first = next((f for f in unknown if f.pending), unknown[0])
-        return first
-    return Finding(True, fs[0].field, "; ".join(f.reason for f in fs))
+        return next((f for f in unknown if f.pending), unknown[0])
+    return Finding(True, field or fs[0].field, "; ".join(f.reason for f in fs))
+
+
+def _wrong_bucket(facts: Facts, want: Bucket) -> Finding | None:
+    """A doctor-confirmed bucket that rules the criterion out, or None."""
+    if facts.bucket is not None and facts.bucket != want:
+        return _no("confirmed_bucket", f"confirmed bucket is {facts.bucket}, not {want}")
+    return None
 
 
 def _not(f: Finding, reason: str | None = None) -> Finding:
@@ -172,7 +181,7 @@ MARKER_LABELS = {
 _DX_MARKERS = {
     "idh": [(re.compile(r"idh[- ]?mutant"), "mutant"), (re.compile(r"idh[- ]?wild[- ]?type"), "wildtype")],
     "codeletion_1p19q": [
-        (re.compile(r"1p/19q[- ]?(co)?deleted|1p/19q[- ]?codeleted"), "codeleted"),
+        (re.compile(r"1p/19q[- ]?(co)?deleted"), "codeleted"),
         (re.compile(r"1p/19q[- ]?(intact|non[- ]?codeleted)"), "intact"),
     ],
 }
@@ -208,8 +217,7 @@ def _grade(facts: Facts, policy: Policy) -> tuple[int | None, Finding | None]:
 def _has_treatment(facts: Facts, kinds: set[str], label: str, policy: Policy) -> Finding:
     if facts.prior_treatments is None:
         return _missing("prior_treatments", "prior treatments", policy)
-    hits = [t for t in facts.prior_treatments if t.type in kinds]
-    if hits:
+    if any(t.type in kinds for t in facts.prior_treatments):
         return _yes("prior_treatments", f"prior {label} recorded")
     if any(t.type == "other" for t in facts.prior_treatments):
         return _review("prior_treatments", f"a prior treatment of type 'other' may be {label}")
@@ -276,9 +284,9 @@ def _histology(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
     parts: list[Finding] = []
     if ent:
         parts.append(_entity(facts, ent.group(1), policy))
-    for name, want in (("idh", "mutant"), ("idh", "wildtype")):
+    for want in ("mutant", "wildtype"):
         if re.search(rf"idh[- ]?{want[:4]}", text):
-            parts.append(_marker_is(facts, name, want, policy))
+            parts.append(_marker_is(facts, "idh", want, policy))
     if re.search(r"1p/19q[- ]?co[- ]?deleted|1p/19q[- ]?codeletion", text):
         parts.append(_marker_is(facts, "codeletion_1p19q", "codeleted", policy))
     g = _GRADE_RE.search(text)
@@ -307,8 +315,8 @@ def _marker_is(facts: Facts, name: str, want: str, policy: Policy) -> Finding:
 
 def _grade_in(facts: Facts, lo: int, hi: int, policy: Policy) -> Finding:
     g, why = _grade(facts, policy)
-    if why or g is None:
-        return why or _missing("grade", MARKER_LABELS["grade"], policy)
+    if g is None:
+        return why
     span = f"{lo}" if lo == hi else f"{lo} to {hi}"
     if lo <= g <= hi:
         return _yes("grade", f"WHO grade {g} is within {span}")
@@ -331,8 +339,8 @@ def _age(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
 
 
 def _imaging_suspicious_gbm(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    if facts.bucket is not None and facts.bucket != "glioma":
-        return _no("confirmed_bucket", f"confirmed bucket is {facts.bucket}, not glioma")
+    if wrong := _wrong_bucket(facts, "glioma"):
+        return wrong
     new = _not_recurrent(facts, policy)
     if new.holds is not True:
         return new
@@ -355,17 +363,20 @@ def _before_surgery(facts: Facts, phrase: str, policy: Policy) -> Finding:
 
 
 def _newly_dx_no_rt_chemo(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    out = _all_of(
+    return _all_of(
         _not_recurrent(facts, policy),
         _not(_has_treatment(facts, {"radiation"}, "radiation", policy)),
         _not(_has_treatment(facts, {"temozolomide"}, "chemotherapy", policy)),
+        field="prior_treatments",
     )
-    return Finding(out.holds, "prior_treatments" if out.holds else out.field, out.reason, out.pending)
 
 
 def _newly_dx_after_surgery(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    out = _all_of(_not_recurrent(facts, policy), _has_treatment(facts, {"surgery"}, "surgery or biopsy", policy))
-    return Finding(out.holds, "prior_treatments" if out.holds else out.field, out.reason, out.pending)
+    return _all_of(
+        _not_recurrent(facts, policy),
+        _has_treatment(facts, {"surgery"}, "surgery or biopsy", policy),
+        field="prior_treatments",
+    )
 
 
 def _newly_dx(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
@@ -377,11 +388,11 @@ def _treatment_rule(kinds: set[str], label: str) -> RuleFn:
 
 
 def _rt_and_tmz(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    out = _all_of(
+    # Both parts cite prior_treatments, so the combined finding does too.
+    return _all_of(
         _has_treatment(facts, {"radiation"}, "radiation", policy),
         _has_treatment(facts, {"temozolomide"}, "temozolomide", policy),
     )
-    return Finding(out.holds, "prior_treatments", out.reason, out.pending)
 
 
 def _resection_extent(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
@@ -439,8 +450,8 @@ def _more_than_recurrences(facts: Facts, m: re.Match[str], policy: Policy) -> Fi
 
 
 def _recurrent_glioma(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    if facts.bucket is not None and facts.bucket != "glioma":
-        return _no("confirmed_bucket", f"confirmed bucket is {facts.bucket}, not glioma")
+    if wrong := _wrong_bucket(facts, "glioma"):
+        return wrong
     if facts.recurrent is None:
         return _missing("recurrent", "recurrence status", policy)
     if facts.recurrent:
@@ -484,8 +495,8 @@ AUTOIMMUNE_TERMS = (
 
 def _secreting(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
     want = {"acth": "acth", "prolactin": "prolactin", "growth hormone": "growth_hormone"}[m.group("h").lower()]
-    if facts.bucket is not None and facts.bucket != "pituitary":
-        return _no("confirmed_bucket", f"confirmed bucket is {facts.bucket}, not pituitary")
+    if wrong := _wrong_bucket(facts, "pituitary"):
+        return wrong
     p = facts.pituitary
     if p is None:
         return _missing("pituitary", "pituitary hormone results", policy)
@@ -546,7 +557,7 @@ RULES: list[tuple[re.Pattern[str], RuleFn]] = [
      _persistent_or_not_candidate),
     (re.compile(r"mgmt promoter unmethylated", _I), _marker_rule("mgmt", "unmethylated")),
     (re.compile(r"mgmt promoter methylated", _I), _marker_rule("mgmt", "methylated")),
-    (re.compile(r"1p/19q[- ]?codeletion|1p/19q[- ]?codeleted", _I), _marker_rule("codeletion_1p19q", "codeleted")),
+    (re.compile(r"1p/19q[- ]?codelet(?:ion|ed)", _I), _marker_rule("codeletion_1p19q", "codeleted")),
     (re.compile(r"idh[- ]?mutant", _I), _marker_rule("idh", "mutant")),
     (re.compile(r"idh[- ]?wild[- ]?type", _I), _marker_rule("idh", "wildtype")),
 ]

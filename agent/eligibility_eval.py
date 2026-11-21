@@ -24,7 +24,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
@@ -92,11 +92,19 @@ class Report:
         return self.status_agree / self.rows if self.rows else 0.0
 
 
-def run(mode: Mode, trials: dict[str, TrialRecord] | None = None) -> Report:
-    trials = trials or {t.trial_id: t for t in search_trials()}
+def load_trials() -> dict[str, TrialRecord]:
+    return {t.trial_id: t for t in search_trials()}
+
+
+def run(
+    mode: Mode,
+    trials: dict[str, TrialRecord] | None = None,
+    patients: list[dict[str, Any]] | None = None,
+) -> Report:
+    trials = trials or load_trials()
     rep = Report(mode=mode)
-    confusion: dict[str, Counter[str]] = {}
-    for p in load_patients():
+    confusion: defaultdict[str, Counter[str]] = defaultdict(Counter)
+    for p in patients if patients is not None else load_patients():
         gold = p.get("gold_eligibility") or []
         if not gold:
             continue
@@ -110,9 +118,9 @@ def run(mode: Mode, trials: dict[str, TrialRecord] | None = None) -> Report:
             row = got.get((g["trial_id"], g["criterion_text"]))
             if row is None:
                 rep.missing += 1
-                confusion.setdefault(g["status"], Counter())["(no row)"] += 1
+                confusion[g["status"]]["(no row)"] += 1
                 continue
-            confusion.setdefault(g["status"], Counter())[row.status] += 1
+            confusion[g["status"]][row.status] += 1
             if row.evidence_field == g.get("evidence_field"):
                 rep.field_agree += 1
             if row.status == g["status"]:
@@ -140,7 +148,8 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="F8.6 eligibility agreement vs gold labels")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
-    reports = [run("entered"), run("profile")]
+    trials, patients = load_trials(), load_patients()  # once, shared by both modes
+    reports = [run(mode, trials, patients) for mode in ("entered", "profile")]
     if args.json:
         out = [asdict(r) | {"status_rate": r.status_rate} for r in reports]
         json.dump(out, sys.stdout, indent=2)
