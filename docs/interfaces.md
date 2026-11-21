@@ -43,7 +43,7 @@ One record per gate. Each one is also written to the audit log.
 ```json
 {
   "case_id": "demo-001",
-  "gate": "confirm_bucket | watch_or_treat | surgery_or_meds | enter_results | review_shortlist",
+  "gate": "confirm_bucket | watch_or_treat | hormone_labs | surgery_or_meds | enter_results | review_shortlist",
   "decision": {},
   "doctor_id": "dr-synthetic-01",
   "ts": "2026-11-21T14:05:40Z",
@@ -57,6 +57,7 @@ One record per gate. Each one is also written to the audit log.
 |---|---|
 | `confirm_bucket` | `{"bucket": "glioma", "overrode_model": false}` |
 | `watch_or_treat` (meningioma) | `{"choice": "watch \| treat", "rescan_in_months": 6}` (`rescan_in_months` only for watch) |
+| `hormone_labs` (pituitary) | `{"labs_reviewed": true}` (doctor has reviewed hormone labs and endocrinology) |
 | `surgery_or_meds` (pituitary) | `{"choice": "surgery \| medication_only"}` |
 | `enter_results` | the Doctor-entered results object below |
 | `review_shortlist` | `{"keep": ["NCT99000001"], "reject": [{"trial_id": "NCT99000004", "reason": "patient preference"}]}` |
