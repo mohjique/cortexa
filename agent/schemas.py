@@ -668,6 +668,6 @@ class NoMatchPlan(Schema):
 class AuditEntry(Schema):
     ts: Timestamp
     case_id: str | None = None  # None for system events (e.g. policy reload)
-    actor: Literal["agent", "doctor"]
+    actor: Literal["agent", "doctor", "system"]  # system = startup, policy reload
     action: NonEmptyStr
     detail: dict[str, Any] = Field(default_factory=dict)

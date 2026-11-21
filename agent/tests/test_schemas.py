@@ -5,21 +5,13 @@ import json
 from pathlib import Path
 
 import pytest
-import yaml
 from pydantic import BaseModel, TypeAdapter, ValidationError
 
 from agent import schemas as s
+from agent.policy import POLICY_PATH, parse_policy
 
 FIXTURES = Path(__file__).parent / "fixtures"
-POLICY_FILE = Path(__file__).parents[2] / "policies" / "policy.yaml"
-
-
-def policy_context() -> s.PolicyContext:
-    search = yaml.safe_load(POLICY_FILE.read_text())["trial_search"]
-    return {"statuses": search["statuses"], "status_labels": search["status_labels"]}
-
-
-POLICY = policy_context()
+POLICY = parse_policy(POLICY_PATH.read_text(encoding="utf-8")).status_context()
 
 # fixture file -> model class or TypeAdapter
 CASES = {
