@@ -47,13 +47,11 @@ def test_post_decision_advances(client):
     )
     assert r.status_code == 200 and r.json()["stage"] == "preop_screen"
     assert r.json()["waiting_on"] == "doctor"
-    flagged = client.get(f"/cases/{CID}/record").json()["preop"]["pre_surgery_trials"]
-    assert [t["trial_id"] for t in flagged] == ["NCT99000003"]  # real screen, demo cache
+    preop = client.get(f"/cases/{CID}/record").json()["preop"]
+    assert [t["trial_id"] for t in preop["pre_surgery_trials"]] == ["NCT99000003"]  # demo cache
     ack = {"trial_id": "NCT99000003", "action": "pursue_before_surgery"}
-    r = client.post(
-        f"/cases/{CID}/decisions",
-        json=body("preop_review", {"tests_reviewed": True, "pre_surgery_trials": [ack]}),
-    )
+    review = {"screen_id": preop["screen_id"], "tests_reviewed": True, "pre_surgery_trials": [ack]}
+    r = client.post(f"/cases/{CID}/decisions", json=body("preop_review", review))
     assert r.status_code == 200 and r.json()["stage"] == "awaiting_pathology"
     trial = client.get(f"/cases/{CID}/record").json()["preop"]["pre_surgery_trials"][0]
     assert trial["doctor_action"] == "pursue_before_surgery"
@@ -94,3 +92,23 @@ def test_case_id_mismatch_422(client):
 def test_audit_endpoint(client):
     acts = [e["action"] for e in client.get(f"/cases/{CID}/audit").json()]
     assert "classification_attached" in acts
+
+
+def test_hook_failure_after_saved_decision_is_not_a_500(client):
+    def boom(rec, policy):
+        raise RuntimeError("api down")
+
+    old = workflow.get_hooks()
+    workflow.set_hooks(workflow.AgentHooks(preop_screen=boom))
+    try:
+        r = client.post(
+            f"/cases/{CID}/decisions",
+            json=body("confirm_bucket", {"bucket": "glioma", "overrode_model": False}),
+        )
+        assert r.status_code == 200  # decision recorded
+        assert r.json()["stage"] == "preop_screen" and r.json()["waiting_on"] == "agent"
+        assert client.post(f"/cases/{CID}/run").status_code == 503  # still down
+    finally:
+        workflow.set_hooks(old)
+    r = client.post(f"/cases/{CID}/run")
+    assert r.status_code == 200 and r.json()["waiting_on"] == "doctor"

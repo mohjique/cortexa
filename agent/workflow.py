@@ -292,6 +292,20 @@ def _run_agent_stage(rec: CaseRecord, policy: Policy) -> None:
     audit("agent", f"stage_done:{stage}", detail, case_id=rec.case_id)
 
 
+def _run_agent_after_save(case_id: str) -> CaseRecord:
+    """Run agent stages after a doctor action that is already saved.
+
+    A failed hook must not look like a failed decision: the decision stands,
+    the case stays at the agent stage (waiting_on=agent, `stage_failed:*`
+    audited), and the client retries with POST /cases/{id}/run.
+    """
+    try:
+        return run_agent(case_id)
+    except Exception:
+        log.exception("agent stage failed after a saved doctor action; case %s waits on agent", case_id)
+        return get_store().get(case_id)
+
+
 def run_agent(case_id: str) -> CaseRecord:
     """Run agent stages until the case needs a doctor, the lab, or is final.
 
@@ -384,6 +398,11 @@ def _check(rec: CaseRecord, d: DoctorDecision) -> DoctorDecision:
     elif isinstance(d, PreOpReviewRecord):
         if rec.preop is None:
             raise InvalidDecision("no pre-op screen to review")
+        if d.decision.screen_id != rec.preop.screen_id:
+            raise InvalidDecision(
+                f"the pre-op screen changed since it was reviewed ({d.decision.screen_id} -> "
+                f"{rec.preop.screen_id}); reload it and review again"
+            )
         flagged = {t.trial_id for t in rec.preop.pre_surgery_trials}
         acked = {a.trial_id for a in d.decision.pre_surgery_trials}
         if acked - flagged:
@@ -426,6 +445,17 @@ def _apply(rec: CaseRecord, d: DoctorDecision) -> None:
         for t in rec.preop.pre_surgery_trials:
             t.doctor_action = acks[t.trial_id].action
             t.doctor_reason = acks[t.trial_id].reason
+        # tests_reviewed=true means "reviewed what the screen listed"; record how much that was.
+        audit(
+            "doctor",
+            "preop_review_recorded",
+            {
+                "screen_id": rec.preop.screen_id,
+                "tests_needed_listed": len(rec.preop.tests_needed),
+                "pre_surgery_trials": {t.trial_id: t.doctor_action for t in rec.preop.pre_surgery_trials},
+            },
+            case_id=rec.case_id,
+        )
     elif isinstance(d, ReviewShortlistRecord):
         assert rec.shortlist is not None
         keep = set(d.decision.keep)
@@ -436,6 +466,8 @@ def _apply(rec: CaseRecord, d: DoctorDecision) -> None:
 def submit_decision(decision: DoctorDecision) -> CaseRecord:
     """Record a doctor decision, advance the case, then run any agent stages.
 
+    If an agent stage fails afterwards, the saved state is returned with
+    waiting_on=agent (retry via run_agent); the decision is not undone.
     Raises WrongGate if the gate doesn't match the stage, InvalidDecision if
     it conflicts with the case. Both are audited; the case is unchanged.
     """
@@ -456,7 +488,7 @@ def submit_decision(decision: DoctorDecision) -> CaseRecord:
         _apply(rec, decision)
         _move(rec, get_policy())
         store.save(rec)
-        return run_agent(decision.case_id)
+        return _run_agent_after_save(decision.case_id)
 
 
 def rescreen_preop(case_id: str, doctor_id: str, reason: str | None = None) -> CaseRecord:
@@ -485,7 +517,7 @@ def rescreen_preop(case_id: str, doctor_id: str, reason: str | None = None) -> C
         rec.preop = None
         rec.state.waiting_on = "agent"
         store.save(rec)
-        return run_agent(case_id)
+        return _run_agent_after_save(case_id)
 
 
 # ---------------------------------------------------------------------------

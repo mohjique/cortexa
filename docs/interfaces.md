@@ -59,7 +59,7 @@ One record per gate. Each one is also written to the audit log.
 |---|---|
 | `confirm_bucket` | `{"bucket": "glioma", "overrode_model": false}` |
 | `watch_or_treat` (meningioma) | `{"choice": "watch \| treat", "rescan_in_months": 6}` (`rescan_in_months` only for watch) |
-| `preop_review` (glioma) | `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery \| not_pursuing", "reason": "optional free text"}]}`. Needs exactly one entry per trial in the pre-op screen's `pre_surgery_trials` (an empty list when there are none). `reason` is required for `not_pursuing`. |
+| `preop_review` (glioma) | `{"screen_id": "preop-1a2b3c4d5e6f", "tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery \| not_pursuing", "reason": "optional free text"}]}`. Needs exactly one entry per trial in the pre-op screen's `pre_surgery_trials` (an empty list when there are none). `reason` is required for `not_pursuing`. `screen_id` is the screen the doctor reviewed; if the case's screen has changed since (rescreen), the decision is rejected with 422 and must be redone. |
 | `hormone_labs` (pituitary) | `{"labs_reviewed": true}` (doctor has reviewed hormone labs and endocrinology) |
 | `surgery_or_meds` (pituitary) | `{"choice": "surgery \| medication_only"}` |
 | `enter_results` | the Doctor-entered results object below |
@@ -128,6 +128,7 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 ```json
 {
   "case_id": "demo-001",
+  "screen_id": "preop-1a2b3c4d5e6f",
   "trials_considered": 7,
   "tests_needed": [
     {
@@ -147,6 +148,7 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
       "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
       "recruitment_status": "NOT_YET_RECRUITING",
       "criterion_text": "Must enroll before planned surgical resection",
+      "matched_on": "criteria | title_hint",
       "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110},
       "doctor_action": "pending | pursue_before_surgery | not_pursuing",
       "doctor_reason": null
@@ -160,9 +162,15 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 
 After the screen, the case waits at `preop_screen` (`waiting_on: doctor`) for the `preop_review` gate. Every `pre_surgery_trials` entry must be acknowledged before the case moves to `awaiting_pathology`. The gate copies each choice onto the trial as `doctor_action` and `doctor_reason` (`pending` until then).
 
-A trial is flagged when its inclusion criteria contain a `pre_surgery_detection.inclusion_phrases` phrase, or its exclusion criteria contain an `exclusion_phrases` phrase, and its conditions or title name a `condition_keywords` term (all in `policy.yaml`). `criterion_text` is the line that matched. A title hint alone never flags a trial. The screen has no surgical history, so it cannot rule a trial out for prior surgery; the doctor does that at the gate.
+A trial is flagged when its inclusion criteria contain a `pre_surgery_detection.inclusion_phrases` phrase, or its exclusion criteria contain an `exclusion_phrases` phrase, and its conditions or title name a `condition_keywords` term (all in `policy.yaml`). `criterion_text` is the line that matched (`matched_on: criteria`). A trial whose title has a `title_hints` phrase but no criterion match is still listed, with `matched_on: title_hint` and `criterion_text: "Title: ..."`. The UI shows it as "Possible: check criteria", and the doctor must answer it like any other. The screen has no surgical history, so it cannot rule a trial out for prior surgery; the doctor does that at the gate.
 
 **Rescreen.** While the case waits on `preop_review`, the doctor can ask for a fresh screen with `POST /cases/{case_id}/preop/rescreen` and body `{"doctor_id": "dr-synthetic-01", "reason": "optional"}`. The old screen is dropped (its flags stay in the audit log as `preop_rescreen_requested`), `waiting_on` goes back to `agent`, and the screen runs again. Returns 409 at any other point.
+
+**`screen_id`** is a content hash of the screen (flags, statuses, criteria, sites, tests). It changes whenever any of those change, so a review is always tied to the screen the doctor saw.
+
+**Location.** The case record carries the patient's ZIP (`zip`, ZIP only, safety rule 6). The screen geocodes it, searches within `trial_search.default_radius_miles`, and sets `nearest_site` on each flag. Without a ZIP, or if geocoding fails (`preop_location_unavailable` in the audit log), the screen still runs with `nearest_site: null`.
+
+**Agent failures after a doctor action.** If an agent stage fails after a decision or rescreen is saved, the API still returns 200 with the saved state (`waiting_on: agent`), and the failure is audited as `stage_failed:<stage>`. The decision is not undone. Retry with `POST /cases/{case_id}/run`, which returns 503 if the stage fails again.
 
 ## Mutation check input (agent → mutation check)
 

@@ -282,14 +282,16 @@ def search_trials(
     origin: Origin | None = None,
     radius_miles: float | None = None,
     case_id: str | None = None,
+    policy: Policy | None = None,
 ) -> list[TrialRecord]:
     """Recruiting trials in policy statuses, merged across both APIs.
 
     `origin` + `radius_miles` narrow the live ClinicalTrials.gov query only.
     Distance filtering on the result is the caller's job (geo.nearest_site),
-    since remote trials must survive it.
+    since remote trials must survive it. Pass `policy` to use the same version
+    the caller is using; otherwise the current one is loaded.
     """
-    policy = get_policy()
+    policy = policy or get_policy()
     raw, fetched = fetch_ctgov(condition, policy, origin, radius_miles, case_id)
     ctgov = _normalize_all(raw, normalize_ctgov, fetched, policy, "ctgov", case_id)
     nci: list[TrialRecord] = []

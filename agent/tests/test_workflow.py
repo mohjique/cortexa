@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from agent import workflow
+from agent import store, workflow
 from agent.policy import get_policy
 from agent.schemas import (
     ClassifierOutput,
@@ -39,6 +39,10 @@ def new_case(case_store, suspected="glioma"):
 
 
 def decide(gate, decision):
+    if gate == "preop_review" and "screen_id" not in decision:
+        # The doctor reviews the screen currently on the case.
+        rec = store.get_store().get(CID)
+        decision = decision | {"screen_id": rec.preop.screen_id if rec.preop else "none"}
     return submit_decision(
         DoctorDecisionAdapter.validate_python(
             {
@@ -154,10 +158,34 @@ def test_preop_review_rejected_before_screen_runs(case_store):
 
     workflow.set_hooks(AgentHooks(preop_screen=boom))
     new_case(case_store)
-    with pytest.raises(RuntimeError):
-        decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     with pytest.raises(WrongGate, match="agent has not finished"):
         decide("preop_review", PREOP_OK)
+
+
+def test_preop_review_of_an_older_screen_is_rejected(case_store, audit_log):
+    workflow.set_hooks(AgentHooks(preop_screen=preop_with_trial_hook))
+    new_case(case_store)
+    rec = decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
+    reviewed = rec.preop.screen_id
+
+    def status_changed(rec, policy):
+        screen = preop_with_trial_hook(rec, policy)
+        t = screen.pre_surgery_trials[0].model_copy(update={"recruitment_status": "RECRUITING"})
+        data = screen.model_dump(exclude={"screen_id"}) | {"pre_surgery_trials": [t.model_dump()]}
+        return PreOpScreen.model_validate(data, context=policy.status_context())
+
+    workflow.set_hooks(AgentHooks(preop_screen=status_changed))
+    rec = workflow.rescreen_preop(CID, "dr-synthetic-01", "status check")
+    assert rec.preop.screen_id != reviewed  # same trial IDs, different content
+    ack = {"trial_id": "NCT99000003", "action": "pursue_before_surgery"}
+    with pytest.raises(InvalidDecision, match="screen changed"):
+        decide("preop_review", PREOP_OK | {"screen_id": reviewed, "pre_surgery_trials": [ack]})
+    rec = decide("preop_review", PREOP_OK | {"pre_surgery_trials": [ack]})  # current screen
+    assert rec.state.stage == "awaiting_pathology"
+    entry = next(e for e in audit_log.read(CID) if e.action == "preop_review_recorded")
+    assert entry.detail["screen_id"] == rec.preop.screen_id
+    assert entry.detail["tests_needed_listed"] == len(rec.preop.tests_needed)
 
 
 def test_pituitary_needs_labs_gate_before_surgery_or_meds(case_store):
@@ -309,11 +337,15 @@ def test_failed_hook_leaves_case_at_agent_stage_and_retries(case_store, audit_lo
 
     workflow.set_hooks(AgentHooks(preop_screen=boom))
     new_case(case_store)
-    with pytest.raises(RuntimeError):
-        decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
-    rec = case_store.get(CID)
+    # The decision is saved, so a hook failure returns the saved state, not an error.
+    rec = decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     assert rec.state.stage == "preop_screen" and rec.state.waiting_on == "agent"
+    assert case_store.get(CID).state.confirmed_bucket == "glioma"
     assert "stage_failed:preop_screen" in actions(audit_log)
+    with pytest.raises(WrongGate):
+        decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})  # already recorded
+    with pytest.raises(RuntimeError):
+        workflow.run_agent(CID)  # a direct retry still reports the failure
 
     workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen))
     rec = workflow.run_agent(CID)
@@ -329,11 +361,11 @@ def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     decide("preop_review", PREOP_OK)
-    with pytest.raises(workflow.WorkflowError, match="empty Shortlist"):
-        decide("enter_results", glioma_results(recurrent=False, recurrence_number=0))
-    rec = case_store.get(CID)
+    rec = decide("enter_results", glioma_results(recurrent=False, recurrence_number=0))
     assert rec.state.stage == "matching" and rec.no_match is None
     assert "stage_failed:matching" in actions(audit_log)
+    with pytest.raises(workflow.WorkflowError, match="empty Shortlist"):
+        workflow.run_agent(CID)
 
 
 # -- policy -----------------------------------------------------------------

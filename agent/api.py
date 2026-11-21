@@ -106,6 +106,12 @@ def rescreen_preop(case_id: str, body: RescreenRequest) -> CaseState:
 
 @app.post("/cases/{case_id}/run", response_model=CaseState)
 def run_agent(case_id: str) -> CaseState:
-    """Retry agent stages after a failed hook. A no-op at doctor stages."""
+    """Retry agent stages after a failed hook. A no-op at doctor stages.
+
+    503 if the stage fails again; the case is unchanged and can be retried.
+    """
     _get(case_id)
-    return workflow.run_agent(case_id).state
+    try:
+        return workflow.run_agent(case_id).state
+    except Exception as exc:  # hook failure, already audited as stage_failed
+        raise HTTPException(503, f"agent stage failed, retry later: {type(exc).__name__}") from None

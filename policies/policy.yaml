@@ -64,8 +64,9 @@ pre_surgery_detection:
     - "prior brain surgery"
     - "prior resection"
     - "prior surgery or biopsy"
-  # A title hint alone never flags a trial; the LLM checks the criteria and
-  # code shows it as "possible, check criteria".
+  # A title hint alone is never a confirmed flag. Code lists it as
+  # "possible, check criteria" (matched_on: title_hint) and the doctor must
+  # answer it at preop_review. An LLM criteria check may confirm it later.
   title_hints: ["window-of-opportunity", "neoadjuvant", "pre-operative"]
   # Only trials whose conditions or title name one of these are screened (pre-op is glioma only).
   condition_keywords: [glioma, glioblastoma, astrocytoma, oligodendroglioma]

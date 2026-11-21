@@ -61,7 +61,8 @@ def run_to_results(case_store, case_id, results):
         {"trial_id": t.trial_id, "action": "not_pursuing", "reason": "test: recurrent glioma"}
         for t in rec.preop.pre_surgery_trials
     ]
-    decide(case_id, "preop_review", {"tests_reviewed": True, "pre_surgery_trials": acks})
+    review = {"screen_id": rec.preop.screen_id, "tests_reviewed": True, "pre_surgery_trials": acks}
+    decide(case_id, "preop_review", review)
     return decide(case_id, "enter_results", results)
 
 

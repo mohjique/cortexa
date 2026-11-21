@@ -43,9 +43,50 @@ def test_prior_resection_in_inclusion_is_not_a_pre_surgery_trial():
     assert pre_surgery_criterion(t, get_policy()) is None
 
 
-def test_title_hint_alone_never_flags():
+def test_title_hint_alone_is_shown_as_possible():
+    # Not confirmed by any criterion, but the window closes at surgery, so show it.
     t = trial(title="[SYNTHETIC] Neoadjuvant window-of-opportunity study in glioblastoma")
-    assert find_pre_surgery_trials([t], get_policy()) == []
+    [flag] = find_pre_surgery_trials([t], get_policy())
+    assert flag.matched_on == "title_hint"
+    assert flag.criterion_text == f"Title: {t.title}"
+
+
+def test_criteria_match_wins_over_title_hint():
+    [flag] = find_pre_surgery_trials(search_trials(), get_policy())
+    assert flag.trial_id == "NCT99000003" and flag.matched_on == "criteria"
+
+
+def test_mid_sentence_exclusion_mention_does_not_split_inclusion():
+    t = trial(
+        criteria_text="Inclusion Criteria:\n* Meets none of the exclusion criteria below\n"
+        "* Must enroll before surgery\n\nExclusion Criteria:\n* Pregnancy"
+    )
+    assert pre_surgery_criterion(t, get_policy()) == "Must enroll before surgery"
+
+
+def test_nearest_site_from_case_zip(case_store):
+    from agent.preop import preop_screen_hook
+
+    rec = case_store.create("c1", zip="77840")
+    screen = preop_screen_hook(rec, get_policy())
+    site = screen.pre_surgery_trials[0].nearest_site
+    assert site is not None and site.city == "Austin" and site.distance_miles > 0
+
+
+def test_no_zip_means_no_nearest_site(case_store):
+    from agent.preop import preop_screen_hook
+
+    rec = case_store.create("c1")
+    assert preop_screen_hook(rec, get_policy()).pre_surgery_trials[0].nearest_site is None
+
+
+def test_bad_zip_lookup_does_not_block_the_screen(case_store, audit_log):
+    from agent.preop import preop_screen_hook
+
+    rec = case_store.create("c1", zip="00001")  # not in the demo cache
+    screen = preop_screen_hook(rec, get_policy())
+    assert screen.pre_surgery_trials and screen.pre_surgery_trials[0].nearest_site is None
+    assert "preop_location_unavailable" in [e.action for e in audit_log.read("c1")]
 
 
 def test_non_glioma_trial_is_skipped():
@@ -60,7 +101,11 @@ def test_non_glioma_trial_is_skipped():
 def test_policy_phrases_change_behavior_without_code():
     policy = get_policy()
     rules = policy.pre_surgery_detection.model_copy(
-        update={"inclusion_phrases": ["neoadjuvant"], "exclusion_phrases": ["xenotransplant"]}
+        update={
+            "inclusion_phrases": ["neoadjuvant"],
+            "exclusion_phrases": ["xenotransplant"],
+            "title_hints": [],
+        }
     )
     edited = policy.model_copy(update={"pre_surgery_detection": rules})
     assert find_pre_surgery_trials(search_trials(), edited) == []
@@ -94,8 +139,8 @@ def test_rescreen_failure_blocks_the_gate_until_retry(glioma_at_review):
         raise RuntimeError("api down")
 
     workflow.set_hooks(AgentHooks(preop_screen=boom))
-    with pytest.raises(RuntimeError):
-        workflow.rescreen_preop("c1", "dr-synthetic-01")
+    rec = workflow.rescreen_preop("c1", "dr-synthetic-01")  # saved request, failed screen
+    assert rec.state.waiting_on == "agent" and rec.preop is None
     with pytest.raises(WrongGate):
         workflow.rescreen_preop("c1", "dr-synthetic-01")  # agent hasn't finished
 

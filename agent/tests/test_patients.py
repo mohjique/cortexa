@@ -18,6 +18,9 @@ def load(path: Path) -> dict:
 def test_doctor_decisions_validate(path):
     d = load(path)
     for gate, decision in d["doctor_decisions"].items():
+        if gate == "preop_review":
+            # Scripts can't know the screen's content hash; the runner fills it in.
+            decision = decision | {"screen_id": "preop-placeholder"}
         DoctorDecisionAdapter.validate_python(
             {
                 "case_id": d["case_id"] if "case_id" in d else path.stem,
@@ -60,18 +63,21 @@ def _replay(path: Path, case_store, audit_log):
     old = workflow.get_hooks()
     workflow.set_hooks(AgentHooks())  # real pre-op screen and mutation check, stub matching
     try:
-        case_store.create(cid)
+        case_store.create(cid, zip=d["zip"])
         rec = workflow.attach_classification(cid, ClassifierOutput.model_validate(out))
         while rec.state.waiting_on != "agent" and rec.state.stage not in workflow.FINAL_STAGES:
             gate = workflow.GATE_AT_STAGE.get(rec.state.stage)
             if gate not in decisions:
                 break
+            decision = decisions[gate]
+            if gate == "preop_review":
+                decision = decision | {"screen_id": rec.preop.screen_id}
             rec = workflow.submit_decision(
                 DoctorDecisionAdapter.validate_python(
                     {
                         "case_id": cid,
                         "gate": gate,
-                        "decision": decisions[gate],
+                        "decision": decision,
                         "doctor_id": "dr-synthetic-01",
                         "ts": "2026-11-21T14:05:40Z",
                     }

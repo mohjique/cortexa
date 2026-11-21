@@ -2,9 +2,14 @@
   "case_id": "demo-009",
   "gate": "preop_review",
   "decision": {
+    "screen_id": "preop-0123456789ab",
     "tests_reviewed": true,
     "pre_surgery_trials": [
-      {"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "window trial fits; enrollment not open yet, check before scheduling"}
+      {
+        "trial_id": "NCT99000003",
+        "action": "pursue_before_surgery",
+        "reason": "window trial fits; enrollment not open yet, check before scheduling"
+      }
     ]
   },
   "doctor_id": "dr-synthetic-01",

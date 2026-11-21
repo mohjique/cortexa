@@ -7,6 +7,8 @@ single record are enforced here, in code, not in the LLM.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Annotated, Any, Literal, TypedDict, Union
 
 from pydantic import (
@@ -295,6 +297,8 @@ class PreOpReviewDecision(Schema):
     """Glioma: doctor has reviewed the tests the biopsy must answer and
     acknowledged every pre-surgery trial. The window closes at surgery."""
 
+    # The screen the doctor reviewed. Rejected if the case's screen has changed since.
+    screen_id: NonEmptyStr
     tests_reviewed: Literal[True]
     pre_surgery_trials: list[PreSurgeryTrialAck] = Field(default_factory=list)
 
@@ -525,19 +529,42 @@ class PreSurgeryTrial(Schema):
     trial_id: TrialId
     title: NonEmptyStr
     recruitment_status: RecruitmentStatus
-    criterion_text: NonEmptyStr
+    criterion_text: NonEmptyStr  # the matched criterion line, or "Title: ..." for a title hint
+    # criteria = a criterion line matched. title_hint = only the title suggests it;
+    # shown as "possible, check criteria" and still needs the doctor's answer.
+    matched_on: Literal["criteria", "title_hint"] = "criteria"
     nearest_site: NearestSite | None = None
     # Set from the preop_review gate; "pending" until the doctor decides.
     doctor_action: Literal["pending", "pursue_before_surgery", "not_pursuing"] = "pending"
     doctor_reason: str | None = None
 
 
+_DOCTOR_FIELDS = {"doctor_action", "doctor_reason"}
+
+
 class PreOpScreen(Schema):
     case_id: NonEmptyStr
+    # Content hash, set on creation. Changes when any flag, status, criterion or
+    # test changes, so a review of an older screen is rejected.
+    screen_id: str = ""
     trials_considered: Annotated[int, Field(ge=0)]
     tests_needed: list[TestNeeded]
     pre_surgery_trials: list[PreSurgeryTrial] = Field(default_factory=list)
     label: NonEmptyStr
+
+    @model_validator(mode="after")
+    def _set_screen_id(self) -> PreOpScreen:
+        if not self.screen_id:
+            content = {
+                "tests_needed": [t.model_dump(mode="json") for t in self.tests_needed],
+                "pre_surgery_trials": [
+                    t.model_dump(mode="json", exclude=_DOCTOR_FIELDS) for t in self.pre_surgery_trials
+                ],
+                "label": self.label,
+            }
+            digest = hashlib.sha256(json.dumps(content, sort_keys=True).encode()).hexdigest()
+            self.screen_id = f"preop-{digest[:12]}"
+        return self
 
 
 # ---------------------------------------------------------------------------
