@@ -1,0 +1,151 @@
+{
+  "case_id": "demo-013",
+  "scenario": "New Glioblastoma, IDH-wildtype",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 67,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "new focal seizure"
+  ],
+  "radiology_report": "MRI shows a 43 x 27 mm irregular enhancing mass with central necrosis in the right temporal lobe. Surrounding FLAIR abnormality is present. Features raise suspicion for high-grade glioma, including glioblastoma.",
+  "tumor_location": "right temporal lobe",
+  "tumor_size_mm": [
+    43,
+    27
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 3.5,
+    "platelets": 225,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 24,
+    "alt": 27
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Glioblastoma, IDH-wildtype",
+  "grade": 4,
+  "idh": "wildtype",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "unmethylated",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": "Sections show an infiltrating glial neoplasm. Microvascular proliferation and necrosis are present, and IDH testing is wildtype. Integrated diagnosis is Glioblastoma, IDH-wildtype, CNS WHO grade 4. MGMT promoter testing shows unmethylated status.",
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 2,
+      "extent": "subtotal",
+      "detail": "Tumor resection"
+    }
+  ],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    },
+    "enter_results": {
+      "case_id": "demo-013",
+      "confirmed_bucket": "glioma",
+      "diagnosis": "Glioblastoma, IDH-wildtype",
+      "grade": 4,
+      "idh": "wildtype",
+      "codeletion_1p19q": "unknown",
+      "mgmt": "unmethylated",
+      "recurrent": false,
+      "age": 67,
+      "zip": "77840",
+      "pituitary": null,
+      "prior_treatments": [
+        "surgery"
+      ],
+      "broad_sequencing_available": false
+    },
+    "review_shortlist": {
+      "keep": [
+        "NCT99000004"
+      ],
+      "reject": []
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology",
+    "enter_results",
+    "matching",
+    "review_shortlist"
+  ],
+  "expected_trials": [
+    "NCT99000004"
+  ],
+  "expected_preop_flags": [],
+  "expected_no_match": false,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4",
+      "status": "met",
+      "evidence_field": "diagnosis",
+      "note": "diagnosis: \"Glioblastoma, IDH-wildtype\""
+    },
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "inclusion",
+      "criterion_text": "MGMT promoter unmethylated",
+      "status": "met",
+      "evidence_field": "mgmt",
+      "note": "mgmt: \"unmethylated\""
+    },
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "inclusion",
+      "criterion_text": "Newly diagnosed, after surgery or biopsy",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 to 75 years",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 67"
+    },
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the brain",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000004",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior temozolomide",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "case_id": "demo-011",
+  "scenario": "Suspected high-grade glioma before planned resection. IDH and MGMT testing ordered for the planned specimen. 1p/19q testing has not been ordered.",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 34,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "new focal seizure"
+  ],
+  "radiology_report": "MRI shows a 41 x 25 mm irregular enhancing mass with central necrosis in the left parietal lobe. Surrounding FLAIR abnormality is present. Features raise suspicion for high-grade glioma, including glioblastoma.",
+  "tumor_location": "left parietal lobe",
+  "tumor_size_mm": [
+    41,
+    25
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4.5,
+    "platelets": 223,
+    "hemoglobin": 14,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 22,
+    "alt": 25
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": "pending",
+  "idh": "pending",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "pending",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [
+    "NCT99000003"
+  ],
+  "expected_no_match": false,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Imaging suspicious for newly diagnosed glioblastoma",
+      "status": "met",
+      "evidence_field": "radiology_report",
+      "note": "radiology_report: \"MRI shows a 41 x 25 mm irregular enhancing mass with central necrosis in the left parietal lobe. Surrounding FLAIR abnormality is present. Features raise suspicion for high-grade glioma, including glioblastoma.\""
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Must enroll before planned surgical resection",
+      "status": "met",
+      "evidence_field": "scenario",
+      "note": "scenario: \"Suspected high-grade glioma before planned resection\""
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 34"
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior brain surgery or biopsy for this tumor",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: []"
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the brain",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: []"
+    }
+  ]
+}

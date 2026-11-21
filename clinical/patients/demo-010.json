@@ -1,0 +1,110 @@
+{
+  "case_id": "demo-010",
+  "scenario": "Suspected high-grade glioma before planned resection",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 78,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "progressive headache"
+  ],
+  "radiology_report": "MRI shows a 40 x 24 mm irregular enhancing mass with central necrosis in the right temporal lobe. Surrounding FLAIR abnormality is present. Features raise suspicion for high-grade glioma, including glioblastoma.",
+  "tumor_location": "right temporal lobe",
+  "tumor_size_mm": [
+    40,
+    24
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4,
+    "platelets": 222,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 21,
+    "alt": 24
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": "pending",
+  "idh": "pending",
+  "codeletion_1p19q": "pending",
+  "mgmt": "pending",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [
+    "NCT99000003"
+  ],
+  "expected_no_match": false,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Imaging suspicious for newly diagnosed glioblastoma",
+      "status": "met",
+      "evidence_field": "radiology_report",
+      "note": "radiology_report: \"MRI shows a 40 x 24 mm irregular enhancing mass with central necrosis in the right temporal lobe. Surrounding FLAIR abnormality is present. Features raise suspicion for high-grade glioma, including glioblastoma.\""
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Must enroll before planned surgical resection",
+      "status": "met",
+      "evidence_field": "scenario",
+      "note": "scenario: \"Suspected high-grade glioma before planned resection\""
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 78"
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior brain surgery or biopsy for this tumor",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: []"
+    },
+    {
+      "trial_id": "NCT99000003",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the brain",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: []"
+    }
+  ]
+}

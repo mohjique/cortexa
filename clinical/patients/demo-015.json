@@ -1,0 +1,167 @@
+{
+  "case_id": "demo-015",
+  "scenario": "New Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 43,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "new focal seizure"
+  ],
+  "radiology_report": "MRI shows a 45 x 29 mm infiltrative T2-hyperintense lesion in the left frontal lobe. There is little contrast enhancement. Appearance suggests diffuse glioma.",
+  "tumor_location": "left frontal lobe",
+  "tumor_size_mm": [
+    45,
+    29
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4.5,
+    "platelets": 227,
+    "hemoglobin": 13,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 26,
+    "alt": 24
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+  "grade": 2,
+  "idh": "mutant",
+  "codeletion_1p19q": "codeleted",
+  "mgmt": "unknown",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": "Sections show an infiltrating glial neoplasm. An IDH mutation is present and 1p/19q is codeleted. Integrated diagnosis is Oligodendroglioma, IDH-mutant and 1p/19q-codeleted, CNS WHO grade 2.",
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 2,
+      "extent": "subtotal",
+      "detail": "Tumor resection"
+    }
+  ],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    },
+    "enter_results": {
+      "case_id": "demo-015",
+      "confirmed_bucket": "glioma",
+      "diagnosis": "Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+      "grade": 2,
+      "idh": "mutant",
+      "codeletion_1p19q": "codeleted",
+      "mgmt": "unknown",
+      "recurrent": false,
+      "age": 43,
+      "zip": "77840",
+      "pituitary": null,
+      "prior_treatments": [
+        "surgery"
+      ],
+      "broad_sequencing_available": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology",
+    "enter_results",
+    "matching",
+    "no_match"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": true,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000001",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3",
+      "status": "not_met",
+      "evidence_field": "diagnosis",
+      "note": "diagnosis: \"Oligodendroglioma, IDH-mutant and 1p/19q-codeleted\""
+    },
+    {
+      "trial_id": "NCT99000001",
+      "criterion_type": "inclusion",
+      "criterion_text": "Newly diagnosed; no prior radiation or chemotherapy",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000001",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 43"
+    },
+    {
+      "trial_id": "NCT99000001",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior treatment with an IDH inhibitor",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    },
+    {
+      "trial_id": "NCT99000001",
+      "criterion_type": "exclusion",
+      "criterion_text": "1p/19q codeletion",
+      "status": "not_met",
+      "evidence_field": "codeletion_1p19q",
+      "note": "codeletion_1p19q: \"codeleted\""
+    },
+    {
+      "trial_id": "NCT99000007",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
+      "status": "met",
+      "evidence_field": "diagnosis",
+      "note": "diagnosis: \"Oligodendroglioma, IDH-mutant and 1p/19q-codeleted\""
+    },
+    {
+      "trial_id": "NCT99000007",
+      "criterion_type": "inclusion",
+      "criterion_text": "Newly diagnosed",
+      "status": "met",
+      "evidence_field": "recurrent",
+      "note": "recurrent: false"
+    },
+    {
+      "trial_id": "NCT99000007",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 43"
+    },
+    {
+      "trial_id": "NCT99000007",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior radiation to the brain",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":2,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"}]"
+    }
+  ]
+}

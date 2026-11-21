@@ -1,0 +1,182 @@
+{
+  "case_id": "demo-018",
+  "scenario": "Recurrent Astrocytoma, IDH-mutant",
+  "image_file": null,
+  "kaggle_label": "glioma",
+  "age": 44,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "progressive headache"
+  ],
+  "radiology_report": "MRI shows a 48 x 23 mm expanding lesion along the resection margin in the left frontal lobe. There is little contrast enhancement. Interval growth raises concern for recurrent tumor.",
+  "tumor_location": "left frontal lobe",
+  "tumor_size_mm": [
+    48,
+    23
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4,
+    "platelets": 230,
+    "hemoglobin": 13,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 21,
+    "alt": 27
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": "Astrocytoma, IDH-mutant",
+  "grade": 3,
+  "idh": "mutant",
+  "codeletion_1p19q": "intact",
+  "mgmt": "unknown",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": "Sections show an infiltrating glial neoplasm. An IDH mutation is present and 1p/19q is intact. Integrated diagnosis is Astrocytoma, IDH-mutant, CNS WHO grade 3.",
+  "recurrent": true,
+  "recurrence_number": 1,
+  "prior_treatments": [
+    {
+      "type": "surgery",
+      "weeks_ago": 95,
+      "extent": "subtotal",
+      "detail": "Tumor resection"
+    },
+    {
+      "type": "radiation",
+      "weeks_ago": 72,
+      "detail": "Focal brain radiation"
+    }
+  ],
+  "weeks_since_radiation": 72,
+  "broad_sequencing": "exome",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "glioma",
+      "overrode_model": false
+    },
+    "enter_results": {
+      "case_id": "demo-018",
+      "confirmed_bucket": "glioma",
+      "diagnosis": "Astrocytoma, IDH-mutant",
+      "grade": 3,
+      "idh": "mutant",
+      "codeletion_1p19q": "intact",
+      "mgmt": "unknown",
+      "recurrent": true,
+      "age": 44,
+      "zip": "77840",
+      "pituitary": null,
+      "prior_treatments": [
+        "surgery",
+        "radiation"
+      ],
+      "broad_sequencing_available": true
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "preop_screen",
+    "awaiting_pathology",
+    "enter_results",
+    "mutation_check",
+    "matching",
+    "no_match"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": true,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype",
+      "status": "not_met",
+      "evidence_field": "diagnosis",
+      "note": "diagnosis: \"Astrocytoma, IDH-mutant\""
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "First or second recurrence",
+      "status": "met",
+      "evidence_field": "recurrence_number",
+      "note": "recurrence_number: 1"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Prior radiation and temozolomide",
+      "status": "not_met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":95,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"},{\"type\":\"radiation\",\"weeks_ago\":72,\"detail\":\"Focal brain radiation\"}]"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 44"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "exclusion",
+      "criterion_text": "More than two prior recurrences",
+      "status": "met",
+      "evidence_field": "recurrence_number",
+      "note": "recurrence_number: 1"
+    },
+    {
+      "trial_id": "NCT99000002",
+      "criterion_type": "exclusion",
+      "criterion_text": "Prior bevacizumab",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: [{\"type\":\"surgery\",\"weeks_ago\":95,\"extent\":\"subtotal\",\"detail\":\"Tumor resection\"},{\"type\":\"radiation\",\"weeks_ago\":72,\"detail\":\"Focal brain radiation\"}]"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Recurrent glioma of any grade",
+      "status": "met",
+      "evidence_field": "recurrent",
+      "note": "recurrent: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Participation is fully remote from home",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 44"
+    },
+    {
+      "trial_id": "NCT99000008",
+      "criterion_type": "exclusion",
+      "criterion_text": "Unable to use a phone or tablet for study visits",
+      "status": "met",
+      "evidence_field": "can_use_phone_or_tablet",
+      "note": "can_use_phone_or_tablet: true"
+    }
+  ]
+}

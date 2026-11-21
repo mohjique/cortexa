@@ -1,0 +1,63 @@
+{
+  "case_id": "demo-001",
+  "scenario": "Normal MRI during headache workup",
+  "image_file": null,
+  "kaggle_label": "no_tumor",
+  "age": 32,
+  "sex": "female",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "intermittent headache"
+  ],
+  "radiology_report": "Brain MRI shows normal ventricular caliber. No focal mass or abnormal enhancement is identified. There is no mass effect or acute intracranial abnormality.",
+  "tumor_location": null,
+  "tumor_size_mm": null,
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 3.5,
+    "platelets": 213,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 20,
+    "alt": 25
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": null,
+  "idh": null,
+  "codeletion_1p19q": null,
+  "mgmt": null,
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": null,
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "no_tumor",
+      "overrode_model": false
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "stopped"
+  ],
+  "expected_trials": [],
+  "expected_preop_flags": [],
+  "expected_no_match": false,
+  "gold_eligibility": []
+}

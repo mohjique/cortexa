@@ -1,0 +1,154 @@
+{
+  "case_id": "demo-022",
+  "scenario": "ACTH-dependent Cushing disease with prohibitive operative risk",
+  "image_file": null,
+  "kaggle_label": "pituitary",
+  "age": 69,
+  "sex": "male",
+  "zip": "77840",
+  "max_travel_miles": 500,
+  "presenting_symptoms": [
+    "easy bruising",
+    "proximal weakness"
+  ],
+  "radiology_report": "Sellar MRI shows a 7 x 5 mm lesion with differential enhancement. The optic chiasm is clear. Appearance suggests a pituitary adenoma.",
+  "tumor_location": "sella",
+  "tumor_size_mm": [
+    7,
+    5
+  ],
+  "multifocal": false,
+  "kps": 90,
+  "labs": {
+    "anc": 4,
+    "platelets": 234,
+    "hemoglobin": 13.5,
+    "creatinine": 0.9,
+    "bilirubin": 0.6,
+    "ast": 25,
+    "alt": 26
+  },
+  "steroid_dose_mg": 0,
+  "current_meds": [],
+  "comorbidities": [
+    "severe pulmonary hypertension"
+  ],
+  "prior_cancers": [],
+  "can_use_phone_or_tablet": true,
+  "diagnosis": null,
+  "grade": null,
+  "idh": "unknown",
+  "codeletion_1p19q": "unknown",
+  "mgmt": "unknown",
+  "other_markers": {},
+  "tmb_clia": null,
+  "pituitary": {
+    "treatment_path": "medication_only",
+    "secreting_hormone": "acth",
+    "size": "micro",
+    "cavernous_sinus_invasion": "no",
+    "hormone_levels": {
+      "late_night_salivary_cortisol_ug_dl": 0.49,
+      "acth_pg_ml": 78,
+      "urine_free_cortisol_ug_24h": 212
+    },
+    "surgical_candidate": false
+  },
+  "pathology_report": null,
+  "recurrent": false,
+  "recurrence_number": 0,
+  "prior_treatments": [],
+  "weeks_since_radiation": null,
+  "broad_sequencing": "none",
+  "mutation_counts_96": null,
+  "true_sbs11_fraction": null,
+  "doctor_decisions": {
+    "confirm_bucket": {
+      "bucket": "pituitary",
+      "overrode_model": false
+    },
+    "surgery_or_meds": {
+      "choice": "medication_only"
+    },
+    "enter_results": {
+      "case_id": "demo-022",
+      "confirmed_bucket": "pituitary",
+      "diagnosis": null,
+      "grade": null,
+      "idh": "unknown",
+      "codeletion_1p19q": "unknown",
+      "mgmt": "unknown",
+      "recurrent": false,
+      "age": 69,
+      "zip": "77840",
+      "pituitary": {
+        "treatment_path": "medication_only",
+        "secreting_hormone": "acth",
+        "size": "micro",
+        "cavernous_sinus_invasion": "no",
+        "hormone_levels": {
+          "late_night_salivary_cortisol_ug_dl": 0.49,
+          "acth_pg_ml": 78,
+          "urine_free_cortisol_ug_24h": 212
+        },
+        "surgical_candidate": false
+      },
+      "prior_treatments": [],
+      "broad_sequencing_available": false
+    },
+    "review_shortlist": {
+      "keep": [
+        "NCT99000006"
+      ],
+      "reject": []
+    }
+  },
+  "expected_path": [
+    "intake",
+    "confirm_bucket",
+    "hormone_labs",
+    "surgery_or_meds",
+    "enter_results",
+    "matching",
+    "review_shortlist"
+  ],
+  "expected_trials": [
+    "NCT99000006"
+  ],
+  "expected_preop_flags": [],
+  "expected_no_match": false,
+  "gold_eligibility": [
+    {
+      "trial_id": "NCT99000006",
+      "criterion_type": "inclusion",
+      "criterion_text": "ACTH-secreting pituitary adenoma confirmed by hormone testing",
+      "status": "met",
+      "evidence_field": "pituitary",
+      "note": "pituitary: {\"treatment_path\":\"medication_only\",\"secreting_hormone\":\"acth\",\"size\":\"micro\",\"cavernous_sinus_invasion\":\"no\",\"hormone_levels\":{\"late_night_salivary_cortisol_ug_dl\":0.49,\"acth_pg_ml\":78,\"urine_free_cortisol_ug_24h\":212},\"surgical_candidate\":false}"
+    },
+    {
+      "trial_id": "NCT99000006",
+      "criterion_type": "inclusion",
+      "criterion_text": "Persistent disease after surgery, or not a surgical candidate",
+      "status": "met",
+      "evidence_field": "pituitary",
+      "note": "pituitary: {\"treatment_path\":\"medication_only\",\"secreting_hormone\":\"acth\",\"size\":\"micro\",\"cavernous_sinus_invasion\":\"no\",\"hormone_levels\":{\"late_night_salivary_cortisol_ug_dl\":0.49,\"acth_pg_ml\":78,\"urine_free_cortisol_ug_24h\":212},\"surgical_candidate\":false}"
+    },
+    {
+      "trial_id": "NCT99000006",
+      "criterion_type": "inclusion",
+      "criterion_text": "Age 18 years or older",
+      "status": "met",
+      "evidence_field": "age",
+      "note": "age: 69"
+    },
+    {
+      "trial_id": "NCT99000006",
+      "criterion_type": "exclusion",
+      "criterion_text": "Pituitary radiation within the past 2 years",
+      "status": "met",
+      "evidence_field": "prior_treatments",
+      "note": "prior_treatments: []"
+    }
+  ]
+}
