@@ -7,7 +7,9 @@ real classifier later; both implement the `Classifier` protocol.
 Profile choice is deterministic:
 1. A profile keyword in the upload filename (see stub_profiles.json), e.g.
    `demo_glioma.png`, `case3_notumor.jpg`, `glioma_lowconf.png`.
-2. Otherwise a bucket picked from the SHA-256 of the image bytes.
+2. Otherwise a bucket picked from the SHA-256 of the image bytes. That pick is
+   arbitrary, so it is always `flagged_uncertain`: the confirm screen must never
+   pre-fill a bucket the stub made up.
 
 The output is always "suspected". The agent recomputes `flagged_uncertain` from
 policies/policy.yaml (F2.4); the value set here is only the classifier's view.
@@ -59,26 +61,36 @@ class StubClassifier:
         self.min_confidence_for_auto_suggest = min_confidence_for_auto_suggest
         self.flag_on_model_disagreement = flag_on_model_disagreement
 
+    def match_keyword(self, filename: str | None) -> str | None:
+        if not filename:
+            return None
+        stem = _norm(Path(filename).stem)
+        for alias, name in _ALIASES.items():
+            stem = stem.replace(alias, name)
+        for name in self.profiles:  # file order: special profiles first
+            if _norm(name) in stem:
+                return name
+        return None
+
     def pick_profile(self, image: bytes, filename: str | None) -> str:
-        if filename:
-            stem = _norm(Path(filename).stem)
-            for alias, name in _ALIASES.items():
-                stem = stem.replace(alias, name)
-            for name in self.profiles:  # file order: special profiles first
-                if _norm(name) in stem:
-                    return name
+        name = self.match_keyword(filename)
+        if name is not None:
+            return name
         return BUCKETS[int(hashlib.sha256(image).hexdigest(), 16) % len(BUCKETS)]
 
     def classify(
         self, case_id: str, image: bytes, filename: str | None = None
     ) -> ClassifierOutput:
+        from_fallback = self.match_keyword(filename) is None
         p = self.profiles[self.pick_profile(image, filename)]
         disagree = (
             p.get("medgemma_bucket") is not None
             and p["medgemma_bucket"] != p["suspected_bucket"]
         )
-        flagged_uncertain = p["confidence"] < self.min_confidence_for_auto_suggest or (
-            self.flag_on_model_disagreement and disagree
+        flagged_uncertain = (
+            from_fallback  # arbitrary hash pick: never present it as confident
+            or p["confidence"] < self.min_confidence_for_auto_suggest
+            or (self.flag_on_model_disagreement and disagree)
         )
         return ClassifierOutput(
             case_id=case_id,
