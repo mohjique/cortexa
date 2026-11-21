@@ -42,6 +42,9 @@ export interface ClassifierOutput {
   confidence: number;
   flagged_uncertain: boolean;
   heatmap_path: string | null;
+  // MedGemma draft findings text (PR 37). The backend rejects any summary that
+  // breaks rule 1 (agent/findings.py), so only checked text reaches the UI.
+  findings_summary?: string | null;
 }
 
 export interface PituitaryResults {

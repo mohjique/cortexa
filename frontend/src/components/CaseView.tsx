@@ -281,6 +281,19 @@ function Detail({
             </div>
           )}
           {c.heatmap_path && <Heatmap caseId={s.case_id} />}
+          {c.findings_summary && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12 }}>
+                <b>Findings summary</b> <span className="chip warn">AI draft · not a diagnosis</span>
+              </div>
+              <div className="muted" style={{ marginTop: 4, fontSize: 13, whiteSpace: "pre-wrap" }}>
+                {c.findings_summary}
+              </div>
+              <div className="faint" style={{ fontSize: 11 }}>
+                Written by MedGemma from the image. The doctor confirms the bucket.
+              </div>
+            </div>
+          )}
         </div>
       )}
 
