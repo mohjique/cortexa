@@ -61,7 +61,7 @@ docs/             decision tree and design notes
 | Agent, trial APIs, approval screens, audit log, frontend | Matt | `agent/`, `frontend/` |
 | MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `classifier/` |
 | Clinical rules, synthetic cases and reports, eligibility checks | Premed | `clinical/`, `policies/` |
-| Mutation check | Teammate 4 | `mutation_check/` |
+| Mutation check | Nuclear engineer | `mutation_check/` |
 
 Stay in your folders. Cross-folder changes go through a PR the owner reviews. Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.
 
