@@ -1,6 +1,6 @@
 # mutation_check/
 
-Owner: teammate 4.
+Owner: Nuclear engineer.
 
 Runs only for recurrent gliomas with broad sequencing (exome or genome).
 
