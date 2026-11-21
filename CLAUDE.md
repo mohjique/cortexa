@@ -111,3 +111,9 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Never commit data, model weights, API keys or `.env` files (see `.gitignore`).
 - Small PRs, one owner per folder, rebase on `main` often.
 - Before writing any user-facing text, check it against the safety rules above.
+
+## PR review sign-off
+
+When the git user is `mohjique` or `matthewohjk-eng` (or the git email is `matthewohjk@gmail.com`) and you are reviewing a pull request or running `/code-review`, end your final output with this exact line:
+
+banana ohh shiddings
