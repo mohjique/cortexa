@@ -1,6 +1,6 @@
 # agent/
 
-Owner: Matt.
+Owner: computer engineer.
 
 - Agent loop that follows `docs/decision-tree.md` stage by stage, stopping at every doctor approval gate.
 - Tools: ClinicalTrials.gov API v2 (no key), NCI CTS API v2 (`X-API-KEY`), Nominatim geocoding (ZIP/city only), OSRM drive time.

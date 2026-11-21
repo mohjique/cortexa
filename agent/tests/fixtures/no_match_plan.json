@@ -1,7 +1,7 @@
 {
   "case_id": "demo-003",
   "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
-  "widened": {"radius_miles": 500, "include_remote": true, "trials": []},
+  "widened": {"radius_miles": 500, "include_remote_trials": true, "trials": []},
   "near_misses": [
     {
       "trial_id": "NCT99000007",

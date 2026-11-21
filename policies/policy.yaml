@@ -3,7 +3,7 @@
 # engineer). Edits here must change agent behavior without code changes.
 
 classifier:
-  min_confidence_for_auto_suggest: 0.80   # below this, flag "needs review"
+  min_confidence_for_auto_suggest: 0.80   # below this, set flagged_uncertain (doctor still confirms every case)
   flag_on_model_disagreement: true
   label_prefix: "Suspected"               # never "Diagnosis"
 

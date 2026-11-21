@@ -4,6 +4,6 @@
   "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
   "medgemma_bucket": "glioma",
   "confidence": 0.88,
-  "needs_review": false,
+  "flagged_uncertain": false,
   "heatmap_path": "artifacts/demo-001_gradcam.png"
 }

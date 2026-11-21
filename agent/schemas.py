@@ -114,7 +114,9 @@ class ClassifierOutput(Schema):
     probabilities: dict[Bucket, Unit]
     medgemma_bucket: Bucket | None = None  # None if MedGemma only writes the summary
     confidence: Unit
-    needs_review: bool
+    # Warning only: low confidence or model disagreement. Every case still goes
+    # through the confirm_bucket doctor gate, flagged or not.
+    flagged_uncertain: bool
     heatmap_path: str | None = None
 
     @model_validator(mode="after")
@@ -511,7 +513,7 @@ class MutationCheckRan(Schema):
 class MutationCheckSkipped(Schema):
     case_id: NonEmptyStr
     ran: Literal[False]
-    skip_reason: Literal["no broad sequencing", "not recurrent glioma"]
+    skip_reason: Literal["no_broad_sequencing", "not_recurrent_glioma"]
 
 
 MutationCheckOutput = Annotated[
@@ -595,7 +597,7 @@ class SearchSummary(Schema):
 
 class WidenedSearch(Schema):
     radius_miles: Annotated[float, Field(gt=0)]
-    include_remote: bool
+    include_remote_trials: bool
     trials: list[ShortlistTrial]
 
 

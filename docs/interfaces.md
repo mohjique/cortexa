@@ -31,7 +31,7 @@ The case moves forward only after the gate for its stage has a recorded doctor d
   "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
   "medgemma_bucket": "glioma",
   "confidence": 0.88,
-  "needs_review": false,
+  "flagged_uncertain": false,
   "heatmap_path": "artifacts/demo-001_gradcam.png"
 }
 ```
@@ -183,7 +183,7 @@ Sent only for recurrent glioma with exome or genome sequencing.
 }
 ```
 
-If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no broad sequencing | not recurrent glioma"}`.
+If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no_broad_sequencing | not_recurrent_glioma"}`.
 
 ## Trial record (agent internal, normalized from both APIs)
 
@@ -265,7 +265,7 @@ Produced when the shortlist is empty. Settings come from `trial_search.no_match_
   "searched": {"radius_miles": 100, "statuses": ["RECRUITING", "NOT_YET_RECRUITING"], "match_count": 0},
   "widened": {
     "radius_miles": 500,
-    "include_remote": true,
+    "include_remote_trials": true,
     "trials": ["<Shortlist trial>"]
   },
   "near_misses": [
