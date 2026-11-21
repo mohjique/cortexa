@@ -1,6 +1,6 @@
 # Cortexa runtime policy. Loaded at startup and on change.
-# Clinical wording is owned by the premed teammate. Edits here must change
-# agent behavior without code changes.
+# Clinical wording is owned by the premed teammate (contributor: computer
+# engineer). Edits here must change agent behavior without code changes.
 
 classifier:
   min_confidence_for_auto_suggest: 0.80   # below this, flag "needs review"

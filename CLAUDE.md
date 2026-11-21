@@ -2,7 +2,7 @@
 
 Cortexa is an agentic care management platform that supports physician teams handling suspected brain tumor cases. It classifies a brain MRI into a suspected tumor bucket, guides the team on what the biopsy must answer, and matches confirmed cases to recruiting clinical trials, with a doctor approving every step.
 
-Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 8:00 PM; judging 8:00 to 9:30 PM.
+Built at tidalBYTE '26 (TIDAL, Texas A&M), Nov 21, 2026. Hacking runs 10:00 AM to 7:30 PM; judging 8:00 to 9:30 PM.
 
 The full app logic is in `docs/decision-tree.md` (Mermaid) and `docs/decision-tree.svg`. Treat that tree as the spec. If code and tree disagree, fix the code or update the tree in the same PR.
 
@@ -58,10 +58,10 @@ docs/             decision tree and design notes
 
 | Area | Owner | Folders |
 |---|---|---|
-| Agent, trial APIs, approval screens, audit log, frontend | Matt | `agent/`, `frontend/` |
-| MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `classifier/` |
-| Clinical rules, synthetic cases and reports, eligibility checks | Premed | `clinical/`, `policies/` |
-| Mutation check | Teammate 4 | `mutation_check/` |
+| Agent, trial APIs, eligibility checks, audit log, MRI classifier, dedupe, heatmaps, MedGemma eval | Computer engineer | `agent/`, `classifier/` |
+| Clinical rules, synthetic cases and reports | Premed (contributor: computer engineer) | `clinical/`, `policies/` |
+| Frontend UI: upload, approval screens, shortlist + map | Matt | `frontend/` |
+| Mutation check | Nuclear engineer | `mutation_check/` |
 
 Stay in your folders. Cross-folder changes go through a PR the owner reviews. Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.
 
@@ -95,7 +95,7 @@ Stay in your folders. Cross-folder changes go through a PR the owner reviews. In
 - Runs only for recurrent gliomas with broad sequencing (exome or genome). Skip small gene panels.
 
 ### Clinical (`clinical/`)
-- 3 to 5 synthetic patients with realistic radiology and pathology reports, written by the premed teammate.
+- 3 to 5 synthetic patients with realistic radiology and pathology reports, written by the premed teammate with the computer engineer.
 - Gold labels: manual eligibility calls for a sample of real recruiting trials, used to measure agent accuracy.
 - Owns the wording of medical rules in `policies/policy.yaml`.
 

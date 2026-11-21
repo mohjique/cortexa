@@ -1,6 +1,6 @@
 # clinical/
 
-Owner: premed teammate.
+Owner: premed teammate. Contributor: computer engineer.
 
 - 3 to 5 synthetic patients (one per path in the decision tree, including one recurrent glioma), each with a realistic radiology report and pathology report.
 - Gold eligibility labels: manual met / not met / unknown calls for a sample of real recruiting trials. Used to measure the agent.
