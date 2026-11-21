@@ -417,7 +417,17 @@ class TrialRecord(Schema):
 # may never be the evidence that passes or fails a criterion. A CLIA lab TMB
 # lives in DoctorResults.tmb_clia instead.
 MUTATION_CHECK_FIELDS: frozenset[str] = frozenset(
-    {"mutation_check", "mutation_context", "sbs11_call", "exposures", "total_mutations"}
+    {
+        "mutation_check",
+        "mutation_context",
+        "sbs11_call",
+        "exposures",
+        "total_mutations",
+        "counts_96",
+        "sbs11_fraction_ci95",
+        "detection_limit_95",
+        "critical_fraction",
+    }
 )
 
 
@@ -508,15 +518,39 @@ class Snv(Schema):
         return self
 
 
+Count = Annotated[int, Field(ge=0, strict=True)]
+
+
 class MutationCheckInput(Schema):
+    """Exactly one of `snvs` (real use) or `counts_96` (stored demo catalogs, issue #6).
+
+    Serialize with `exclude_none=True`: the mutation check rejects a request
+    that carries both keys, even if one is null.
+    """
+
     case_id: NonEmptyStr
     sequencing: Sequencing
     reference: NonEmptyStr
-    snvs: list[Snv]
+    snvs: list[Snv] | None = None
+    # 96 SBS bins in COSMIC row order (5' base, substitution, 3' base).
+    counts_96: Annotated[list[Count], Field(min_length=96, max_length=96)] | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_source(self) -> MutationCheckInput:
+        if (self.snvs is None) == (self.counts_96 is None):
+            raise ValueError("send exactly one of snvs or counts_96")
+        return self
 
 
 class MutationCheckRan(Schema):
-    """Context only. Never decides eligibility (safety rule 10)."""
+    """Context only. Never decides eligibility (safety rule 10).
+
+    `total_mutations` counts SNVs in a research catalog. It is not TMB, never
+    fills `tmb_clia`, and never satisfies a TMB criterion.
+
+    The four optional fields (issue #6) say how much a call can be trusted:
+    `not_detected` alone can't tell "no SBS11" from "too few mutations to see it".
+    """
 
     case_id: NonEmptyStr
     ran: Literal[True]
@@ -525,6 +559,28 @@ class MutationCheckRan(Schema):
     false_alarm_rate: Unit
     exposures: dict[str, Unit]
     note: str = "Context only. Does not decide eligibility."
+    # 95% interval on the fraction of mutations from SBS11, [low, high].
+    sbs11_fraction_ci95: tuple[Unit, Unit] | None = None
+    # SBS11 fraction detected 95% of the time at this count. null = not established: 95% is never
+    # reached even at 100% SBS11, or the count is below the calibrated range (sigdetect: N < 10).
+    detection_limit_95: Unit | None = None
+    # SBS11 fraction detected 50% of the time at this count. Above 0.5 the call is inconclusive.
+    critical_fraction: Unit | None = None
+    # Plain-English sentence from a fixed template; every number comes from the fit.
+    summary: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def _limits_consistent(self) -> MutationCheckRan:
+        ci = self.sbs11_fraction_ci95
+        if ci is not None and ci[0] > ci[1]:
+            raise ValueError("sbs11_fraction_ci95 low must not exceed high")
+        crit, lim = self.critical_fraction, self.detection_limit_95
+        if crit is not None and lim is not None and crit > lim:
+            raise ValueError("critical_fraction (50% detection) must not exceed detection_limit_95")
+        # Too few mutations to see SBS11 is not evidence of absence.
+        if crit is not None and crit > 0.5 and self.sbs11_call == "not_detected":
+            raise ValueError("critical_fraction above 0.5 means the call must be inconclusive, not not_detected")
+        return self
 
 
 class MutationCheckSkipped(Schema):

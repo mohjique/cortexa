@@ -32,7 +32,9 @@ out = run_mutation_check(request, false_alarm_rate=policy.mutation_check.false_a
 - `MutationCheckUnavailable` means no trustworthy answer: the engine isn't installed and the catalog isn't a demo
   case, or `policy.yaml`'s false-alarm rate differs from the calibration's (0.01). Log it and continue matching
   without the check, as for `inconclusive`. Never substitute a guess.
-- `include_limits=True` adds the four fields proposed in issue #6. Leave it off until the schema has them.
+- Results carry the four fields from issue #6 by default: `sbs11_fraction_ci95`, `detection_limit_95`,
+  `critical_fraction` and `summary`. `summary` is shown exactly as written. A `null` limit means it isn't
+  established at that mutation count, and the summary says so in words. `include_limits=False` drops all four.
 
 ## The engine
 

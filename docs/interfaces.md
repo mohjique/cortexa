@@ -170,6 +170,8 @@ Sent only for recurrent glioma with exome or genome sequencing.
 
 `context` is the trinucleotide on the reference strand with `ref` in the middle. If `sequencing` is `panel`, the check does not run.
 
+Instead of `snvs`, the input may carry `counts_96`: 96 non-negative integers in COSMIC SBS96 row order (5' base, then substitution, then 3' base). Send exactly one of the two, and leave the other key out rather than sending it as `null`. Real use sends `snvs`. The demo patients store `mutation_counts_96` and send it as `counts_96`, so no fake variant calls are invented.
+
 ## Mutation check → agent
 
 ```json
@@ -180,9 +182,26 @@ Sent only for recurrent glioma with exome or genome sequencing.
   "sbs11_call": "detected | not_detected | inconclusive",
   "false_alarm_rate": 0.01,
   "exposures": {"SBS1": 0.12, "SBS5": 0.18, "SBS11": 0.70},
-  "note": "Context only. Does not decide eligibility."
+  "note": "Context only. Does not decide eligibility.",
+  "sbs11_fraction_ci95": [0.58, 0.79],
+  "detection_limit_95": 0.12,
+  "critical_fraction": 0.06,
+  "summary": "SBS11 was detected at a 1% false-alarm rate: ..."
 }
 ```
+
+`total_mutations` counts SNVs in a research catalog. It is not TMB, never fills `tmb_clia`, and never satisfies a TMB criterion.
+
+The last four fields are optional and default to `null`. They tell a doctor how far to trust the call, because `not_detected` alone can mean "no SBS11" or "too few mutations to see it":
+
+| Field | Meaning |
+|---|---|
+| `sbs11_fraction_ci95` | 95% interval `[low, high]` on the fraction of mutations from SBS11 |
+| `detection_limit_95` | SBS11 fraction that would be detected 95% of the time at this mutation count. `null` if not established: 95% is never reached even at 100% SBS11, or the mutation count is below the calibrated range |
+| `critical_fraction` | SBS11 fraction detected 50% of the time. Above 0.5 the call is `inconclusive`, never `not_detected` |
+| `summary` | One plain-English sentence from a fixed template. Every number comes from the fit, so it can be shown as is |
+
+The schema checks that `low <= high` and `critical_fraction <= detection_limit_95`.
 
 If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no_broad_sequencing | not_recurrent_glioma"}`.
 
@@ -225,7 +244,7 @@ One per criterion.
 
 `status` answers "does the patient pass this criterion?". For an exclusion, `met` means the exclusion does not apply. `criterion_type` is optional but matches the gold labels.
 
-Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutation_check`, `mutation_context`, `sbs11_call`, `exposures`, `total_mutations`) must be `unknown`; the schema rejects `met` or `not_met`. A CLIA TMB criterion cites `tmb_clia`.
+Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutation_check`, `mutation_context`, `sbs11_call`, `exposures`, `total_mutations`, `counts_96`, `sbs11_fraction_ci95`, `detection_limit_95`, `critical_fraction`) must be `unknown`; the schema rejects `met` or `not_met`. A CLIA TMB criterion cites `tmb_clia`.
 
 ## Shortlist → frontend
 
