@@ -42,6 +42,32 @@ mutation_check:
   false_alarm_rate: 0.01
   never_route_to_immunotherapy_on_mutation_count: true
 
+# Pre-op screen (glioma): flag trials that need enrollment before surgery.
+# Phrases match case-insensitive, inside the named criteria list only.
+# "prior resection" in an INCLUSION list means a recurrent-tumor trial, so it
+# is not listed there. Add phrases here; no code change needed.
+pre_surgery_detection:
+  inclusion_phrases:
+    - "before planned surgical resection"
+    - "before resection"
+    - "prior to resection"
+    - "prior to surgery"
+    - "before surgery"
+    - "pre-operative"
+    - "preoperative"
+    - "presurgical"
+    - "window of opportunity"
+    - "neoadjuvant"
+  exclusion_phrases:
+    - "prior brain surgery"
+    - "prior resection"
+    - "prior surgery or biopsy"
+  # A title hint alone never flags a trial; the LLM checks the criteria and
+  # code shows it as "possible, check criteria".
+  title_hints: ["window-of-opportunity", "neoadjuvant", "pre-operative"]
+  match: case_insensitive_substring
+  llm_confirm_on_title_hint_only: true
+
 privacy:
   geocode_fields_allowed: [zip, city]
   patient_contact: never

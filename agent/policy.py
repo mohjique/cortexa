@@ -105,6 +105,24 @@ class MutationCheckPolicy(Schema):
     never_route_to_immunotherapy_on_mutation_count: Literal[True]  # rule 10
 
 
+PhraseList = Annotated[list[NonEmptyStr], Field(min_length=1)]
+
+
+class PreSurgeryPolicy(Schema):
+    """Phrases that mark a trial as needing enrollment before surgery (pre-op screen).
+
+    Inclusion and exclusion lists are separate on purpose: "prior resection" in an
+    inclusion list means the trial is for recurrent tumors, the opposite case.
+    """
+
+    inclusion_phrases: PhraseList
+    exclusion_phrases: PhraseList
+    title_hints: list[NonEmptyStr] = []
+    match: Literal["case_insensitive_substring"]
+    # Rule 4: a title alone cites no criterion, so it can never flag a trial by itself.
+    llm_confirm_on_title_hint_only: Literal[True]
+
+
 class PrivacyPolicy(Schema):
     geocode_fields_allowed: Annotated[list[str], Field(min_length=1)]
     patient_contact: Literal["never"]  # rule 5
@@ -128,6 +146,7 @@ class Policy(Schema):
     eligibility: EligibilityPolicy
     trial_search: TrialSearchPolicy
     mutation_check: MutationCheckPolicy
+    pre_surgery_detection: PreSurgeryPolicy
     privacy: PrivacyPolicy
     audit: AuditPolicy
 

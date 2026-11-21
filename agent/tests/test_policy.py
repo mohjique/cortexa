@@ -54,6 +54,7 @@ def test_real_policy_is_valid():
         ({"eligibility.missing_field_status": "not_met"}, "missing_field_status"),
         ({"eligibility.require_evidence_citation": False}, "require_evidence_citation"),
         ({"mutation_check.never_route_to_immunotherapy_on_mutation_count": False}, "immunotherapy"),
+        ({"pre_surgery_detection.llm_confirm_on_title_hint_only": False}, "llm_confirm_on_title_hint_only"),
     ],
 )
 def test_locked_safety_settings_cannot_be_loosened(change, match):
@@ -69,6 +70,9 @@ def test_locked_safety_settings_cannot_be_loosened(change, match):
         ({"eligibility.missing_field_reason_template": "needs pathology"}, "{field}"),
         ({"trial_search.default_radius_mile": 100}, "Extra inputs"),  # staff typo
         ({"privacy": ...}, "privacy"),
+        ({"pre_surgery_detection.inclusion_phrases": []}, "inclusion_phrases"),
+        ({"pre_surgery_detection.exclusion_phrases": [""]}, "exclusion_phrases"),
+        ({"pre_surgery_detection.match": "regex"}, "match"),
     ],
 )
 def test_bad_edits_rejected(change, match):
