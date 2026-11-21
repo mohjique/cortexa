@@ -45,13 +45,9 @@ class PolicyError(Exception):
 class ClassifierPolicy(Schema):
     min_confidence_for_auto_suggest: Annotated[float, Field(ge=0, le=1)]
     flag_on_model_disagreement: bool
-    label_prefix: NonEmptyStr
-
-    @model_validator(mode="after")
-    def _never_diagnose(self) -> ClassifierPolicy:
-        if "diagnos" in self.label_prefix.lower():
-            raise ValueError("locked by safety rule 1: label_prefix cannot say diagnosis")
-        return self
+    # Rule 1: model output is always "suspected". A blocklist would let
+    # "Confirmed" or "Definitive" through, so only the one safe value is allowed.
+    label_prefix: Literal["Suspected"]
 
 
 class ApprovalsPolicy(Schema):
@@ -103,7 +99,8 @@ class TrialSearchPolicy(Schema):
 
 class MutationCheckPolicy(Schema):
     run_only_for: Literal["recurrent_glioma"]
-    require_broad_sequencing: bool
+    # Locked: false-alarm calibration only holds for exome/genome, not small panels.
+    require_broad_sequencing: Literal[True]
     false_alarm_rate: Annotated[float, Field(gt=0, lt=1)]
     never_route_to_immunotherapy_on_mutation_count: Literal[True]  # rule 10
 

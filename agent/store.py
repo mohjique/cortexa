@@ -126,18 +126,30 @@ class CaseStore:
             return record.model_copy(deep=True)
 
     def append_decision(self, decision: DoctorDecision) -> CaseRecord:
-        """Record a doctor decision and audit it (rules 2 and 7)."""
+        """Record a doctor decision and audit it (rules 2 and 7).
+
+        Audit first, under the same lock: if the audit write fails, nothing is
+        saved, so a decision can never exist without its audit entry.
+        """
         with self._lock:
             record = self.get(decision.case_id)
             record.decisions.append(decision)
-            record = self.save(record)
-        audit(
-            "doctor",
-            f"decision:{decision.gate}",
-            {"doctor_id": decision.doctor_id, "decision": decision.decision, "note": decision.note},
-            case_id=decision.case_id,
-        )
-        return record
+            audit(
+                "doctor",
+                f"decision:{decision.gate}",
+                {"doctor_id": decision.doctor_id, "decision": decision.decision, "note": decision.note},
+                case_id=decision.case_id,
+            )
+            try:
+                return self.save(record)
+            except Exception as exc:
+                audit(
+                    "agent",
+                    "decision_save_failed",
+                    {"gate": decision.gate, "error": f"{type(exc).__name__}: {exc}"},
+                    case_id=decision.case_id,
+                )
+                raise
 
     def list_cases(self) -> list[CaseState]:
         with self._lock:

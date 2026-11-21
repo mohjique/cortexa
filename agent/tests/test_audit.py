@@ -70,6 +70,37 @@ def test_audited_logs_and_reraises_errors(audit_log):
     assert entry.detail["error"] == "TimeoutError: ctgov down"
 
 
+def _broken_audit(monkeypatch, audit_log):
+    def boom(*a, **k):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(audit_log, "append", boom)
+
+
+def test_audited_keeps_tool_error_when_audit_also_fails(audit_log, monkeypatch):
+    _broken_audit(monkeypatch, audit_log)
+
+    @audited("trial_search")
+    def search():
+        raise TimeoutError("ctgov down")
+
+    with pytest.raises(TimeoutError, match="ctgov down") as info:
+        search()
+    assert any("audit write also failed: OSError: disk full" in n for n in info.value.__notes__)
+
+
+def test_audited_success_with_failed_audit_raises(audit_log, monkeypatch):
+    """Rule 7: a tool call that can't be logged must not pass silently."""
+    _broken_audit(monkeypatch, audit_log)
+
+    @audited("geocode_zip")
+    def geocode():
+        return {"lat": 1.0}
+
+    with pytest.raises(OSError, match="disk full"):
+        geocode()
+
+
 def test_audited_shrinks_big_results(audit_log):
     @audited("trial_search")
     def search():
