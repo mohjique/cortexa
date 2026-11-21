@@ -90,7 +90,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 
 | Field | Notes |
 |---|---|
-| `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `preop_review` (every glioma case) `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "..."}]}` with one entry per `expected_preop_flags` trial (empty list if none), `surgery_or_meds` `{"choice": "surgery"}` |
+| `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `preop_review` (every glioma case) `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "..."}]}` with one entry per `expected_preop_flags` trial (empty list if none). The screen has no surgical history, so it flags NCT99000003 for every suspected glioma; cases with prior surgery decline it as `not_pursuing` with a reason (required for `not_pursuing`), `surgery_or_meds` `{"choice": "surgery"}` |
 | `expected_path` | Branches this case should follow, e.g. `["glioma", "preop_screen", "awaiting_pathology", "enter_results", "matching", "review_shortlist"]` (use the `stage` names from `docs/interfaces.md`) |
 | `expected_trials` | Trial IDs you expect on the shortlist at the default 100-mile radius |
 | `expected_no_match` | true if the default search should end in the no-match plan |

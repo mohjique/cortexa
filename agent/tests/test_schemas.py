@@ -116,9 +116,15 @@ BAD = [
     ("decision_preop_review.json", _set("decision.pre_surgery_trials.0.action", "maybe"), "action"),
     (
         "decision_preop_review.json",
+        _set("decision.pre_surgery_trials.0", {"trial_id": "NCT99000003", "action": "not_pursuing"}),
+        "reason is required",
+    ),
+    ("decision_preop_review.json", _set("decision.pre_surgery_trials.0.reason", "   "), "at least 1"),
+    (
+        "decision_preop_review.json",
         _set(
             "decision.pre_surgery_trials",
-            [{"trial_id": "NCT99000003", "action": "not_pursuing"}] * 2,
+            [{"trial_id": "NCT99000003", "action": "pursue_before_surgery"}] * 2,
         ),
         "only once",
     ),

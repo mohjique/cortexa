@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from agent import workflow
 from agent.audit import get_audit_log
 from agent.policy import get_policy
-from agent.schemas import AuditEntry, CaseState, DoctorDecisionAdapter
+from agent.schemas import AuditEntry, CaseState, DoctorDecisionAdapter, NonEmptyStr, Schema
 from agent.store import CaseNotFound, CaseRecord, get_store
 
 
@@ -87,6 +87,21 @@ def post_decision(case_id: str, body: dict[str, Any] = Body(...)) -> CaseState:
         raise HTTPException(409, str(exc)) from None
     except workflow.InvalidDecision as exc:
         raise HTTPException(422, str(exc)) from None
+
+
+class RescreenRequest(Schema):
+    doctor_id: NonEmptyStr
+    reason: NonEmptyStr | None = None
+
+
+@app.post("/cases/{case_id}/preop/rescreen", response_model=CaseState)
+def rescreen_preop(case_id: str, body: RescreenRequest) -> CaseState:
+    """Doctor asks for a fresh pre-op screen. 409 unless the case waits on preop_review."""
+    _get(case_id)
+    try:
+        return workflow.rescreen_preop(case_id, body.doctor_id, body.reason).state
+    except workflow.WrongGate as exc:
+        raise HTTPException(409, str(exc)) from None
 
 
 @app.post("/cases/{case_id}/run", response_model=CaseState)

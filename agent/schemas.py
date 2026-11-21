@@ -273,12 +273,22 @@ class SurgeryOrMedsDecision(Schema):
     choice: Literal["surgery", "medication_only"]
 
 
+PreSurgeryAction = Literal["pursue_before_surgery", "not_pursuing"]
+
+
 class PreSurgeryTrialAck(Schema):
     """Doctor's call on one trial that needs enrollment before surgery."""
 
     trial_id: TrialId
-    action: Literal["pursue_before_surgery", "not_pursuing"]
-    reason: str | None = None
+    action: PreSurgeryAction
+    reason: NonEmptyStr | None = None
+
+    @model_validator(mode="after")
+    def _reason_when_declined(self) -> PreSurgeryTrialAck:
+        # Declining closes the window for good, so the tumor board must see why.
+        if self.action == "not_pursuing" and self.reason is None:
+            raise ValueError("reason is required when action is not_pursuing")
+        return self
 
 
 class PreOpReviewDecision(Schema):
@@ -517,6 +527,9 @@ class PreSurgeryTrial(Schema):
     recruitment_status: RecruitmentStatus
     criterion_text: NonEmptyStr
     nearest_site: NearestSite | None = None
+    # Set from the preop_review gate; "pending" until the doctor decides.
+    doctor_action: Literal["pending", "pursue_before_surgery", "not_pursuing"] = "pending"
+    doctor_reason: str | None = None
 
 
 class PreOpScreen(Schema):

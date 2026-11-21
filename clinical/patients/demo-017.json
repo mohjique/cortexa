@@ -169,7 +169,13 @@
     },
     "preop_review": {
       "tests_reviewed": true,
-      "pre_surgery_trials": []
+      "pre_surgery_trials": [
+        {
+          "trial_id": "NCT99000003",
+          "action": "not_pursuing",
+          "reason": "Already had brain surgery; trial excludes prior brain surgery or biopsy"
+        }
+      ]
     },
     "enter_results": {
       "case_id": "demo-017",
@@ -223,7 +229,9 @@
   "expected_trials": [
     "NCT99000002"
   ],
-  "expected_preop_flags": [],
+  "expected_preop_flags": [
+    "NCT99000003"
+  ],
   "expected_no_match": false,
   "gold_eligibility": [
     {

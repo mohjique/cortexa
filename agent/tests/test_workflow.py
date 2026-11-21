@@ -13,7 +13,7 @@ from agent.schemas import (
     PreOpScreen,
     Shortlist,
 )
-from agent.workflow import AgentHooks, InvalidDecision, WrongGate, submit_decision
+from agent.workflow import AgentHooks, InvalidDecision, WrongGate, stub_preop_screen, submit_decision
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CID = "c1"
@@ -25,8 +25,9 @@ def fixture(name: str) -> dict:
 
 @pytest.fixture(autouse=True)
 def stub_hooks():
+    # Mechanics tests use a screen that flags nothing; test_preop.py covers the real one.
     old = workflow.get_hooks()
-    workflow.set_hooks(AgentHooks())
+    workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen))
     yield
     workflow.set_hooks(old)
 
@@ -135,7 +136,7 @@ def test_preop_review_must_ack_every_pre_surgery_trial(case_store, audit_log):
     assert "decision_rejected:preop_review" in actions(audit_log)
     assert case_store.get(CID).state.stage == "preop_screen"
 
-    stray = {"trial_id": "NCT99000009", "action": "not_pursuing"}
+    stray = {"trial_id": "NCT99000009", "action": "not_pursuing", "reason": "not relevant"}
     with pytest.raises(InvalidDecision, match="not a pre-surgery trial"):
         decide("preop_review", PREOP_OK | {"pre_surgery_trials": [stray]})
 
@@ -143,6 +144,8 @@ def test_preop_review_must_ack_every_pre_surgery_trial(case_store, audit_log):
     rec = decide("preop_review", PREOP_OK | {"pre_surgery_trials": [ack]})
     assert rec.state.stage == "awaiting_pathology"
     assert "decision:preop_review" in actions(audit_log)
+    t = rec.preop.pre_surgery_trials[0]  # the choice is on the record, not only in the log
+    assert t.doctor_action == "pursue_before_surgery" and t.doctor_reason is None
 
 
 def test_preop_review_rejected_before_screen_runs(case_store):
@@ -187,7 +190,7 @@ def test_pituitary_surgery_waits_on_pathology(case_store):
 
 
 def test_recurrent_glioma_with_exome_runs_mutation_check(case_store, audit_log):
-    workflow.set_hooks(AgentHooks(mutation_check=workflow.stub_mutation_check))
+    workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen, mutation_check=workflow.stub_mutation_check))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     decide("preop_review", PREOP_OK)
@@ -224,7 +227,7 @@ def test_new_glioma_skips_mutation_check(case_store):
 
 
 def to_shortlist(case_store):
-    workflow.set_hooks(AgentHooks(matching=shortlist_hook))
+    workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen, matching=shortlist_hook))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     decide("preop_review", PREOP_OK)
@@ -312,7 +315,7 @@ def test_failed_hook_leaves_case_at_agent_stage_and_retries(case_store, audit_lo
     assert rec.state.stage == "preop_screen" and rec.state.waiting_on == "agent"
     assert "stage_failed:preop_screen" in actions(audit_log)
 
-    workflow.set_hooks(AgentHooks())
+    workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen))
     rec = workflow.run_agent(CID)
     assert rec.state.stage == "preop_screen" and rec.state.waiting_on == "doctor"
 
@@ -322,7 +325,7 @@ def test_empty_shortlist_is_a_hook_error(case_store, audit_log):
         sl = shortlist_hook(rec, policy)
         return sl.model_copy(update={"trials": []})
 
-    workflow.set_hooks(AgentHooks(matching=empty))
+    workflow.set_hooks(AgentHooks(preop_screen=stub_preop_screen, matching=empty))
     new_case(case_store)
     decide("confirm_bucket", {"bucket": "glioma", "overrode_model": False})
     decide("preop_review", PREOP_OK)

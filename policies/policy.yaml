@@ -67,6 +67,8 @@ pre_surgery_detection:
   # A title hint alone never flags a trial; the LLM checks the criteria and
   # code shows it as "possible, check criteria".
   title_hints: ["window-of-opportunity", "neoadjuvant", "pre-operative"]
+  # Only trials whose conditions or title name one of these are screened (pre-op is glioma only).
+  condition_keywords: [glioma, glioblastoma, astrocytoma, oligodendroglioma]
   match: case_insensitive_substring
   llm_confirm_on_title_hint_only: true
 

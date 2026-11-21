@@ -121,6 +121,8 @@ class PreSurgeryPolicy(Schema):
     inclusion_phrases: PhraseList
     exclusion_phrases: PhraseList
     title_hints: list[NonEmptyStr] = []
+    # A trial is screened only if its conditions or title name one of these.
+    condition_keywords: PhraseList = ["glioma", "glioblastoma", "astrocytoma", "oligodendroglioma"]
     match: Literal["case_insensitive_substring"]
     # Rule 4: a title alone cites no criterion, so it can never flag a trial by itself.
     llm_confirm_on_title_hint_only: Literal[True]

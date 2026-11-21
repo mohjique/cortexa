@@ -10,9 +10,12 @@ The pre-op screen is the one agent stage that also has a doctor gate: the
 agent runs it (waiting_on=agent), then the case stays at preop_screen with
 waiting_on=doctor until `preop_review` is recorded. Trials that need
 enrollment before surgery are lost once the case moves on, so no flagged
-trial can be skipped.
-The mutation check default is the real check (`agent.mutation`); pre-op screen
-and matching defaults are still stubs, so the whole flow runs end to end.
+trial can be skipped. While waiting, the doctor may ask for a fresh screen
+(`rescreen_preop`), for example after a trial's status changes.
+
+Defaults: the mutation check is the real check (`agent.mutation`), the pre-op
+screen is the real pre-surgery detector (`agent.preop`), and matching is still
+a stub, so the whole flow runs end to end.
 """
 
 from __future__ import annotations
@@ -26,6 +29,7 @@ from typing import Literal, get_args
 from agent.audit import audit
 from agent.mutation import mutation_check_hook
 from agent.policy import Policy, get_policy
+from agent.preop import preop_screen_hook
 from agent.schemas import (
     ClassifierOutput,
     ConfirmBucketRecord,
@@ -172,11 +176,12 @@ def _move(rec: CaseRecord, policy: Policy) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent stage hooks. Pre-op screen and matching are stubs until the real pieces land.
+# Agent stage hooks. Matching is a stub until the real piece lands.
 # ---------------------------------------------------------------------------
 
 
 def stub_preop_screen(rec: CaseRecord, policy: Policy) -> PreOpScreen:
+    # Test helper: a screen that flags nothing.
     return PreOpScreen(
         case_id=rec.case_id,
         trials_considered=0,
@@ -212,7 +217,7 @@ def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
 
 @dataclass
 class AgentHooks:
-    preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = stub_preop_screen
+    preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = preop_screen_hook
     # None = no trustworthy answer; the hook audits why and matching runs without it.
     mutation_check: Callable[[CaseRecord, Policy], MutationCheckOutput | None] = mutation_check_hook
     matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = stub_matching
@@ -415,6 +420,12 @@ def _apply(rec: CaseRecord, d: DoctorDecision) -> None:
         if skip is not None:
             rec.mutation = MutationCheckSkipped(case_id=rec.case_id, ran=False, skip_reason=skip)
             audit("agent", "mutation_check_skipped", {"skip_reason": skip}, case_id=rec.case_id)
+    elif isinstance(d, PreOpReviewRecord):
+        assert rec.preop is not None
+        acks = {a.trial_id: a for a in d.decision.pre_surgery_trials}
+        for t in rec.preop.pre_surgery_trials:
+            t.doctor_action = acks[t.trial_id].action
+            t.doctor_reason = acks[t.trial_id].reason
     elif isinstance(d, ReviewShortlistRecord):
         assert rec.shortlist is not None
         keep = set(d.decision.keep)
@@ -446,6 +457,35 @@ def submit_decision(decision: DoctorDecision) -> CaseRecord:
         _move(rec, get_policy())
         store.save(rec)
         return run_agent(decision.case_id)
+
+
+def rescreen_preop(case_id: str, doctor_id: str, reason: str | None = None) -> CaseRecord:
+    """Doctor asks for a fresh pre-op screen before reviewing it.
+
+    Only while the case waits on the preop_review gate. The old screen is
+    dropped (its flags stay in the audit log) and the agent runs again, so a
+    trial whose status changed, or a screen made during an API outage, is
+    not stuck as the only option.
+    """
+    store = get_store()
+    with _lock:
+        rec = store.get(case_id)
+        if rec.state.stage != "preop_screen" or rec.state.waiting_on != "doctor":
+            raise WrongGate(
+                f"rescreen only while preop_screen waits on a doctor; case is at "
+                f"{rec.state.stage} waiting on {rec.state.waiting_on}"
+            )
+        old = [t.trial_id for t in rec.preop.pre_surgery_trials] if rec.preop else []
+        audit(
+            "doctor",
+            "preop_rescreen_requested",
+            {"doctor_id": doctor_id, "reason": reason, "previous_flags": old},
+            case_id=case_id,
+        )
+        rec.preop = None
+        rec.state.waiting_on = "agent"
+        store.save(rec)
+        return run_agent(case_id)
 
 
 # ---------------------------------------------------------------------------
