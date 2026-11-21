@@ -31,3 +31,10 @@ Every search, geocode, drive-time call, fallback and dropped record is in the au
 - "Enroll before surgery" bullets match `pre_surgery_detection.inclusion_phrases` in `policy.yaml`.
 - Rule 10: `Facts` has no mutation check field. TMB criteria read `tmb_clia` only.
 - `python -m agent.eligibility_eval`: agreement with `gold_eligibility` in `clinical/patients/`. Mode `entered` uses the `enter_results` blocks as is. Mode `profile` fills `recurrence_number`, `comorbidities`, `can_use_phone_or_tablet` and `tmb_clia` from the profile.
+
+## Matching: shortlist (F9) and no-match plan (F10)
+
+- `agent/matching.py`: `match_case(rec, policy)` is the workflow's default matching hook. It geocodes the ZIP, searches trials, checks every one, and shortlists those that pass (`eligibility.passes`) within `default_radius_miles`. It computes drive time only for trials it shows.
+- Empty shortlist → `NoMatchPlan` from `trial_search.no_match_plan`. The widened radius includes remote trials. Near misses fail exactly one rule, or wait on a `pending` result. A trial that fails only on tumor type, new vs recurrent, the secreting hormone or "enroll before surgery" is not a near miss (`NOT_NEAR_MISS_FIELDS`). The plan also sets an in-app alert for the care team and writes a tumor board log entry.
+- Remote trials only count in the widened search.
+- `workflow.stub_matching` is kept for state-machine tests.

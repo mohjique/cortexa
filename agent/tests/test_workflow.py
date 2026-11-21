@@ -12,7 +12,14 @@ from agent.schemas import (
     MutationCheckSkipped,
     Shortlist,
 )
-from agent.workflow import AgentHooks, InvalidDecision, WrongGate, submit_decision
+from agent.workflow import AgentHooks as _RealHooks, InvalidDecision, WrongGate, submit_decision
+
+
+def AgentHooks(**kw):
+    """Hooks with stub matching unless a test sets its own (state machine tests)."""
+    kw.setdefault("matching", workflow.stub_matching)
+    return _RealHooks(**kw)
+
 
 FIXTURES = Path(__file__).parent / "fixtures"
 CID = "c1"

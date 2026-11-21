@@ -6,8 +6,8 @@ every gate check lives in `submit_decision`, in code, never in the LLM
 decision for that stage's gate.
 
 Agent stages (pre-op screen, mutation check, matching) run through `AgentHooks`.
-The mutation check default is the real check (`agent.mutation`); pre-op screen
-and matching defaults are still stubs, so the whole flow runs end to end.
+Mutation check (`agent.mutation`) and matching (`agent.matching`) defaults are
+real; the pre-op screen default is still a stub.
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from typing import Literal, get_args
 
 from agent.audit import audit
+from agent.matching import match_case
 from agent.mutation import mutation_check_hook
 from agent.policy import Policy, get_policy
 from agent.schemas import (
@@ -161,7 +162,7 @@ def _move(rec: CaseRecord, policy: Policy) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Agent stage hooks. Pre-op screen and matching are stubs until the real pieces land.
+# Agent stage hooks. stub_matching stays as a test helper.
 # ---------------------------------------------------------------------------
 
 
@@ -188,7 +189,7 @@ def stub_mutation_check(rec: CaseRecord, policy: Policy) -> MutationCheckRan:
 
 
 def stub_matching(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
-    # No real search yet, so honestly report no match.
+    # Test helper: reports no match without searching.
     return NoMatchPlan(
         case_id=rec.case_id,
         searched=SearchSummary(
@@ -204,7 +205,7 @@ class AgentHooks:
     preop_screen: Callable[[CaseRecord, Policy], PreOpScreen] = stub_preop_screen
     # None = no trustworthy answer; the hook audits why and matching runs without it.
     mutation_check: Callable[[CaseRecord, Policy], MutationCheckOutput | None] = mutation_check_hook
-    matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = stub_matching
+    matching: Callable[[CaseRecord, Policy], Shortlist | NoMatchPlan] = match_case
 
 
 _hooks = AgentHooks()
