@@ -87,10 +87,11 @@ _FORBIDDEN = re.compile(
 
 # Hedges beyond agent.findings._HEDGE that the reasoning uses: radiology hedging
 # ("could be", "suggest") and sentences about what a later step will determine,
-# which describe an open question rather than claim a tumor type.
+# which describe an open question rather than claim a tumor type. Only the
+# future "will determine" counts: "determines the lesion is a glioblastoma" or
+# "a glioma, whether or not ..." are flat claims and must stay rejected.
 _REASONING_HEDGE = re.compile(
-    r"\b(could be|may be|might be|likely|suggest\w*|whether|will determine|determin(?:e|es|ing) "
-    r"(?:the|its|if|whether))\b",
+    r"\b(could be|may be|might be|likely|suggest\w*|will determine)\b",
     re.IGNORECASE,
 )
 

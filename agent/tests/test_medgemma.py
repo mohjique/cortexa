@@ -162,6 +162,10 @@ def test_hedged_reasoning_passes(text):
     "The doctor will order imaging to confirm the diagnosis.",
     "Next comes confirming the diagnosis of the glioma.",
     "This is a glioma.",
+    # Not hedges: these state the tumor type as fact.
+    "Imaging determines the lesion is a glioblastoma.",
+    "Pathology determining the tumor is a meningioma.",
+    "This is a glioma, whether or not surgery is done.",
 ])
 def test_reasoning_that_claims_a_diagnosis_is_rejected(text):
     assert check_reasoning(text) is not None
