@@ -53,6 +53,7 @@ clinical/         synthetic patient cases, radiology/pathology reports, eligibil
 frontend/         web app: upload, approval screens, shortlist + map
 policies/         policy.yaml (runtime rules)
 docs/             decision tree and design notes
+deploy/           Hugging Face Space (backend) + Vercel (frontend) deployment
 ```
 
 ## Proposed stack (confirm at kickoff)
@@ -98,7 +99,7 @@ docs/             decision tree and design notes
 
 ## Working agreements
 
-- Never commit data, model weights, API keys or `.env` files (see `.gitignore`).
+- Never commit data, model weights, API keys or `.env` files (see `.gitignore`). One exception: the trained classifier `artifacts/classifier/model.pt` (ResNet-18, 45 MB, trained on the public Kaggle dataset) is committed so a clone and the Hugging Face Space deploy work without a separate download. Other checkpoints and training outputs stay out.
 - Small PRs, rebase on `main` often.
 - Interfaces between components are JSON schemas in `docs/interfaces.md`. Agree on these first and change them only by telling the team.
 - Before writing any user-facing text, check it against the safety rules above.
