@@ -79,9 +79,18 @@ def reasoning_prompt(bucket: str, confidence: float, flagged: bool) -> str:
 
 
 _FORBIDDEN = re.compile(
-    r"\b(diagnos(?:is of|ed (?:as|with)|e[ds]?|tic of)|confirm(?:s|ed)? (?:a|an|the)? ?"
+    r"\b(diagnos(?:is of|ed (?:as|with)|e[ds]?|tic of)|confirm\w* (?:a|an|the)? ?"
     r"(?:glioma|meningioma|pituitary|tumou?r|diagnosis)|definitive(?:ly)?|certainly|"
     r"recommend\w*|advis\w*|should|must(?! answer)|refer(?:ral|red)?|specialist|consult\w*|prognosis)\b",
+    re.IGNORECASE,
+)
+
+# Hedges beyond agent.findings._HEDGE that the reasoning uses: radiology hedging
+# ("could be", "suggest") and sentences about what a later step will determine,
+# which describe an open question rather than claim a tumor type.
+_REASONING_HEDGE = re.compile(
+    r"\b(could be|may be|might be|likely|suggest\w*|whether|will determine|determin(?:e|es|ing) "
+    r"(?:the|its|if|whether))\b",
     re.IGNORECASE,
 )
 
@@ -94,6 +103,6 @@ def check_reasoning(text: str) -> str | None:
     if m := _FORBIDDEN.search(t):
         return f"forbidden wording: {m.group(0)!r}"
     for sentence in re.split(r"(?<=[.!?])\s+", t):
-        if _TUMOR.search(sentence) and not _HEDGE.search(sentence):
+        if _TUMOR.search(sentence) and not (_HEDGE.search(sentence) or _REASONING_HEDGE.search(sentence)):
             return f"unhedged tumor type: {sentence!r}"
     return None

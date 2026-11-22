@@ -169,11 +169,31 @@ def cached(case_id: str, path: Path | None = None) -> dict | None:
     return None
 
 
+def recheck(path: Path | None = None) -> list[dict]:
+    """Re-run the rule-1 check on each cached raw_reasoning. No GPU, no model load.
+
+    For when check_reasoning changes after a Colab run: the model text stays
+    exactly as generated; only which texts pass is recomputed.
+    """
+    path = path or OUT_DIR / "demo.json"
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    for r in rows:
+        problem = check_reasoning(r["raw_reasoning"])
+        r["reasoning"] = None if problem else " ".join(r["raw_reasoning"].split())
+        r["reasoning_rejected"] = problem
+    path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
+    return rows
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="MedGemma eval and demo summaries")
-    ap.add_argument("command", choices=["eval", "demo"])
+    ap.add_argument("command", choices=["eval", "demo", "recheck"])
     ap.add_argument("--per-class", type=int, default=25)
     args = ap.parse_args(argv)
+    if args.command == "recheck":
+        for r in recheck():
+            print(r["case_id"], r["reasoning_bucket"], "|", r["reasoning"] or f"REJECTED: {r['reasoning_rejected']}")
+        return 0
     mg = MedGemma()
     if args.command == "eval":
         r = run_eval(mg, args.per_class)

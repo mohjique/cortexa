@@ -147,3 +147,32 @@ def test_prompt_carries_the_resnet_call_and_its_pathway(bucket):
     assert "suspected" in p and "0.97" in p and "flagged uncertain" in p
     assert all(step in p for step in PATHWAY[bucket])
     assert check_reasoning(" ".join(PATHWAY[bucket])) is None  # the pathway itself passes rule 1
+
+
+@pytest.mark.parametrize("text", [
+    "The image shows a lesion in the brain, which could be a glioma.",
+    "The image does not show any features that would strongly suggest a meningioma.",
+    "The next steps will determine the specific type of glioma and its grade.",
+])
+def test_hedged_reasoning_passes(text):
+    assert check_reasoning(text) is None
+
+
+@pytest.mark.parametrize("text", [
+    "The doctor will order imaging to confirm the diagnosis.",
+    "Next comes confirming the diagnosis of the glioma.",
+    "This is a glioma.",
+])
+def test_reasoning_that_claims_a_diagnosis_is_rejected(text):
+    assert check_reasoning(text) is not None
+
+
+def test_committed_demo_cache_passes_rule_1():
+    path = medgemma.OUT_DIR / "demo.json"
+    rows = json.loads(path.read_text(encoding="utf-8"))
+    demo = {d["case_id"]: d for d in json.loads(medgemma.DEMO_JSON.read_text(encoding="utf-8"))}
+    assert {r["case_id"] for r in rows} == set(demo)
+    for r in rows:
+        assert r["reasoning_bucket"] == demo[r["case_id"]]["model_pred"]  # written for the ResNet call
+        if r["reasoning"]:
+            assert check_reasoning(r["reasoning"]) is None
