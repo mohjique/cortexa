@@ -24,7 +24,11 @@ export default function TrialMap({ shortlist }: { shortlist: Shortlist }) {
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+          // The site sends Referrer-Policy: no-referrer (URLs carry case IDs),
+          // but OSM's tile servers return 403 without a Referer. Tiles send
+          // only our origin, never the page path.
+          referrerPolicy="origin"
         />
         {sites.map(({ t, pos }) => (
           <Polyline key={`l-${t.trial_id}`} positions={[origin, pos]} pathOptions={{ color: "#3BA7E8", weight: 1.5, dashArray: "4 6" }} />
