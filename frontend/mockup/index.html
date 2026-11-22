@@ -121,6 +121,47 @@ svg.focus .e.visited{stroke:url(#gradOn);stroke-width:3}
 svg.focus .e.proj{stroke:#5E7BA6;stroke-width:2;stroke-dasharray:6 5;opacity:.7}
 .el{font-size:12px;fill:var(--faint)}
 @media (prefers-reduced-motion:reduce){svg.focus .n.cur rect{animation:none}}
+
+/* ---------- Live demo (demo-016, step by step) ---------- */
+#demobar{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+#demobar b{color:var(--cyan)}
+#demobar button,.ghost{border:1px solid var(--line2);background:transparent;color:var(--muted);padding:4px 10px;border-radius:6px;font:inherit;font-size:12px;cursor:pointer}
+#demobar button:hover,.ghost:hover{color:var(--mint);border-color:var(--mint)}
+.card.demo-pt{border-color:var(--cyan);box-shadow:0 0 0 1px var(--cyan),0 0 16px rgba(100,230,255,.28)}
+.chip.live{background:rgba(100,230,255,.16);color:var(--cyan);font-weight:700}
+.box.act{border-color:var(--ai-line);background:var(--ai-bg)}
+.box.act.pathology{border-color:var(--warn);background:var(--warn-bg)}
+.box.act h4,.box.gate h4{font-size:13px}
+.stepno{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--faint);font-weight:700;margin-bottom:4px}
+.explain{color:var(--text);font-size:12.5px;margin:4px 0 0}
+button.go{margin-top:10px;border:0;background:var(--tangerine);color:#2A1405;padding:8px 16px;border-radius:6px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 0 12px rgba(242,137,75,.35)}
+button.go:hover{background:#F59D66}
+button.go[disabled]{opacity:.6;cursor:wait}
+button.go.big{font-size:16px;padding:10px 22px}
+.hint{font-size:11px;color:var(--faint);margin-top:6px}
+.spin{display:inline-block;width:11px;height:11px;border:2px solid #2A1405;border-right-color:transparent;border-radius:50%;animation:spin .7s linear infinite;vertical-align:-1px;margin-right:6px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.frm{margin-top:8px;color:var(--text)}
+.frm .q{font-size:11px;letter-spacing:.8px;text-transform:uppercase;color:var(--faint);font-weight:600;margin:10px 0 3px}
+.frm input[type=text],.frm input[type=number],.frm select{width:100%;background:var(--bg);border:1px solid var(--line2);color:var(--text);border-radius:6px;padding:6px 8px;font:inherit;font-size:13px}
+.frm .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
+.frm label{cursor:pointer}
+.frm .filled{animation:fillflash .9s ease-out}
+@keyframes fillflash{0%{box-shadow:0 0 0 2px var(--cyan);background:rgba(100,230,255,.18)}100%{box-shadow:none}}
+.frm .ro{font-size:12px;color:var(--muted)}
+.crit-row{display:grid;grid-template-columns:64px 1fr;gap:6px;font-size:12px;margin-top:4px}
+.st{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;border-radius:4px;padding:1px 4px;text-align:center;height:fit-content}
+.st.met{background:var(--teal-bg);color:var(--teal-text)}
+.st.not_met{background:var(--danger-bg);color:var(--danger)}
+.st.unknown{background:var(--warn-bg);color:var(--warn)}
+.ev{color:var(--faint);font-size:11px}
+.audit{font-size:12px;margin:4px 0 0;padding:0;list-style:none}
+.audit li{padding:3px 0;border-bottom:1px dashed var(--line)}
+.audit .t{color:var(--faint);margin-right:6px}
+.audit .who{font-weight:700;margin-right:4px}
+.audit .who.doctor{color:var(--teal-text)} .audit .who.agent{color:var(--ai-text)} .audit .who.pathology{color:var(--warn)}
+#toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(20px);background:var(--panel2);border:1px solid var(--cyan);color:var(--text);padding:10px 14px;border-radius:8px;font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:all .25s;z-index:20;display:flex;gap:10px;align-items:center}
+#toast.on{opacity:1;transform:translateX(-50%);pointer-events:auto}
 </style>
 </head>
 <body>
@@ -131,6 +172,7 @@ svg.focus .e.proj{stroke:#5E7BA6;stroke-width:2;stroke-dasharray:6 5;opacity:.7}
     <button id="tabK" class="on" onclick="show('kanban')">Care board</button>
     <button id="tabP" onclick="show('pathway')">Pathway</button>
   </div>
+  <div id="demobar"></div>
   <div class="spacer"></div>
   <div class="legend">
     <span><i class="sw" style="background:var(--ai-bg);border:1px solid var(--ai-line)"></i>AI / agent step</span>
@@ -147,6 +189,7 @@ svg.focus .e.proj{stroke:#5E7BA6;stroke-width:2;stroke-dasharray:6 5;opacity:.7}
     <div class="detail" id="detail"></div>
   </section>
 </main>
+<div id="toast"></div>
 
 <script>
 /* ---------- Decision tree (matches docs/decision-tree.md) ---------- */
@@ -272,10 +315,10 @@ function ownerBadge(o){
 function renderKanban(){
   const el = document.getElementById('kanban'); el.innerHTML='';
   COLS.forEach(c=>{
-    const items = P.filter(p=>c.nodes.includes(p.cur));
+    const items = P.filter(p=>c.nodes.includes(p.cur)).sort((a,b)=>(b.id===DP)-(a.id===DP));
     const col = document.createElement('div'); col.className='col';
     const counts = {};
-    items.forEach(p=>{ const w=NEXT[p.cur][0]; counts[w]=(counts[w]||0)+1; });
+    items.forEach(p=>{ const w=nextOf(p)[0]; counts[w]=(counts[w]||0)+1; });
     const order = ['doctor','pathology','agent','none'];
     const waitChips = order.filter(w=>counts[w]).map(w=> w==='none'
         ? `<span class="chip">Closed · ${counts[w]}</span>`
@@ -288,13 +331,17 @@ function renderKanban(){
         <div class="waittext">${c.wait}</div>
         <div class="chips">${waitChips}</div>
       </div>` + items.map(p=>{
-      const [who,what]=NEXT[p.cur];
+      const [who,what]=nextOf(p);
+      const isDemo = DEMO && p.id===DP;
       const wait = who==='none'?'':`<span class="chip ${WAIT_CLASS[who]}">Waiting on ${who}</span>`;
-      return `<div class="card ${(p.confirmed||p.sus)==='No tumor'?'no-tumor':'tumor'}" onclick="openPatient('${p.id}')">
+      const bucket = isDemo && !D.cls
+        ? `MRI uploaded · <span class="demo">not classified yet</span>`
+        : `Suspected: <b>${p.sus}</b> <span class="demo">(${Math.round(p.conf*100)}%)</span>${p.confirmed?`<br>Confirmed by doctor: <b>${p.confirmed}</b>`:''}`;
+      return `<div class="card ${(p.confirmed||p.sus)==='No tumor'?'no-tumor':'tumor'}${isDemo?' demo-pt':''}" onclick="openPatient('${p.id}')">
         <div class="top"><span class="id">${p.id}</span><span class="demo">${p.age}${p.sex} · ${p.zip}</span></div>
-        <div class="bucket">Suspected: <b>${p.sus}</b> <span class="demo">(${Math.round(p.conf*100)}%)</span>${p.confirmed?`<br>Confirmed by doctor: <b>${p.confirmed}</b>`:''}</div>
+        <div class="bucket">${bucket}</div>
         <div class="next">${what}</div>
-        <div class="chips">${wait}${(p.flags||[]).map(flagChip).join('')}</div>
+        <div class="chips">${isDemo?'<span class="chip live">▶ Live demo</span>':''}${wait}${(p.flags||[]).map(flagChip).join('')}</div>
       </div>`;}).join('');
     el.appendChild(col);
   });
@@ -384,9 +431,10 @@ function shortlistBox(p){
   return `<div class="box"><h4>Trial shortlist (nearest first, no distance cutoff)</h4>Every eligible trial is shown, however far away. The patient and care team decide whether the travel is worth it.${trials}</div>`;
 }
 function renderDetail(p){
+  if(DEMO && p.id===DP) return renderDemoDetail(p);
   const [who,what]=NEXT[p.cur];
   const gate = who==='doctor'
-    ? `<div class="box gate"><h4>Doctor action needed</h4>${what}<br><button onclick="alert('Mockup only: this would record the doctor decision and write it to the audit log.')">Record decision</button>${p.cur==='preop'?'<div class="proposed">Proposed doctor gate: not in the backend yet (issue #21)</div>':''}</div>`
+    ? `<div class="box gate"><h4>Doctor action needed</h4>${what}<br><button onclick="alert(DEMO?'Live demo: only ${DP} moves through the pathway. Open ${DP} on the care board.':'Mockup only: this would record the doctor decision and write it to the audit log.')">Record decision</button>${!DEMO&&p.cur==='preop'?'<div class="proposed">Proposed doctor gate: not in the backend yet (issue #21)</div>':''}</div>`
     : `<div class="box"><h4>Status</h4>${what}${who!=='none'?` <span class="chip ${WAIT_CLASS[who]}">Waiting on ${who}</span>`:''}</div>`;
   const ci = p.route.indexOf(p.cur);
   const steps = p.route.map((id,i)=>`<li class="${i<ci?'done':i===ci?'cur':''}">${nodeById[id].t}</li>`).join('');
@@ -413,7 +461,301 @@ function show(v){
   document.getElementById('tabP').classList.toggle('on',v==='pathway');
   if(v==='pathway'){ const p=P.find(x=>x.id===selected); renderList(); renderDetail(p); highlight(p); }
 }
-renderKanban(); buildTree();
+/* =====================================================================
+   LIVE DEMO: walk demo-016 through the pathway one step at a time.
+   Everyone starts in the first kanban column. Only demo-016 moves.
+   Doctor gates start blank; the first click on a field or on
+   "Record decision" autofills it from clinical/patients/demo-016.json
+   (doctor_decisions), the next click records it.
+   Open with ?static to see the original all-stages mockup instead.
+   ===================================================================== */
+const DEMO = !new URLSearchParams(location.search).has('static');
+const DP = 'demo-016';
+const DEMO_KEY = 'cortexa.mockup.demo016';
+
+/* Synthetic data copied from clinical/patients/demo-016.json and agent/demo_cache. */
+const DX = {
+  cls:{probs:{glioma:.93,meningioma:.04,pituitary:.02,no_tumor:.01},medgemma:'glioma',conf:.93,flagged:false},
+  radiology:'MRI shows a 46 x 30 mm expanding lesion along the resection margin in the right temporal lobe. Surrounding FLAIR abnormality is present. Interval growth raises concern for recurrent tumor.',
+  history:['Surgery (subtotal resection), 95 weeks ago','Focal brain radiation, 72 weeks ago','Temozolomide, 6 cycles, 32 weeks ago'],
+  tests:[
+    {label:'IDH mutation status',n:3,ids:'NCT99000001, NCT99000004, NCT99000007'},
+    {label:'1p/19q codeletion',n:1,ids:'NCT99000007'},
+    {label:'MGMT promoter methylation',n:1,ids:'NCT99000004'},
+    {label:'WHO grade',n:2,ids:'NCT99000001, NCT99000004'},
+  ],
+  pathology:'Sections show an infiltrating glial neoplasm. Microvascular proliferation and necrosis are present, and IDH testing is wildtype. Integrated diagnosis is Glioblastoma, IDH-wildtype, CNS WHO grade 4. Molecular testing detected MGMT promoter methylation.',
+  counts:[2,2,0,2,1,1,1,2,18,59,32,50,4,2,0,0,2,1,6,11,1,0,0,0,3,2,1,2,2,1,0,0,7,58,27,21,0,1,0,1,1,2,1,2,0,0,1,0,2,2,0,1,0,1,0,1,16,37,18,31,0,1,0,1,2,1,1,0,0,0,0,0,3,3,1,2,0,0,1,0,10,63,8,48,0,1,0,3,1,2,0,7,0,1,0,1],
+  trials:[
+    {id:'NCT99000002',group:'eligible',title:'[SYNTHETIC] Targeted agent for recurrent IDH-wildtype glioblastoma after temozolomide',status:'RECRUITING',site:'Houston, TX',miles:84.6,minutes:105,
+     crit:[['inc','Histologically confirmed glioblastoma, IDH-wildtype','met','diagnosis: "Glioblastoma, IDH-wildtype"'],
+           ['inc','First or second recurrence','met','recurrence_number: 1'],
+           ['inc','Prior radiation and temozolomide','met','prior_treatments: radiation, temozolomide'],
+           ['inc','Age 18 years or older','met','age: 59'],
+           ['exc','More than two prior recurrences','met','recurrence_number: 1 (exclusion does not apply)'],
+           ['exc','Prior bevacizumab','met','prior_treatments: no bevacizumab (exclusion does not apply)']]},
+    {id:'NCT99000008',group:'eligible',title:'[SYNTHETIC] Decentralized symptom-management study in recurrent glioma (home participation)',status:'RECRUITING',site:'Oklahoma City, OK',miles:342.0,minutes:330,remote:true,
+     crit:[['inc','Recurrent glioma of any grade','met','recurrent: true'],
+           ['inc','Participation is fully remote from home','met','can_use_phone_or_tablet: true'],
+           ['inc','Age 18 years or older','met','age: 59'],
+           ['exc','Unable to use a phone or tablet for study visits','met','can_use_phone_or_tablet: true (exclusion does not apply)']]},
+    {id:'NCT99000009',group:'needs_test',title:'[SYNTHETIC] Checkpoint inhibitor in recurrent glioma with high tumor mutational burden',status:'RECRUITING',site:'Dallas, TX',miles:153.8,minutes:175,
+     needs:'needs CLIA TMB result',
+     crit:[['inc','Recurrent glioma','met','recurrent: true'],
+           ['inc','Tumor mutational burden of 10 mutations/Mb or higher by a CLIA-certified assay','unknown','tmb_clia: missing. No CLIA TMB result available.'],
+           ['inc','Age 18 years or older','met','age: 59'],
+           ['exc','Prior immune checkpoint inhibitor','met','prior_treatments: none (exclusion does not apply)'],
+           ['exc','Active autoimmune disease','met','comorbidities: none (exclusion does not apply)']]},
+  ],
+};
+
+/* The steps. who = whom the case waits on (drives the kanban column chips). */
+const STEPS = [
+  {node:'mri',who:'agent',what:'Classify the uploaded MRI',btn:'Run classifier + MedGemma',
+   title:'Agent: classify the MRI',
+   explain:'The MRI has just been uploaded. The ResNet classifier and MedGemma each read it and suggest a tumor bucket. The output is only ever "suspected".',
+   run(){ D.cls=true; audit('agent','Classifier + MedGemma: suspected glioma, 93% confidence. Models agree; not flagged uncertain.'); }},
+  {node:'confirm',who:'doctor',what:'Confirm or correct suspected bucket',form:'confirm',
+   title:'Doctor gate: confirm the bucket',
+   explain:'Nothing moves until a doctor confirms or corrects the suspected bucket. The choice starts blank: the app never pre-selects the model\'s answer.',
+   record(){ D.confirmed=true; P_DEMO().confirmed='Glioma'; audit('doctor','Confirmed bucket: glioma (agrees with model).'+noteOf('f-c-note')); }},
+  {node:'preop',who:'agent',what:'Agent runs the pre-op screen',btn:'Run pre-op screen',
+   title:'Agent: pre-op screen',
+   explain:'Before surgery, the agent lists what the biopsy must answer and how many trials each answer decides. It also flags trials that only accept patients before surgery.',
+   run(){ D.preop=true; audit('agent','Pre-op screen: 4 tests needed across 7 trials. 1 enroll-before-surgery trial flagged (NCT99000003).'); }},
+  {node:'preop',who:'doctor',what:'Review tests needed and pre-surgery trials',form:'preop',
+   title:'Doctor gate: pre-op review',
+   explain:'The doctor marks the tests as reviewed and decides on each enroll-before-surgery trial, before the case can move to surgery.',
+   record(){ D.preopReviewed=true; audit('doctor','Pre-op review: tests reviewed. NCT99000003 not pursuing ('+val('f-p-reason')+').'); }},
+  {node:'sp',who:'pathology',what:'Waiting on pathology report',btn:'Pathology report arrives',
+   title:'Lab: surgery + pathology',
+   explain:'Re-resection happens and the tissue goes to the pathology lab. The case waits here until the report comes back.',
+   run(){ D.path=true; audit('pathology','Pathology report received: Glioblastoma, IDH-wildtype, CNS WHO grade 4; MGMT methylated.'); }},
+  {node:'dr',who:'doctor',what:'Enter diagnosis, grade, markers',form:'results',
+   title:'Doctor gate: enter results',
+   explain:'The doctor, not the model, enters the diagnosis, grade and markers. Anything not tested stays "unknown"; the app never guesses it.',
+   record(){ D.results=true; const p=P_DEMO(); p.flags=['Recurrent','Exome']; audit('doctor','Results entered: GBM IDH-wildtype, grade 4, MGMT methylated, 1p/19q unknown. Recurrent (1st), exome available.'); }},
+  {node:'mc',who:'agent',what:'Running mutation check',btn:'Run mutation check',
+   title:'Agent: mutation check',
+   explain:'Recurrent glioma with exome sequencing, so the agent checks for the temozolomide mutation signature (SBS11). This adds context only: it never decides eligibility.',
+   run(){ D.mc=true; P_DEMO().flags=['Recurrent','Exome','TMZ signature: detected']; audit('agent','Mutation check: SBS11 detected at a 1% false-alarm threshold (600 mutations). Context only.'); }},
+  {node:'tm',who:'agent',what:'Checking eligibility criteria',btn:'Run trial matching',
+   title:'Agent: trial matching',
+   explain:'The agent checks every eligibility rule of every recruiting trial. Each rule is met, not met or unknown, and cites the patient field and the criterion text it used.',
+   run(){ D.match=true; P_DEMO().flags=['Recurrent','2 trials','1 needs a test']; audit('agent','Trial matching: 2 eligible (NCT99000002, NCT99000008), 1 needs a test (NCT99000009: CLIA TMB). 15 criteria checked, each with evidence.'); }},
+  {node:'sl',who:'doctor',what:'Review trial shortlist',form:'shortlist',
+   title:'Doctor gate: review the shortlist',
+   explain:'Every eligible trial is shown, nearest first, with no distance cutoff. The doctor keeps or rejects each one. The app never contacts the patient.',
+   record(){ D.reviewed=true; P_DEMO().flags=['Recurrent','3 trials kept']; audit('doctor','Shortlist reviewed: kept NCT99000002, NCT99000008, NCT99000009 (pending CLIA TMB).'); }},
+  {node:'sl',who:'none',what:'Shortlist reviewed. Care team discusses the trials with the patient',done:true,
+   title:'Done'},
+];
+
+const FRESH = ()=>({step:-1,cls:false,confirmed:false,preop:false,preopReviewed:false,path:false,results:false,mc:false,match:false,reviewed:false,filled:false,log:[]});
+let D = FRESH();
+const P_DEMO = ()=>P.find(p=>p.id===DP);
+
+function nextOf(p){
+  if(DEMO && p.id===DP){
+    if(D.step<0) return ['agent','MRI uploaded. Open the card and press play'];
+    const s=STEPS[D.step]; return [s.who,s.what];
+  }
+  return NEXT[p.cur];
+}
+function save(){ try{ sessionStorage.setItem(DEMO_KEY, JSON.stringify(D)); }catch(e){} }
+function load(){ try{ const s=JSON.parse(sessionStorage.getItem(DEMO_KEY)||'null'); if(s && typeof s.step==='number') D={...FRESH(),...s}; }catch(e){} }
+function audit(who,text){ D.log.push({t:new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit',second:'2-digit'}),who,text}); }
+function val(id){ const e=document.getElementById(id); return e?e.value.trim():''; }
+function noteOf(id){ const v=val(id); return v?` Note: "${v}"`:''; }
+
+/* Re-apply demo-016's derived state (also after a reload mid-demo). */
+function syncDemoPatient(){
+  const p=P_DEMO();
+  p.cur = D.step<0 ? 'mri' : STEPS[D.step].node;
+  p.confirmed = D.confirmed ? 'Glioma' : undefined;
+  if(!D.results) p.flags=[];
+  else if(D.reviewed) p.flags=['Recurrent','3 trials kept'];
+  else if(D.match) p.flags=['Recurrent','2 trials','1 needs a test'];
+  else if(D.mc) p.flags=['Recurrent','Exome','TMZ signature: detected'];
+  else p.flags=['Recurrent','Exome'];
+}
+function colTitle(node){ const c=COLS.find(c=>c.nodes.includes(node)); return c?c.title:''; }
+
+function rerender(){
+  syncDemoPatient(); save();
+  renderKanban(); renderDemobar();
+  if(document.getElementById('pathway').style.display==='grid'){ const p=P.find(x=>x.id===selected); renderList(); renderDetail(p); highlight(p); }
+}
+function goStep(n){
+  const before = colTitle(P_DEMO().cur);
+  D.step=n; D.filled=false; syncDemoPatient();
+  const after = colTitle(P_DEMO().cur);
+  rerender();
+  document.getElementById('detail').scrollTop=0;
+  if(before!==after) toast(`${DP} moved on the care board: <b>${before}</b> → <b>${after}</b>`);
+}
+function demoStart(){ audit('agent','Live demo started for '+DP+'. MRI received.'); goStep(0); }
+function demoReset(){
+  if(D.step>=0 && !confirm('Reset the live demo? demo-016 goes back to the first column.')) return;
+  D=FRESH(); try{ sessionStorage.removeItem(DEMO_KEY); }catch(e){}
+  rerender(); if(selected===DP) show('kanban');
+}
+
+/* Agent / lab steps: one click runs the step, then the case moves on. */
+function demoRun(btn){
+  btn.disabled=true; btn.innerHTML='<span class="spin"></span>Running…';
+  setTimeout(()=>{ STEPS[D.step].run(); goStep(D.step+1); }, 900);
+}
+
+/* Doctor gates: first click autofills, second click records. */
+const FILL = {
+  confirm:[{radio:'f-c-bucket',value:'glioma'},{id:'f-c-note',text:'Agree with suspected glioma. Growth at the resection margin.'}],
+  preop:[{id:'f-p-tests',check:true},{radio:'f-p-NCT99000003',value:'not_pursuing'},{id:'f-p-reason',text:'Already had brain surgery; trial excludes prior brain surgery or biopsy'}],
+  results:[{id:'f-r-dx',text:'Glioblastoma, IDH-wildtype'},{id:'f-r-grade',value:'4'},{id:'f-r-idh',value:'wildtype'},{id:'f-r-codel',value:'unknown'},
+           {id:'f-r-mgmt',value:'methylated'},{id:'f-r-rec',value:'yes'},{id:'f-r-recn',value:'1'},{id:'f-r-seq',value:'exome'}],
+  shortlist:[{radio:'f-s-NCT99000002',value:'keep'},{radio:'f-s-NCT99000008',value:'keep'},{radio:'f-s-NCT99000009',value:'keep'}],
+};
+let filling=false;
+function autofill(){
+  if(filling||D.filled) return Promise.resolve();
+  filling=true;
+  const spec=FILL[STEPS[D.step].form]; const wait=ms=>new Promise(r=>setTimeout(r,ms));
+  return (async()=>{
+    for(const f of spec){
+      let el;
+      if(f.radio){ el=document.querySelector(`input[name="${f.radio}"][value="${f.value}"]`); el.checked=true; el=el.closest('label'); }
+      else { el=document.getElementById(f.id);
+        if(f.check) el.checked=true;
+        else if(f.text!==undefined){ el.value=''; for(let i=0;i<f.text.length;i+=3){ el.value=f.text.slice(0,i+3); await wait(12); } }
+        else el.value=f.value;
+        if(f.check) el=el.closest('label');
+      }
+      el.classList.remove('filled'); void el.offsetWidth; el.classList.add('filled');
+      await wait(160);
+    }
+    filling=false; D.filled=true;
+    const b=document.getElementById('recbtn'); if(b){ b.textContent='Record decision'; }
+    const h=document.getElementById('rechint'); if(h) h.textContent='Filled from the synthetic record. Click again to record it.';
+  })();
+}
+function demoRecord(){
+  if(!D.filled){ autofill(); return; }
+  STEPS[D.step].record(); goStep(D.step+1);
+}
+
+/* ---------- Demo rendering ---------- */
+function renderDemobar(){
+  const el=document.getElementById('demobar'); if(!DEMO){ el.innerHTML=''; return; }
+  const s = D.step<0 ? 'not started' : D.step>=STEPS.length-1 ? 'complete' : `step <b>${D.step+1}</b> of ${STEPS.length-1}`;
+  el.innerHTML = `<span>Live demo · ${DP} · ${s}</span>${D.step>=0?'<button onclick="demoReset()">Reset</button>':''}`;
+}
+function toast(html){
+  const t=document.getElementById('toast');
+  t.innerHTML = html + (document.getElementById('kanban').style.display==='none' ? ` <button class="ghost" onclick="show('kanban')">View care board</button>` : '');
+  t.classList.add('on'); clearTimeout(toast.h); toast.h=setTimeout(()=>t.classList.remove('on'),4200);
+}
+const radios=(name,opts)=>`<div class="choice">${opts.map(([v,l])=>`<label><input type="radio" name="${name}" value="${v}"> ${l}</label>`).join('')}</div>`;
+const sel=(id,opts)=>`<select id="${id}"><option value="">Choose…</option>${opts.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>`;
+const MARKER=[['pending','Pending'],['unknown','Unknown (not tested)']];
+
+function formHtml(kind){
+  if(kind==='confirm') return `<div class="frm" onclick="autofill()">
+      <div class="q">Confirmed bucket</div>${radios('f-c-bucket',[['glioma','Glioma'],['meningioma','Meningioma'],['pituitary','Pituitary'],['no_tumor','No tumor']])}
+      <div class="q">Note (optional)</div><input type="text" id="f-c-note"></div>`;
+  if(kind==='preop') return `<div class="frm" onclick="autofill()">
+      <label><input type="checkbox" id="f-p-tests"> I have reviewed the tests the biopsy must answer</label>
+      <div class="q">NCT99000003 · enroll before surgery</div>${radios('f-p-NCT99000003',[['pursue','Pursue before surgery'],['not_pursuing','Not pursuing']])}
+      <div class="q">Reason</div><input type="text" id="f-p-reason"></div>`;
+  if(kind==='results') return `<div class="frm" onclick="autofill()">
+      <div class="q">Diagnosis</div><input type="text" id="f-r-dx">
+      <div class="grid2">
+        <div><div class="q">WHO grade</div>${sel('f-r-grade',[['1','1'],['2','2'],['3','3'],['4','4'],...MARKER])}</div>
+        <div><div class="q">IDH</div>${sel('f-r-idh',[['mutant','Mutant'],['wildtype','Wildtype'],...MARKER])}</div>
+        <div><div class="q">1p/19q</div>${sel('f-r-codel',[['codeleted','Codeleted'],['not_codeleted','Not codeleted'],...MARKER])}</div>
+        <div><div class="q">MGMT promoter</div>${sel('f-r-mgmt',[['methylated','Methylated'],['unmethylated','Unmethylated'],...MARKER])}</div>
+        <div><div class="q">Recurrent?</div>${sel('f-r-rec',[['yes','Yes'],['no','No']])}</div>
+        <div><div class="q">Recurrence no.</div>${sel('f-r-recn',[['1','1st'],['2','2nd'],['3','3rd or later']])}</div>
+      </div>
+      <div class="q">Broad sequencing</div>${sel('f-r-seq',[['exome','Exome'],['genome','Genome'],['panel','Small gene panel'],['none','None']])}
+      <div class="q">Prior treatment (from history)</div><div class="ro">${DX.history.join('<br>')}</div></div>`;
+  if(kind==='shortlist') return `<div class="frm" onclick="autofill()">${DX.trials.map(t=>`<div class="ptrial">
+      <div><b>${t.id}</b> <span class="chip ${t.status==='RECRUITING'?'doc':'warn'}">${STATUS_LABEL[t.status]}</span>${t.remote?' <span class="chip doc">Remote participation</span>':''}${t.needs?` <span class="chip warn">${t.needs}</span>`:''}</div>
+      <div class="ptitle">${t.title}</div>
+      <div class="demo">Nearest site: ${t.site} · ${t.miles} mi · about ${t.minutes} min drive${t.remote?' · visits from home':''}</div>
+      ${radios('f-s-'+t.id,[['keep','Keep'],['reject','Reject']])}</div>`).join('')}</div>`;
+  return '';
+}
+function mutationChart(){
+  const c=DX.counts, max=Math.max(...c), W=288, H=70, bw=W/96;
+  const cols=['#64E6FF','#3BA7E8','#F2894B','#B7BCC2','#22C4B7','#E8B54A'];
+  return `<svg viewBox="0 0 ${W} ${H+4}" width="100%" role="img" aria-label="96-channel mutation spectrum">${c.map((v,i)=>{const h=v/max*H; return `<rect x="${(i*bw).toFixed(2)}" y="${(H-h).toFixed(2)}" width="${(bw-.6).toFixed(2)}" height="${h.toFixed(2)}" fill="${cols[Math.floor(i/16)]}"/>`;}).join('')}<line x1="0" x2="${W}" y1="${H+.5}" y2="${H+.5}" stroke="#2E4672"/></svg>`;
+}
+function caseFile(){
+  const out=[];
+  if(D.match) out.push(`<div class="box"><h4>Trial matching · every rule cites its evidence</h4>${DX.trials.map(t=>`<div class="ptrial"><div><b>${t.id}</b> ${t.group==='eligible'?'<span class="chip doc">Eligible</span>':'<span class="chip warn">Needs a test</span>'}</div>
+      ${t.crit.map(([k,txt,st,ev])=>`<div class="crit-row"><span class="st ${st}">${st.replace('_',' ')}</span><div>${k==='exc'?'<span class="ev">Exclusion · </span>':''}"${txt}"<div class="ev">${ev}</div></div></div>`).join('')}</div>`).join('')}
+      <div class="proposed">NCT99000009 is a checkpoint-inhibitor trial. The mutation check does not make the patient eligible: a high mutation count after temozolomide does not predict checkpoint-inhibitor response in glioma, so the rule stays "unknown" until a CLIA TMB result exists.</div></div>`);
+  if(D.mc) out.push(`<div class="box"><h4>Mutation check · context only</h4>
+      <div>Temozolomide signature (SBS11): <span class="chip warn">detected</span></div>${mutationChart()}
+      <div class="demo">600 somatic mutations from the exome, 96 channels. Background: aging signatures (SBS1, SBS5), fit with a Poisson likelihood; SBS11 tested at a 1% false-alarm rate.</div>
+      <div class="proposed">Context only. Does not decide eligibility and never routes to immunotherapy trials.</div></div>`);
+  if(D.results) out.push(`<div class="box"><h4>Results entered by doctor</h4><div class="kv" style="margin:4px 0 0">
+      <div>Diagnosis</div><div>Glioblastoma, IDH-wildtype</div><div>Grade</div><div>4</div><div>IDH</div><div>Wildtype</div>
+      <div>1p/19q</div><div>Unknown (not tested)</div><div>MGMT</div><div>Methylated</div><div>Recurrent</div><div>Yes, 1st recurrence</div><div>Sequencing</div><div>Exome</div></div></div>`);
+  if(D.path) out.push(`<div class="box"><h4>Pathology report</h4>${DX.pathology}</div>`);
+  if(D.preop) out.push(`<div class="box"><h4>Pre-op screen · what the biopsy must answer</h4>
+      ${DX.tests.map(t=>`<div class="crit-row"><span class="st unknown">pending</span><div>${t.label} <span class="ev">· decides ${t.n} trial${t.n>1?'s':''} (${t.ids})</span></div></div>`).join('')}
+      <div class="ptrial"><div><b>NCT99000003</b> <span class="chip warn">${STATUS_LABEL.NOT_YET_RECRUITING}</span> <span class="chip danger">Enroll before surgery</span></div>
+      <div class="ptitle">${PRESURG_TRIALS.NCT99000003.title}</div>
+      <div class="crit"><span>Criterion</span>"Must enroll before planned surgical resection"</div>
+      <div class="demo">Nearest site: Austin, TX · 86.7 mi · about 110 min drive</div>
+      ${D.preopReviewed?'<div class="demo" style="margin-top:4px">Doctor: <b>not pursuing</b>. Already had brain surgery; trial excludes prior brain surgery or biopsy.</div>':''}</div></div>`);
+  if(D.cls) out.push(`<div class="box"><h4>Classifier + MedGemma · suspected only</h4>
+      ${Object.entries(DX.cls.probs).map(([k,v])=>`<div class="crit-row"><span class="ev">${k.replace('_',' ')}</span><div><span style="display:inline-block;height:8px;border-radius:3px;background:var(--ai-line);width:${Math.max(2,v*180)}px;vertical-align:0"></span> ${Math.round(v*100)}%</div></div>`).join('')}
+      <div class="demo" style="margin-top:6px">MedGemma agrees: glioma. Not flagged uncertain.${D.confirmed?' <b style="color:var(--teal-text)">Doctor confirmed: glioma.</b>':''}</div>
+      <div class="demo" style="margin-top:4px">Radiology: ${DX.radiology}</div></div>`);
+  return out.join('');
+}
+function renderDemoDetail(p){
+  const el=document.getElementById('detail');
+  const head = `<h2>${p.id} <span class="chip live">▶ Live demo</span></h2><div class="sub">Synthetic patient · 59 male · ZIP 77840 · history of glioblastoma</div>
+    <div class="chips">${(p.flags||[]).map(flagChip).join('')}</div>`;
+  if(D.step<0){
+    el.innerHTML = head + `<div class="box play act"><div class="stepno">Live demo</div><h4>Walk this case through Cortexa</h4>
+      <p class="explain">We play the doctor. Each press moves the case one step. Agent steps run on a click; doctor steps autofill from the synthetic record, then wait for us to record the decision.</p>
+      <button class="go big" onclick="demoStart()">▶ Play</button></div>
+      <div class="box"><h4>Presenting</h4>Progressive headache. ${DX.radiology}</div>`;
+    return;
+  }
+  const s=STEPS[D.step], total=STEPS.length-1;
+  let act;
+  if(s.done){
+    act = `<div class="box gate"><div class="stepno">Complete</div><h4>${s.what}</h4>
+      <p class="explain">Every stage needed a recorded doctor action. Every agent step, tool call and approval is in the audit log below. The app never contacts the patient.</p>
+      <button class="go" onclick="demoReset()">Reset demo</button></div>`;
+  } else if(s.form){
+    act = `<div class="box gate"><div class="stepno">Step ${D.step+1} of ${total} · doctor</div><h4>${s.title}</h4><p class="explain">${s.explain}</p>
+      ${formHtml(s.form)}
+      <button class="go" id="recbtn" onclick="demoRecord()">Record decision</button>
+      <div class="hint" id="rechint">Demo: the first click fills the form from the synthetic record.</div></div>`;
+  } else {
+    act = `<div class="box act ${s.who}"><div class="stepno">Step ${D.step+1} of ${total} · ${s.who==='pathology'?'pathology lab':'agent'}</div><h4>${s.title}</h4><p class="explain">${s.explain}</p>
+      <button class="go" onclick="demoRun(this)">${s.btn} ▸</button></div>`;
+  }
+  const logHtml = D.log.length ? `<div class="box"><h4>Audit log</h4><ul class="audit">${D.log.slice().reverse().map(l=>`<li><span class="t">${l.t}</span><span class="who ${l.who}">${l.who}</span>${l.text}</li>`).join('')}</ul></div>` : '';
+  el.innerHTML = head + act + caseFile() + logHtml;
+}
+
+/* ---------- Init ---------- */
+if(DEMO){
+  // Everyone waits in the first column; their planned scenario is kept for reference.
+  P.forEach(p=>{ if(p.id===DP) return;
+    p.scenario='Waiting for doctor confirmation. Planned scenario (not part of the live demo): '+p.scenario;
+    p.cur='confirm'; p.flags=[]; delete p.confirmed; delete p.shortlist; delete p.presurg; });
+  P_DEMO().route=[...BASE,'b_gli','preop','sp','dr','rec','yes','mc','tm','any','sl'];
+  selected=DP; load(); syncDemoPatient();
+}
+renderKanban(); buildTree(); renderDemobar();
 </script>
 </body>
 </html>
