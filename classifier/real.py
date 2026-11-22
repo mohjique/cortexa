@@ -5,9 +5,10 @@ a Grad-CAM heatmap for the suspected bucket, saved under the data folder, and
 `ClassifierOutput` out. The output is always "suspected" (rule 1): the doctor
 confirms every bucket at the confirm_bucket gate.
 
-MedGemma is not wired in, so `medgemma_bucket` is None and model
-disagreement can't flag a case. The agent recomputes `flagged_uncertain`
-from policy.yaml (F2.4); the value set here is only the classifier's view.
+MedGemma does not vote, so `medgemma_bucket` is always None (the schema drops
+it); MedGemma's draft reasoning is attached by the API from its demo cache. The
+agent recomputes `flagged_uncertain` from policy.yaml (F2.4); the value set here
+is only the classifier's view.
 
 Images are decoded in memory and never written to disk; only the heatmap is.
 """

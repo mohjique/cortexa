@@ -4,7 +4,7 @@
 - Remove exact and near-duplicate images (perceptual hashing) before the train/val/test split.
 - Fine-tune a pretrained ResNet; report per-class accuracy on the deduplicated test set.
 - Grad-CAM heatmaps for every prediction; sanity-check that they highlight the tumor.
-- Evaluate MedGemma alone before using it as a second opinion.
+- Evaluate MedGemma alone before using it as a second opinion. (Done: it was weak, so it explains the ResNet call instead of voting.)
 - Output format: see `docs/interfaces.md` (Classifier → agent).
 
 ## Pipeline
@@ -85,6 +85,14 @@ The border band is the outer 12% of each side, where frames and burned-in text s
 
 ## Serving the model (F2.5)
 
-`classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is `None` until MedGemma is wired in.
+`classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is always `None`: MedGemma does not vote. The API attaches MedGemma's draft reasoning from `classifier/medgemma/demo.json` when it exists.
 
 The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is `real` when `artifacts/classifier/model.pt` exists, otherwise `stub`; `CORTEXA_MODEL_PATH` overrides the path.
+
+## MedGemma (F2.3)
+
+MedGemma was evaluated alone first, as CLAUDE.md requires (`python -m classifier.medgemma eval --per-class 25`; results not committed). It scored below 0.5 overall, far behind the ResNet, so it does not vote.
+
+Instead it explains the ResNet call. `python -m classifier.medgemma demo` (Colab: `classifier/medgemma_colab.ipynb`, about 10 minutes on a T4) gives MedGemma each demo image, the ResNet call from `splits/demo_images.json`, and the decision-tree pathway for that bucket from `agent/reasoning.py`. It writes `classifier/medgemma/demo.json`: draft reasoning per case and the `reasoning_bucket` it was written for.
+
+At upload the API attaches the reasoning by case ID only when `reasoning_bucket` matches the upload's suspected bucket, re-checks rule 1 (`agent.reasoning.check_reasoning`), and audits every skip or rejection. No GPU is needed in the demo.

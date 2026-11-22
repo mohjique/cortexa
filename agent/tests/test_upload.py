@@ -69,9 +69,12 @@ def test_flag_from_policy_threshold():
     assert flagged and reasons[0].startswith("confidence")
 
 
-def test_flag_from_model_disagreement():
-    flagged, reasons = workflow.uncertainty_flag(out(medgemma_bucket="meningioma"), policy.get_policy())
-    assert flagged and reasons == ["model_disagreement"]
+def test_medgemma_bucket_is_dropped_and_never_flags():
+    # MedGemma does not vote: a second-model bucket can neither survive the
+    # schema nor flag the case.
+    o = out(medgemma_bucket="meningioma")
+    assert o.medgemma_bucket is None
+    assert workflow.uncertainty_flag(o, policy.get_policy()) == (False, [])
 
 
 def test_agent_never_clears_classifier_flag():

@@ -8,7 +8,7 @@ The same tree as Mermaid (GitHub renders this natively):
 
 ```mermaid
 flowchart TD
-    A[MRI uploaded] --> B["Classifier + MedGemma<br/>suspected bucket + confidence"]
+    A[MRI uploaded] --> B["ResNet classifier<br/>suspected bucket + confidence<br/>MedGemma explains the call + pathway"]
     B --> C["Doctor confirms bucket<br/>low confidence flagged"]
 
     C --> NT[No tumor] --> STOP["Stop<br/>no trial search"]
@@ -41,6 +41,7 @@ flowchart TD
 
 ## Rules on top of the tree
 
+- **MedGemma does not vote.** The ResNet classifier sets the suspected bucket. MedGemma gets that call and the bucket's pathway from `agent/reasoning.py` (in code) and writes draft reasoning for the doctor. Rule 1 is checked in code.
 - **Missing results never block matching.** Rules that depend on a missing field are marked `unknown: needs pathology`.
 - **Inconclusive mutation check = no information.** Matching continues without it. A high mutation count never routes to immunotherapy trials.
 - **Pre-surgery trials.** The glioma pre-op screen flags trials that require enrollment before surgery.

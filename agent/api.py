@@ -19,7 +19,7 @@ from pydantic import ValidationError
 from agent import workflow
 from agent.audit import DATA_DIR, audit, get_audit_log
 from agent.policy import get_policy
-from agent.schemas import AuditEntry, CaseState, DoctorDecisionAdapter, NonEmptyStr, Schema
+from agent.schemas import AuditEntry, CaseState, ClassifierOutput, DoctorDecisionAdapter, NonEmptyStr, Schema
 from agent.store import CaseExists, CaseNotFound, CaseRecord, get_store
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -115,6 +115,9 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     except ValueError as exc:  # BadImage, or a schema error from the classifier
         audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
         raise HTTPException(422, f"could not classify: {exc}") from None
+    # MedGemma only adds draft text; it never votes (the schema drops any
+    # medgemma_bucket), so the ResNet call is the only suspected bucket.
+    output = _with_medgemma(output)
     try:
         store.create(case_id)
     except CaseExists:
@@ -123,6 +126,40 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
           {"classifier": type(clf).__name__, "suspected_bucket": output.suspected_bucket},
           case_id=case_id)
     return workflow.attach_classification(case_id, output).state
+
+
+def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
+    """Add MedGemma's precomputed reasoning (demo cases), if there is one.
+
+    MedGemma does not vote: the ResNet call is the suspected bucket. Its
+    reasoning was written for one bucket, so it is attached only when that
+    matches this upload's suspected bucket. Each text is re-validated, so the
+    rule-1 check always runs; a text that fails is dropped and audited.
+    """
+    from classifier.medgemma import cached
+
+    r = cached(output.case_id)
+    if r is None:
+        return output
+    candidates: dict[str, Any] = {"findings_summary": r.get("findings_summary")}
+    if r.get("reasoning_bucket") == output.suspected_bucket:
+        candidates["reasoning"] = r.get("reasoning")
+    elif r.get("reasoning"):
+        audit("agent", "reasoning_skipped",
+              {"why": "written for a different bucket", "reasoning_bucket": r.get("reasoning_bucket"),
+               "suspected_bucket": output.suspected_bucket}, case_id=output.case_id)
+    out, added = output, []
+    for field, text in candidates.items():
+        if not text:
+            continue
+        try:
+            out = ClassifierOutput.model_validate(out.model_dump() | {field: text})
+            added.append(field)
+        except ValidationError as exc:
+            audit("agent", f"{field}_rejected", {"error": str(exc.errors()[0]["msg"])},
+                  case_id=output.case_id)
+    audit("agent", "tool_call:medgemma_cache", {"added": added}, case_id=output.case_id)
+    return out
 
 
 @app.get("/cases/{case_id}/heatmap")

@@ -20,6 +20,7 @@ from pydantic import (
     StringConstraints,
     TypeAdapter,
     ValidationInfo,
+    field_validator,
     model_validator,
 )
 
@@ -114,12 +115,43 @@ class ClassifierOutput(Schema):
     case_id: NonEmptyStr
     suspected_bucket: Bucket
     probabilities: dict[Bucket, Unit]
-    medgemma_bucket: Bucket | None = None  # None if MedGemma only writes the summary
+    # Always None: MedGemma does not vote (its solo eval was below 0.5). Kept so
+    # the interface shape is stable; see _medgemma_never_votes.
+    medgemma_bucket: Bucket | None = None
     confidence: Unit
-    # Warning only: low confidence or model disagreement. Every case still goes
-    # through the confirm_bucket doctor gate, flagged or not.
+    # Warning only: low confidence, or the classifier's own flag. Every case
+    # still goes through the confirm_bucket doctor gate, flagged or not.
     flagged_uncertain: bool
     heatmap_path: str | None = None
+    # Draft findings text from MedGemma. Checked against rule 1 below.
+    findings_summary: NonEmptyStr | None = None
+    # Draft reasoning from MedGemma, written for `suspected_bucket` (the ResNet
+    # call) and its decision-tree pathway. Checked against rule 1 below.
+    reasoning: NonEmptyStr | None = None
+
+    @field_validator("medgemma_bucket", mode="before")
+    @classmethod
+    def _medgemma_never_votes(cls, _: Any) -> None:
+        # The ResNet call is the only suspected bucket. Any second-model bucket
+        # is dropped here, so no code path can route or flag a case on it.
+        # Dropped rather than rejected, so case files saved earlier still load.
+        return None
+
+    @model_validator(mode="after")
+    def _summary_rule_1(self) -> ClassifierOutput:
+        if self.findings_summary is not None:
+            from agent.findings import check_summary
+
+            problem = check_summary(self.findings_summary)
+            if problem:
+                raise ValueError(f"rule 1: findings_summary rejected ({problem})")
+        if self.reasoning is not None:
+            from agent.reasoning import check_reasoning
+
+            problem = check_reasoning(self.reasoning, self.suspected_bucket)
+            if problem:
+                raise ValueError(f"rule 1: reasoning rejected ({problem})")
+        return self
 
     @model_validator(mode="after")
     def _check_probabilities(self) -> ClassifierOutput:
