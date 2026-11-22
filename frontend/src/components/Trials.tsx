@@ -54,9 +54,10 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
   const setC = (id: string, c: Partial<Choice>) => setChoices((x) => ({ ...x, [id]: { ...get(id), ...c } }));
   const undecided = sl.trials.filter((t) => get(t.trial_id).keep === null || (get(t.trial_id).keep === false && !get(t.trial_id).reason.trim()));
   const mutation = record.mutation;
-  // Backend order: eligible group first, then needs_test, nearest first within each.
+  // Backend order: eligible, then needs_test, then needs_review, nearest first within each.
   const eligible = sl.trials.filter((t) => (t.group ?? "eligible") === "eligible");
   const needsTest = sl.trials.filter((t) => t.group === "needs_test");
+  const needsReview = sl.trials.filter((t) => t.group === "needs_review");
 
   return (
     <div>
@@ -83,6 +84,17 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
         </>
       )}
       {needsTest.map((t) => (
+        <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
+      ))}
+      {needsReview.length > 0 && (
+        <>
+          <h4 style={{ margin: "14px 0 6px" }}>Needs doctor review of the criteria ({needsReview.length})</h4>
+          <div className="faint" style={{ fontSize: 12, marginBottom: 6 }}>
+            Not a match yet. No clinical criterion could be checked automatically; nothing ruled these out. Read the criteria to decide.
+          </div>
+        </>
+      )}
+      {needsReview.map((t) => (
         <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
       ))}
       {canReview && (

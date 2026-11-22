@@ -285,16 +285,19 @@ Safety rule 10: a row whose `evidence_field` is a mutation check field (`mutatio
 
 Shown at the `review_shortlist` gate. A trial is on the shortlist when no criterion is `not_met` and none is waiting on a `pending` result.
 
-Each trial is in one of two groups, the way coordinators sort a prescreen:
+Each trial is in one of three groups, the way coordinators sort a prescreen:
 
 | `group` | Meaning | `needs_test_fields` |
 |---|---|---|
-| `eligible` | Eligible on what we know. Any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
+| `eligible` | Eligible on what we know. At least one clinical criterion is `met`; any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
 | `needs_test` | At least one `unknown` on a key field listed in `trial_search.key_unknown_fields` in `policy.yaml` (today `idh`, `codeletion_1p19q`, `mgmt`, `tmb_clia`). | The key fields left unknown, in policy order, e.g. `["tmb_clia"]`. Each has an `unknown` row in `eligibility` whose `reason` says which test decides it. |
+| `needs_review` | Nothing ruled it out, but no clinical inclusion criterion was confirmed automatically: the only `met` rows are demographics (age) or exclusions that do not apply. Common for live trials whose free-text criteria the rule library does not cover. The doctor must read the criteria. | `[]` |
 
-A `needs_test` trial is not a match yet. Show it under its own heading, for example "Needs a test: CLIA TMB result". Near misses are unchanged and only appear in the no-match plan.
+A `needs_test` or `needs_review` trial is not a match yet. Show each group under its own heading, for example "Needs a test: CLIA TMB result" or "Needs doctor review of the criteria". Near misses are unchanged and only appear in the no-match plan.
 
-There is no distance cutoff: every eligible trial is listed, however far away. `trials` lists the `eligible` group first, then `needs_test`. Within each group, trials are sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` (remote-only) come last. The schema rejects a shortlist in any other order.
+**Registry age limits.** When no criteria bullet decides age, the checker adds one inclusion row from the trial's structured age limits (ClinicalTrials.gov `minimumAge`/`maximumAge`, NCI `min/max_age_in_years`), with `criterion_text` like `"Age 18 years or older (trial registry age limits)"` and `evidence_field: "age"`.
+
+There is no distance cutoff: every eligible trial is listed, however far away. `trials` lists the `eligible` group first, then `needs_test`, then `needs_review`. Within each group, trials are sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` come last. `nearest_site` is `null` for remote-only trials and for trials whose registry lists no site coordinates; those trials are kept, never dropped. The schema rejects a shortlist in any other order. `drive_minutes` comes from one batched OSRM `table` request for the whole shortlist.
 
 ```json
 {
@@ -313,7 +316,7 @@ There is no distance cutoff: every eligible trial is listed, however far away. `
       "eligibility": ["<Agent eligibility output>"],
       "mutation_context": null,
       "doctor_decision": "pending | keep | reject",
-      "group": "eligible | needs_test",
+      "group": "eligible | needs_test | needs_review",
       "needs_test_fields": []
     }
   ]

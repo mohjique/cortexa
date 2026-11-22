@@ -189,7 +189,6 @@ BAD = [
     ("shortlist.json", _set("trials.0.summary.met", 5), "does not match"),
     ("shortlist.json", _set("trials.0.eligibility.0.status", "not_met"), "does not match"),
     ("shortlist.json", _set("trials.0.eligibility.0.trial_id", "NCT99000002"), "belong"),
-    ("shortlist.json", _set("trials.0.nearest_site", None), "nearest_site required"),
     ("shortlist.json", _set("origin.zip", "7784"), "pattern"),
     # no-match
     ("no_match_plan.json", _set("searched.match_count", 2), "match_count"),

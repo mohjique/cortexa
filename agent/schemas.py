@@ -708,8 +708,8 @@ class EligibilitySummary(Schema):
     unknown: Annotated[int, Field(ge=0)]
 
 
-ShortlistGroup = Literal["eligible", "needs_test"]
-SHORTLIST_GROUP_ORDER: dict[str, int] = {"eligible": 0, "needs_test": 1}
+ShortlistGroup = Literal["eligible", "needs_test", "needs_review"]
+SHORTLIST_GROUP_ORDER: dict[str, int] = {"eligible": 0, "needs_test": 1, "needs_review": 2}
 
 
 class ShortlistTrial(Schema):
@@ -718,7 +718,7 @@ class ShortlistTrial(Schema):
     recruitment_status: RecruitmentStatus
     status_label: NonEmptyStr
     remote_participation: bool
-    nearest_site: NearestSite | None = None  # None for remote-only trials
+    nearest_site: NearestSite | None = None  # None: remote-only, or no site coordinates listed
     summary: EligibilitySummary
     eligibility: list[EligibilityResult]
     mutation_context: MutationCheckRan | None = None
@@ -726,6 +726,8 @@ class ShortlistTrial(Schema):
     # eligible: open questions are routine screening-visit items.
     # needs_test: an unknown on a key field (trial_search.key_unknown_fields);
     # needs_test_fields names the result(s) that would decide it.
+    # needs_review: no clinical criterion confirmed automatically (only
+    # demographics such as age); the doctor must read the criteria.
     group: ShortlistGroup = "eligible"
     needs_test_fields: list[NonEmptyStr] = []
 
@@ -749,8 +751,6 @@ class ShortlistTrial(Schema):
             raise ValueError(f"summary {self.summary.model_dump()} does not match rows {counts}")
         if counts["not_met"]:
             raise ValueError("a shortlist trial cannot have any not_met criterion")
-        if self.nearest_site is None and not self.remote_participation:
-            raise ValueError("nearest_site required unless the trial allows remote participation")
         if (self.group == "needs_test") != bool(self.needs_test_fields):
             raise ValueError("needs_test_fields must be set exactly when group is needs_test")
         unknown_fields = {e.evidence_field for e in self.eligibility if e.status == "unknown"}
@@ -773,7 +773,7 @@ def distance_sort_key(site: NearestSite | None) -> tuple[bool, float]:
 
 class Shortlist(Schema):
     """Every eligible trial, no distance cutoff: "eligible" group first, then
-    "needs_test", each sorted nearest first."""
+    "needs_test", then "needs_review", each sorted nearest first."""
 
     case_id: NonEmptyStr
     origin: Origin
@@ -785,7 +785,7 @@ class Shortlist(Schema):
         keys = [(SHORTLIST_GROUP_ORDER[t.group], distance_sort_key(t.nearest_site))
                 for t in self.trials]
         if keys != sorted(keys):
-            raise ValueError("shortlist trials must be grouped (eligible, then needs_test) and "
+            raise ValueError("shortlist trials must be grouped (eligible, needs_test, needs_review) and "
                              "sorted nearest first within each group, unknown distance last")
         return self
 

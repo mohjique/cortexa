@@ -219,7 +219,7 @@ export interface ShortlistTrial {
   eligibility: EligibilityResult[];
   mutation_context: MutationCheckRan | null;
   doctor_decision: "pending" | "keep" | "reject";
-  group?: "eligible" | "needs_test";
+  group?: "eligible" | "needs_test" | "needs_review";
   needs_test_fields?: string[];
 }
 
