@@ -73,6 +73,18 @@ def cache(tmp_path, monkeypatch):
         {"case_id": "demo-009", "findings_summary": "Diagnosis: glioma.", "medgemma_bucket": "glioma"},
         {"case_id": "demo-010", "reasoning": REASON, "reasoning_bucket": "glioma"},
         {"case_id": "demo-011", "reasoning": "We recommend resection.", "reasoning_bucket": "meningioma"},
+        # Dropped at generation for contradicting the call (the demo-023 shape: text not kept).
+        {"case_id": "demo-012", "reasoning": None, "reasoning_bucket": "meningioma",
+         "reasoning_rejected": "says nothing is there when the call is meningioma"},
+        # Dropped at generation for wording, not disagreement.
+        {"case_id": "demo-013", "reasoning": None, "reasoning_bucket": "meningioma",
+         "reasoning_rejected": "forbidden wording (diagnoses, recommends, directs or refers)"},
+        # Stored, but contradicts the call on re-check at upload.
+        {"case_id": "demo-014", "reasoning": "The image appears normal, with no visible mass.",
+         "reasoning_bucket": "meningioma"},
+        # Disagreement recorded for a different bucket than this upload's call.
+        {"case_id": "demo-015", "reasoning": None, "reasoning_bucket": "glioma",
+         "reasoning_rejected": "says nothing is there when the call is glioma"},
     ]), encoding="utf-8")
     monkeypatch.setattr(medgemma, "OUT_DIR", d)
     return d
@@ -115,6 +127,44 @@ def test_unsafe_cached_reasoning_dropped(client, audit_log):
     client.post("/cases?case_id=demo-011&filename=demo_meningioma.png", content=png())
     assert record(client, "demo-011")["reasoning"] is None
     assert "reasoning_rejected" in [e.action for e in audit_log.read("demo-011")]
+
+
+def upload(client, cid):
+    r = client.post(f"/cases?case_id={cid}&filename=demo_meningioma.png", content=png())
+    assert r.status_code == 201
+    return record(client, cid)
+
+
+@pytest.mark.parametrize("cid", ["demo-012", "demo-014"])
+def test_disagreeing_reasoning_is_withheld_with_a_note(client, audit_log, cid):
+    c = upload(client, cid)
+    assert c["reasoning"] is None and c["reasoning_withheld"] is True
+    assert c["suspected_bucket"] == "meningioma" and c["medgemma_bucket"] is None  # never votes
+    assert "reasoning_withheld" in [e.action for e in audit_log.read(cid)]
+
+
+def test_withheld_note_does_not_change_the_flag(client):
+    plain, withheld = upload(client, "demo-008"), upload(client, "demo-012")
+    assert plain["flagged_uncertain"] == withheld["flagged_uncertain"]
+
+
+@pytest.mark.parametrize("cid", ["demo-008", "demo-011", "demo-013", "demo-015"])
+def test_no_note_unless_it_contradicted_this_call(client, cid):
+    assert upload(client, cid)["reasoning_withheld"] is False
+
+
+def test_schema_rejects_note_alongside_reasoning():
+    with pytest.raises(ValidationError, match="reasoning_withheld"):
+        out(reasoning=REASON, reasoning_withheld=True)
+
+
+def test_committed_demo_023_is_withheld():
+    """demo-023 is the case where the ResNet is wrong and MedGemma disagreed."""
+    from agent.reasoning import is_disagreement
+
+    (r,) = [x for x in json.loads((medgemma.OUT_DIR / "demo.json").read_text(encoding="utf-8"))
+            if x["case_id"] == "demo-023"]
+    assert r["reasoning"] is None and is_disagreement(r["reasoning_rejected"])
 
 
 @pytest.mark.parametrize("text", [

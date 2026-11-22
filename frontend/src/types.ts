@@ -48,6 +48,9 @@ export interface ClassifierOutput {
   // MedGemma draft reasoning on the classifier's call and its decision-tree
   // pathway. Rule-1 checked by the backend (agent/reasoning.py).
   reasoning?: string | null;
+  // True when MedGemma's draft reasoning contradicted the classifier's call and
+  // was dropped. Shown as a fixed note; never changes the bucket or the flag.
+  reasoning_withheld?: boolean;
 }
 
 export interface PituitaryResults {
