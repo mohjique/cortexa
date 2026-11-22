@@ -31,15 +31,16 @@ The case moves forward only after the gate for its stage has a recorded doctor d
   "case_id": "demo-001",
   "suspected_bucket": "glioma | meningioma | pituitary | no_tumor",
   "probabilities": {"glioma": 0.91, "meningioma": 0.05, "pituitary": 0.02, "no_tumor": 0.02},
-  "medgemma_bucket": "glioma",
+  "medgemma_bucket": null,
   "confidence": 0.88,
   "flagged_uncertain": false,
   "heatmap_path": "artifacts/demo-001_gradcam.png",
-  "findings_summary": "Axial T1 post-contrast slice with an enhancing mass in the left frontal lobe, suspected high-grade glioma."
+  "findings_summary": "Axial T1 post-contrast slice with an enhancing mass in the left frontal lobe, suspected high-grade glioma.",
+  "reasoning": "The slice shows an enhancing intra-axial mass, consistent with the suspected glioma. The pre-op screen lists what the biopsy must answer."
 }
 ```
 
-`findings_summary` is optional draft text from MedGemma, shown to the doctor labeled as an AI draft. The schema rejects any summary that diagnoses, names a tumor type without "suspected" or similar hedging, recommends treatment, or suggests a referral (`agent/findings.py`, rule 1). `reasoning` is optional draft text from MedGemma, written for `suspected_bucket` (the ResNet call) and its decision-tree pathway (`agent/reasoning.py`). It is attached only when it was written for that same bucket, and the schema rejects text that diagnoses, recommends, says what anyone should do, refers, or names a tumor type without hedging. `medgemma_bucket` is always `null`: MedGemma does not vote (its solo eval was below 0.5).
+`findings_summary` is optional draft text from MedGemma, shown to the doctor labeled as an AI draft. The schema rejects any summary that diagnoses, names a tumor type without "suspected" or similar hedging, recommends treatment, or suggests a referral (`agent/findings.py`, rule 1). `reasoning` is optional draft text from MedGemma, written for `suspected_bucket` (the ResNet call) and its decision-tree pathway (`agent/reasoning.py`). It is attached only when it was written for that same bucket, and the schema rejects text that diagnoses, recommends, says what anyone should do, refers, or names a tumor type without hedging. `medgemma_bucket` is always `null`: MedGemma does not vote (its solo eval was below 0.5). The schema drops any value sent in it, so a second model can neither change the suspected bucket nor flag a case. The draft text comes from `classifier/medgemma/demo.json` (precomputed on Colab for the demo cases); without that file, cases have no MedGemma text and everything else works the same.
 
 ### Upload endpoint
 
@@ -47,7 +48,7 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 
 `GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub).
 
-`flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`, or a second model disagreeing when `flag_on_model_disagreement` is set (no second model votes today). The agent never clears a flag the classifier set.
+`flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`. There is no model-disagreement flag, because MedGemma does not vote. The agent never clears a flag the classifier set.
 
 ## Doctor decision (approval gates) → agent
 

@@ -41,7 +41,6 @@ class PolicyError(Exception):
 
 class ClassifierPolicy(Schema):
     min_confidence_for_auto_suggest: Annotated[float, Field(ge=0, le=1)]
-    flag_on_model_disagreement: bool
     # Rule 1: model output is always "suspected". A blocklist would let
     # "Confirmed" or "Definitive" through, so only the one safe value is allowed.
     label_prefix: Literal["Suspected"]

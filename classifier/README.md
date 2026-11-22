@@ -85,7 +85,7 @@ The border band is the outer 12% of each side, where frames and burned-in text s
 
 ## Serving the model (F2.5)
 
-`classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is `None` until MedGemma is wired in.
+`classifier/real.py` `ResNetClassifier` puts `model.pt` behind the same `classify(case_id, image, filename)` interface as the stub. It returns calibrated probabilities and the suspected bucket, and writes a Grad-CAM overlay to `agent/data/heatmaps/<case_id>.png`. `medgemma_bucket` is always `None`: MedGemma does not vote. The API attaches MedGemma's draft reasoning from `classifier/medgemma/demo.json` when it exists.
 
 The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is `real` when `artifacts/classifier/model.pt` exists, otherwise `stub`; `CORTEXA_MODEL_PATH` overrides the path.
 

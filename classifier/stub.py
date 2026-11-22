@@ -48,7 +48,6 @@ class StubClassifier:
         self,
         profiles_file: Path = PROFILES_FILE,
         min_confidence_for_auto_suggest: float = 0.80,  # names match policy.yaml
-        flag_on_model_disagreement: bool = True,
     ) -> None:
         raw = json.loads(profiles_file.read_text(encoding="utf-8"))
         # Validate every profile up front so a bad edit fails at startup.
@@ -59,7 +58,6 @@ class StubClassifier:
             ClassifierOutput(case_id="validate", flagged_uncertain=False, **p)
             self.profiles[name] = p
         self.min_confidence_for_auto_suggest = min_confidence_for_auto_suggest
-        self.flag_on_model_disagreement = flag_on_model_disagreement
 
     def match_keyword(self, filename: str | None) -> str | None:
         if not filename:
@@ -83,14 +81,9 @@ class StubClassifier:
     ) -> ClassifierOutput:
         from_fallback = self.match_keyword(filename) is None
         p = self.profiles[self.pick_profile(image, filename)]
-        disagree = (
-            p.get("medgemma_bucket") is not None
-            and p["medgemma_bucket"] != p["suspected_bucket"]
-        )
         flagged_uncertain = (
             from_fallback  # arbitrary hash pick: never present it as confident
             or p["confidence"] < self.min_confidence_for_auto_suggest
-            or (self.flag_on_model_disagreement and disagree)
         )
         return ClassifierOutput(
             case_id=case_id,

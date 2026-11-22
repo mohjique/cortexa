@@ -27,7 +27,7 @@ These apply to every piece of code, prompt and UI string. Enforce them in code, 
 
 ## App flow (summary of the decision tree)
 
-1. **Intake:** MRI uploaded → ResNet classifier + MedGemma → suspected bucket + confidence. Low confidence or model disagreement is marked `flagged_uncertain`. The doctor still confirms every case; the flag only warns them to look harder.
+1. **Intake:** MRI uploaded → ResNet classifier → suspected bucket + confidence. MedGemma does not vote (it scored below 0.5 alone); it writes draft reasoning that explains the ResNet call and the bucket's pathway, checked against rule 1 in code. Low confidence is marked `flagged_uncertain`. The doctor still confirms every case; the flag only warns them to look harder.
 2. **Doctor confirms bucket** (or corrects it). The case then follows the confirmed bucket:
    - **No tumor:** stop, no trial search.
    - **Meningioma:** doctor chooses watch (rescan later, stop) or treat (go to surgery + pathology).

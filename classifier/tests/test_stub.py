@@ -22,7 +22,6 @@ def stub() -> StubClassifier:
         ("notumor_01.jpg", "no_tumor", False),
         ("case5_no_tumor.png", "no_tumor", False),
         ("glioma_lowconf.png", "glioma", True),
-        ("disagree.png", "meningioma", True),
     ],
 )
 def test_filename_keyword(stub, filename, bucket, review):
@@ -44,12 +43,17 @@ def test_hash_fallback_is_deterministic_and_always_flagged(stub):
         assert a.flagged_uncertain is True
         seen.add(a.suspected_bucket)
     assert len(seen) > 1  # fallback really spreads across buckets
-    lax = StubClassifier(min_confidence_for_auto_suggest=0.0, flag_on_model_disagreement=False)
+    lax = StubClassifier(min_confidence_for_auto_suggest=0.0)
     assert lax.classify("c", b"x", "scan.png").flagged_uncertain is True
 
 
 def test_threshold_is_configurable():
     strict = StubClassifier(min_confidence_for_auto_suggest=0.95)
     assert strict.classify("c", IMG, "glioma.png").flagged_uncertain is True
-    lax = StubClassifier(flag_on_model_disagreement=False)
-    assert lax.classify("c", IMG, "disagree.png").flagged_uncertain is False
+    lax = StubClassifier(min_confidence_for_auto_suggest=0.50)
+    assert lax.classify("c", IMG, "glioma_lowconf.png").flagged_uncertain is False
+
+
+def test_stub_never_votes_for_medgemma(stub):
+    for name in ("glioma.png", "meningioma.png", "pituitary.png", "notumor.png", "lowconf.png"):
+        assert stub.classify("c", IMG, name).medgemma_bucket is None

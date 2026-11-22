@@ -367,7 +367,8 @@ def uncertainty_flag(output: ClassifierOutput, policy: Policy) -> tuple[bool, li
 
     The agent can add a flag but never clears one (the stub flags its
     arbitrary hash picks). The flag only warns the doctor; every case still
-    goes through confirm_bucket (rule 2).
+    goes through confirm_bucket (rule 2). There is no model-disagreement
+    reason: MedGemma does not vote (schemas.ClassifierOutput drops its bucket).
     """
     c = policy.classifier
     reasons = []
@@ -375,9 +376,6 @@ def uncertainty_flag(output: ClassifierOutput, policy: Policy) -> tuple[bool, li
         reasons.append("classifier_flag")
     if output.confidence < c.min_confidence_for_auto_suggest:
         reasons.append(f"confidence {output.confidence:.3f} < {c.min_confidence_for_auto_suggest}")
-    if (c.flag_on_model_disagreement and output.medgemma_bucket is not None
-            and output.medgemma_bucket != output.suspected_bucket):
-        reasons.append("model_disagreement")
     return bool(reasons), reasons
 
 

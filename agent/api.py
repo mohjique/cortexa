@@ -115,9 +115,9 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     except ValueError as exc:  # BadImage, or a schema error from the classifier
         audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
         raise HTTPException(422, f"could not classify: {exc}") from None
-    # MedGemma never votes (its solo eval was below 0.5): the ResNet call is the
-    # only suspected bucket, so a classifier's medgemma_bucket is discarded.
-    output = _with_medgemma(output.model_copy(update={"medgemma_bucket": None}))
+    # MedGemma only adds draft text; it never votes (the schema drops any
+    # medgemma_bucket), so the ResNet call is the only suspected bucket.
+    output = _with_medgemma(output)
     try:
         store.create(case_id)
     except CaseExists:
