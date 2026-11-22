@@ -5,14 +5,20 @@
 trial and keeps every one that passes. A trial passes when no criterion is
 `not_met` and none waits on a `pending` result (interfaces.md).
 
-Passing trials are split into two groups, the way coordinators sort them:
-"eligible" (any unknowns are routine screening-visit items) and "needs_test"
+Passing trials are split into three groups, the way coordinators sort them:
+"eligible" (any unknowns are routine screening-visit items), "needs_test"
 (an unknown on a key field from `trial_search.key_unknown_fields`, such as
-IDH or a CLIA TMB result). The group names the test that would decide it.
+IDH or a CLIA TMB result; the group names the test that would decide it) and
+"needs_review" (no clinical inclusion criterion was confirmed automatically,
+only demographics such as age or exclusions that do not apply, so the doctor
+must read the criteria; common for
+live trials whose free text the rule library does not cover).
 
 There is no distance cutoff. The search is nationwide, and distance only
-sorts the shortlist: nearest first, trials with no known distance
-(remote-only) last. The patient and doctor decide whether travel is worth it.
+sorts the shortlist: nearest first, trials with no known distance (remote-only,
+or no site coordinates listed) last. No trial is dropped for lacking a
+location. The patient and doctor decide whether travel is worth it. Drive
+times come from one batched OSRM table request, not one request per trial.
 
 If nothing passes, it builds the no-match plan from
 `trial_search.no_match_plan` in policy.yaml: near misses, an in-app alert for
@@ -43,6 +49,7 @@ from agent.schemas import (
     ShortlistTrial,
     TrialAlert,
     TrialRecord,
+    TrialSite,
     TumorBoardEntry,
     SHORTLIST_GROUP_ORDER,
     distance_sort_key,
@@ -66,12 +73,18 @@ NOT_NEAR_MISS_FIELDS = frozenset(
 )
 
 
+# Rows on these fields are demographics, not clinical criteria: a trial whose
+# only met rows are these goes to "needs_review", never "eligible".
+DEMOGRAPHIC_FIELDS = frozenset({"age"})
+
+
 @dataclass
 class Checked:
     trial: TrialRecord
     rows: list[EligibilityResult]
     site: NearestSite | None  # straight-line only until shortlisted
     ok: bool  # eligibility.passes(rows), computed once
+    best: tuple[float, TrialSite] | None = None  # closest site, for the drive-time batch
 
 
 def _now() -> datetime:
@@ -89,12 +102,18 @@ def needs_test_fields(rows: list[EligibilityResult], key_fields: list[str]) -> l
     return [f for f in key_fields if f in unknown]
 
 
-def _shortlist_trial(c: Checked, origin: Origin, policy: Policy, case_id: str) -> ShortlistTrial:
-    tests = needs_test_fields(c.rows, policy.trial_search.key_unknown_fields)
-    site = c.site
-    if site is not None:
-        # Drive time only for trials that are shown (one OSRM call each).
-        site = geo.nearest_site(origin, c.trial.sites, case_id=case_id)
+def shortlist_group(rows: list[EligibilityResult], key_fields: list[str]) -> tuple[str, list[str]]:
+    """(group, needs_test_fields) for a passing trial."""
+    # Only a met inclusion is evidence the trial fits; a met exclusion just means it does not apply.
+    if not any(r.status == "met" and r.criterion_type == "inclusion" and r.evidence_field not in DEMOGRAPHIC_FIELDS
+               for r in rows):
+        return "needs_review", []
+    tests = needs_test_fields(rows, key_fields)
+    return ("needs_test" if tests else "eligible"), tests
+
+
+def _shortlist_trial(c: Checked, site: NearestSite | None, policy: Policy) -> ShortlistTrial:
+    group, tests = shortlist_group(c.rows, policy.trial_search.key_unknown_fields)
     status = c.trial.recruitment_status
     return ShortlistTrial.model_validate(
         {
@@ -106,7 +125,7 @@ def _shortlist_trial(c: Checked, origin: Origin, policy: Policy, case_id: str) -
             "nearest_site": site,
             "summary": summarize(c.rows),
             "eligibility": c.rows,
-            "group": "needs_test" if tests else "eligible",
+            "group": group,
             "needs_test_fields": tests,
         },
         context=policy.status_context(),
@@ -155,14 +174,20 @@ def check_all(trials: list[TrialRecord], facts: Facts, origin: Origin, policy: P
               case_id: str) -> list[Checked]:
     out = []
     for t in trials:
-        site = geo.nearest_site(origin, t.sites, with_drive_time=False, case_id=case_id)
-        if site is None and not t.remote_participation:
-            audit("agent", "trial_skipped", {"trial_id": t.trial_id, "reason": "no site with coordinates"},
-                  case_id=case_id)
-            continue
+        # No site coordinates: kept, with no distance, and sorted last (distance never filters).
+        best = geo.closest(origin, t.sites)
+        site = geo.as_nearest(best) if best else None
         rows = check_trial(t, facts, policy=policy, case_id=case_id)
-        out.append(Checked(t, rows, site, passes(rows)))
+        out.append(Checked(t, rows, site, passes(rows), best))
     return sorted(out, key=_sort_key)
+
+
+def _with_drive_times(hits: list[Checked], origin: Origin, case_id: str) -> list[NearestSite | None]:
+    """Nearest site per hit, with drive time from one batched OSRM request."""
+    located = [c for c in hits if c.best is not None]
+    minutes = geo.drive_minutes_many(origin, [c.best[1] for c in located], case_id=case_id)  # type: ignore[index]
+    by_id = {c.trial.trial_id: geo.as_nearest(c.best, m) for c, m in zip(located, minutes)}  # type: ignore[arg-type]
+    return [by_id.get(c.trial.trial_id) for c in hits]
 
 
 def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
@@ -187,7 +212,7 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
             origin=origin,
             statuses_searched=list(ts.statuses),
             trials=sorted(
-                (_shortlist_trial(c, origin, policy, case_id) for c in hits),
+                (_shortlist_trial(c, s, policy) for c, s in zip(hits, _with_drive_times(hits, origin, case_id))),
                 key=lambda t: (SHORTLIST_GROUP_ORDER[t.group], distance_sort_key(t.nearest_site),
                                t.trial_id),
             ),

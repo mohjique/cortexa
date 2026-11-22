@@ -674,6 +674,36 @@ def to_row(trial_id: str, criterion: Criterion, f: Finding) -> EligibilityResult
     )
 
 
+def _years(x: float) -> str:
+    return f"{x:g} years"
+
+
+def structured_age_row(trial: TrialRecord, facts: Facts, policy: Policy) -> EligibilityResult | None:
+    """The registry's structured age limits (ClinicalTrials.gov minimumAge /
+    maximumAge, NCI min/max_age_in_years) as one inclusion row.
+
+    Used only when no criteria bullet already decided age. The criterion text
+    names the structured limits it read (rule 4). No age recorded: unknown.
+    """
+    lo, hi = trial.min_age_years, trial.max_age_years
+    if lo is None and hi is None:
+        return None
+    if lo is not None and hi is not None:
+        span = f"{_years(lo)} to {_years(hi)}"
+    elif lo is not None:
+        span = f"{_years(lo)} or older"
+    else:
+        span = f"up to {_years(hi)}"  # type: ignore[arg-type]
+    text = f"Age {span} (trial registry age limits)"
+    if facts.age is None:
+        f = _missing("age", "age", policy)
+    elif (lo is not None and facts.age < lo) or (hi is not None and facts.age > hi):
+        f = _no("age", f"age {facts.age} is outside {span}")
+    else:
+        f = _yes("age", f"age {facts.age} is within {span}")
+    return to_row(trial.trial_id, Criterion("inclusion", text), f)
+
+
 def check_trial(
     trial: TrialRecord,
     facts: Facts,
@@ -692,6 +722,10 @@ def check_trial(
             evidence_field=NO_RULE_FIELD,
             reason="criteria text could not be split into criteria; doctor must review",
         )]
+    if not any(r.evidence_field == "age" for r in rows):
+        age_row = structured_age_row(trial, facts, policy)
+        if age_row is not None:
+            rows.insert(0, age_row)
     s = summarize(rows)
     audit(
         "agent",

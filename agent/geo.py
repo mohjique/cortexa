@@ -18,6 +18,8 @@ from pydantic import TypeAdapter
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 OSRM_URL = "https://router.project-osrm.org/route/v1/driving/{a_lon},{a_lat};{b_lon},{b_lat}"
+OSRM_TABLE_URL = "https://router.project-osrm.org/table/v1/driving/{coords}"
+OSRM_TABLE_CHUNK = 90  # destinations per table request (public server caps coordinates per request)
 EARTH_RADIUS_MILES = 3958.8
 
 _zip = TypeAdapter(Zip)
@@ -65,11 +67,7 @@ def drive_minutes(origin: Origin, site: TrialSite, case_id: str | None = None) -
     if site.lat is None or site.lon is None:
         return None
     if http_cache.source_mode() == "demo":
-        table = http_cache.load_demo("osrm/drive_times.json")
-        if table.get("origin_zip") != origin.zip:
-            return None
-        route = table["routes"].get(site.zip or "")
-        return None if route is None else int(route["drive_minutes"])
+        return _demo_drive_minutes(origin, site)
 
     url = OSRM_URL.format(a_lon=origin.lon, a_lat=origin.lat, b_lon=site.lon, b_lat=site.lat)
     try:
@@ -82,6 +80,63 @@ def drive_minutes(origin: Origin, site: TrialSite, case_id: str | None = None) -
     return round(routes[0]["duration"] / 60)
 
 
+def _demo_drive_minutes(origin: Origin, site: TrialSite) -> int | None:
+    table = http_cache.load_demo("osrm/drive_times.json")
+    if table.get("origin_zip") != origin.zip:
+        return None
+    route = table["routes"].get(site.zip or "")
+    return None if route is None else int(route["drive_minutes"])
+
+
+@audited("drive_time_table")
+def drive_minutes_many(origin: Origin, sites: list[TrialSite], case_id: str | None = None) -> list[int | None]:
+    """Drive minutes from the ZIP centroid to each site, in order (None = unavailable).
+
+    One OSRM `table` request per OSRM_TABLE_CHUNK sites instead of one `route`
+    request per site, so a nationwide shortlist of hundreds of trials takes
+    seconds and stays within the public server's fair use. Rule 6 still holds:
+    only the ZIP centroid and the sites' public coordinates are sent.
+    """
+    out: list[int | None] = [None] * len(sites)
+    have = [i for i, s in enumerate(sites) if s.lat is not None and s.lon is not None]
+    if http_cache.source_mode() == "demo":
+        for i in have:
+            out[i] = _demo_drive_minutes(origin, sites[i])
+        return out
+    for k in range(0, len(have), OSRM_TABLE_CHUNK):
+        chunk = have[k:k + OSRM_TABLE_CHUNK]
+        coords = ";".join([f"{origin.lon},{origin.lat}"] + [f"{sites[i].lon},{sites[i].lat}" for i in chunk])
+        try:
+            got = http_cache.get_json("osrm", OSRM_TABLE_URL.format(coords=coords),
+                                      {"sources": "0", "annotations": "duration"}, case_id=case_id)
+        except http_cache.FetchError:
+            continue
+        rows = got.data.get("durations") or []
+        if got.data.get("code") != "Ok" or not rows:
+            continue
+        for i, secs in zip(chunk, rows[0][1:]):
+            out[i] = None if secs is None else round(secs / 60)
+    return out
+
+
+def closest(origin: Origin, sites: Iterable[TrialSite]) -> tuple[float, TrialSite] | None:
+    """(straight-line miles, site) for the closest site with coordinates."""
+    best: tuple[float, TrialSite] | None = None
+    for s in sites:
+        if s.lat is None or s.lon is None:
+            continue
+        d = haversine_miles(origin.lat, origin.lon, s.lat, s.lon)
+        if best is None or d < best[0]:
+            best = (d, s)
+    return best
+
+
+def as_nearest(best: tuple[float, TrialSite], drive: int | None = None) -> NearestSite:
+    miles, site = best
+    return NearestSite(facility=site.facility, city=site.city, state=site.state, lat=site.lat,
+                       lon=site.lon, distance_miles=round(miles, 1), drive_minutes=drive)
+
+
 def nearest_site(
     origin: Origin,
     sites: Iterable[TrialSite],
@@ -90,13 +145,7 @@ def nearest_site(
     case_id: str | None = None,
 ) -> NearestSite | None:
     """Closest site by straight line from the ZIP centroid; OSRM only for that one."""
-    best: tuple[float, TrialSite] | None = None
-    for s in sites:
-        if s.lat is None or s.lon is None:
-            continue
-        d = haversine_miles(origin.lat, origin.lon, s.lat, s.lon)
-        if best is None or d < best[0]:
-            best = (d, s)
+    best = closest(origin, sites)
     if best is None:
         return None
     miles, site = best
