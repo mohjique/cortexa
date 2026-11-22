@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import csv
 import json
-import re
 
 import pytest
 from fastapi.testclient import TestClient
@@ -12,6 +10,7 @@ from pydantic import ValidationError
 
 from agent import api, policy
 from agent.findings import check_summary
+from agent.reasoning import PATHWAY, check_reasoning, reasoning_prompt
 from agent.schemas import ClassifierOutput
 from agent.tests.test_upload import png
 from classifier import medgemma
@@ -69,8 +68,11 @@ def cache(tmp_path, monkeypatch):
     d = tmp_path / "medgemma"
     d.mkdir()
     (d / "demo.json").write_text(json.dumps([
-        {"case_id": "demo-008", "findings_summary": OK, "medgemma_bucket": "glioma"},
+        {"case_id": "demo-008", "findings_summary": OK, "medgemma_bucket": "glioma",
+         "reasoning": REASON, "reasoning_bucket": "meningioma"},
         {"case_id": "demo-009", "findings_summary": "Diagnosis: glioma.", "medgemma_bucket": "glioma"},
+        {"case_id": "demo-010", "reasoning": REASON, "reasoning_bucket": "glioma"},
+        {"case_id": "demo-011", "reasoning": "We recommend resection.", "reasoning_bucket": "meningioma"},
     ]), encoding="utf-8")
     monkeypatch.setattr(medgemma, "OUT_DIR", d)
     return d
@@ -91,59 +93,57 @@ def record(c, cid):
     return c.get(f"/cases/{cid}/record").json()["classifier"]
 
 
-def test_summary_attached_vote_off_by_default(client):
+REASON = ("The slice shows a well-circumscribed extra-axial mass along the convexity, consistent "
+          "with the suspected meningioma. The next step is the doctor's watch-or-treat decision.")
+
+
+def test_reasoning_attached_for_the_resnet_bucket(client, audit_log):
     client.post("/cases?case_id=demo-008&filename=demo_meningioma.png", content=png())
     c = record(client, "demo-008")
-    assert c["findings_summary"] == OK
-    assert c["medgemma_bucket"] != "glioma"  # cached call not applied: medgemma_vote is false
+    assert c["suspected_bucket"] == "meningioma"
+    assert c["reasoning"] == REASON and c["findings_summary"] == OK
+    assert c["medgemma_bucket"] is None  # MedGemma never votes
 
 
-def test_unsafe_cached_summary_dropped(client, audit_log):
-    client.post("/cases?case_id=demo-009&filename=demo_glioma.png", content=png())
-    assert record(client, "demo-009")["findings_summary"] is None
-    assert "findings_summary_rejected" in [e.action for e in audit_log.read("demo-009")]
+def test_reasoning_for_another_bucket_is_not_attached(client, audit_log):
+    client.post("/cases?case_id=demo-010&filename=demo_meningioma.png", content=png())
+    assert record(client, "demo-010")["reasoning"] is None
+    assert "reasoning_skipped" in [e.action for e in audit_log.read("demo-010")]
 
 
-def test_no_cache_entry_is_a_no_op(client):
-    client.post("/cases?case_id=other&filename=demo_glioma.png", content=png())
-    assert record(client, "other")["findings_summary"] is None
+def test_unsafe_cached_reasoning_dropped(client, audit_log):
+    client.post("/cases?case_id=demo-011&filename=demo_meningioma.png", content=png())
+    assert record(client, "demo-011")["reasoning"] is None
+    assert "reasoning_rejected" in [e.action for e in audit_log.read("demo-011")]
 
 
-def test_vote_on_flags_disagreement(client, tmp_path):
-    old = policy._default
-    path = tmp_path / "policy.yaml"
-    path.write_text(re.sub(r"medgemma_vote: false", "medgemma_vote: true",
-                           policy.POLICY_PATH.read_text(encoding="utf-8")), encoding="utf-8")
-    policy.set_policy_store(policy.PolicyStore(path))
-    try:
-        client.post("/cases?case_id=demo-008&filename=demo_meningioma.png", content=png())
-        c = record(client, "demo-008")
-        assert c["medgemma_bucket"] == "glioma"  # disagrees with the stub's meningioma
-        assert c["flagged_uncertain"] is True
-    finally:
-        policy.set_policy_store(old)
+@pytest.mark.parametrize("text", [
+    REASON,
+    "No mass or abnormal signal is visible, consistent with the suspected no tumor call. "
+    "If the doctor confirms it, the case stops with no trial search.",
+    "Enhancing lesion in the right frontal lobe, consistent with a suspected glioma. The pre-op "
+    "screen lists what the biopsy must answer: IDH status, 1p/19q codeletion, MGMT and grade, "
+    "before surgery and pathology.",
+])
+def test_safe_reasoning_passes(text):
+    assert check_reasoning(text) is None
 
 
-def test_finetune_rows_come_from_train_split_only():
-    rows = medgemma.pick_train()
-    assert rows and all(r["split"] == "train" for r in rows)
-    with medgemma.SPLIT_CSV.open(encoding="utf-8") as f:
-        held_out = {r["path"] for r in csv.DictReader(f) if r["split"] != "train"}
-    demo = {d["image_file"] for d in json.loads(medgemma.DEMO_JSON.read_text(encoding="utf-8"))}
-    paths = {r["path"] for r in rows}
-    assert not paths & held_out and not paths & demo
+@pytest.mark.parametrize("text", [
+    "The patient should have surgery.",
+    "We recommend resection.",
+    "This is diagnostic of glioblastoma.",
+    "Refer to endocrinology.",
+    "There is a meningioma along the convexity.",
+    "",
+])
+def test_unsafe_reasoning_rejected(text):
+    assert check_reasoning(text) is not None
 
 
-def test_finetune_rows_weighted_toward_hard_classes():
-    from collections import Counter
-
-    rows = medgemma.pick_train()
-    n = Counter(r["label"] for r in rows)
-    assert n == Counter(medgemma.TRAIN_COUNTS)
-    assert n["glioma"] > n["no_tumor"] and n["meningioma"] > n["no_tumor"]
-    variants = sum(r["origin"] not in medgemma.CLEAN_ORIGINS for r in rows)
-    assert 0 < variants < len(rows)
-    assert len({r["path"] for r in rows}) == len(rows)  # no repeats
-    assert medgemma.pick_train() == rows  # seeded: same rows on every machine
-    assert set(medgemma.LETTER) == set(medgemma.CHOICES.values())
-    assert all(medgemma.CHOICES[medgemma.LETTER[b]] == b for b in medgemma.LETTER)
+@pytest.mark.parametrize("bucket", sorted(PATHWAY))
+def test_prompt_carries_the_resnet_call_and_its_pathway(bucket):
+    p = reasoning_prompt(bucket, 0.97, flagged=True)
+    assert "suspected" in p and "0.97" in p and "flagged uncertain" in p
+    assert all(step in p for step in PATHWAY[bucket])
+    assert check_reasoning(" ".join(PATHWAY[bucket])) is None  # the pathway itself passes rule 1

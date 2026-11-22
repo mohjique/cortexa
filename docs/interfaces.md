@@ -39,7 +39,7 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 }
 ```
 
-`findings_summary` is optional draft text from MedGemma, shown to the doctor labeled as an AI draft. The schema rejects any summary that diagnoses, names a tumor type without "suspected" or similar hedging, recommends treatment, or suggests a referral (`agent/findings.py`, rule 1). `medgemma_bucket` is set only when `classifier.medgemma_vote` is on in policy.yaml.
+`findings_summary` is optional draft text from MedGemma, shown to the doctor labeled as an AI draft. The schema rejects any summary that diagnoses, names a tumor type without "suspected" or similar hedging, recommends treatment, or suggests a referral (`agent/findings.py`, rule 1). `reasoning` is optional draft text from MedGemma, written for `suspected_bucket` (the ResNet call) and its decision-tree pathway (`agent/reasoning.py`). It is attached only when it was written for that same bucket, and the schema rejects text that diagnoses, recommends, says what anyone should do, refers, or names a tumor type without hedging. `medgemma_bucket` is always `null`: MedGemma does not vote (its solo eval was below 0.5).
 
 ### Upload endpoint
 
@@ -47,7 +47,7 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 
 `GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub).
 
-`flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`, or MedGemma disagreeing when `flag_on_model_disagreement` is set. The agent never clears a flag the classifier set.
+`flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`, or a second model disagreeing when `flag_on_model_disagreement` is set (no second model votes today). The agent never clears a flag the classifier set.
 
 ## Doctor decision (approval gates) → agent
 

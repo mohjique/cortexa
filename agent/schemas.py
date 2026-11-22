@@ -122,6 +122,9 @@ class ClassifierOutput(Schema):
     heatmap_path: str | None = None
     # Draft findings text from MedGemma. Checked against rule 1 below.
     findings_summary: NonEmptyStr | None = None
+    # Draft reasoning from MedGemma, written for `suspected_bucket` (the ResNet
+    # call) and its decision-tree pathway. Checked against rule 1 below.
+    reasoning: NonEmptyStr | None = None
 
     @model_validator(mode="after")
     def _summary_rule_1(self) -> ClassifierOutput:
@@ -131,6 +134,12 @@ class ClassifierOutput(Schema):
             problem = check_summary(self.findings_summary)
             if problem:
                 raise ValueError(f"rule 1: findings_summary rejected ({problem})")
+        if self.reasoning is not None:
+            from agent.reasoning import check_reasoning
+
+            problem = check_reasoning(self.reasoning)
+            if problem:
+                raise ValueError(f"rule 1: reasoning rejected ({problem})")
         return self
 
     @model_validator(mode="after")

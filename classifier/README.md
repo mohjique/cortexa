@@ -4,7 +4,7 @@
 - Remove exact and near-duplicate images (perceptual hashing) before the train/val/test split.
 - Fine-tune a pretrained ResNet; report per-class accuracy on the deduplicated test set.
 - Grad-CAM heatmaps for every prediction; sanity-check that they highlight the tumor.
-- Evaluate MedGemma alone before using it as a second opinion.
+- Evaluate MedGemma alone before using it as a second opinion. (Done: it was weak, so it explains the ResNet call instead of voting.)
 - Output format: see `docs/interfaces.md` (Classifier → agent).
 
 ## Pipeline
@@ -91,11 +91,8 @@ The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is
 
 ## MedGemma (F2.3)
 
-MedGemma is evaluated alone first, as CLAUDE.md requires. It runs on a Colab GPU via `classifier/medgemma_colab.ipynb`; the Hugging Face account needs the `google/medgemma-4b-it` terms accepted and an `HF_TOKEN` secret.
+MedGemma was evaluated alone first, as CLAUDE.md requires (`python -m classifier.medgemma eval --per-class 25`, `classifier/medgemma/eval.json`). It scored below 0.5 overall, far behind the ResNet, so it does not vote.
 
-- `python -m classifier.medgemma eval --per-class 25` writes `classifier/medgemma/eval.json`: MedGemma alone, multiple choice, per-class accuracy on the deduplicated test split.
-- `python -m classifier.medgemma demo` writes `classifier/medgemma/demo.json`: a findings summary and MedGemma's own call for each of the 23 demo images.
+Instead it explains the ResNet call. `python -m classifier.medgemma demo` (Colab: `classifier/medgemma_colab.ipynb`, about 10 minutes on a T4) gives MedGemma each demo image, the ResNet call from `splits/demo_images.json`, and the decision-tree pathway for that bucket from `agent/reasoning.py`. It writes `classifier/medgemma/demo.json`: draft reasoning per case and the `reasoning_bucket` it was written for.
 
-At upload, the API attaches the cached summary by case ID, so the demo needs no GPU. MedGemma's call counts as a second opinion only when `classifier.medgemma_vote: true` is set in policy.yaml; it is off until the eval justifies it.
-
-Rule 1 is enforced in code by `agent/findings.py`, not only in the prompt. A summary that diagnoses, names an unhedged tumor type, recommends treatment or suggests a referral is dropped, and the drop is audited.
+At upload the API attaches the reasoning by case ID only when `reasoning_bucket` matches the upload's suspected bucket, re-checks rule 1 (`agent.reasoning.check_reasoning`), and audits every skip or rejection. No GPU is needed in the demo.

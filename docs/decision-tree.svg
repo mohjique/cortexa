@@ -16,7 +16,7 @@
 <rect class="bg" x="0" y="0" width="680" height="1250"/>
 <g><rect class="box" x="240" y="30" width="200" height="44" rx="8"/><text class="th" x="340" y="52" text-anchor="middle" dominant-baseline="central">MRI uploaded</text></g>
 <line x1="340" y1="74" x2="340" y2="102" class="arr" marker-end="url(#arrow)"/>
-<g class="c-purple"><rect x="200" y="104" width="280" height="56" rx="8"/><text class="th" x="340" y="122" text-anchor="middle" dominant-baseline="central">Classifier + MedGemma</text><text class="ts" x="340" y="142" text-anchor="middle" dominant-baseline="central">Suspected bucket + confidence</text></g>
+<g class="c-purple"><rect x="200" y="104" width="280" height="56" rx="8"/><text class="th" x="340" y="122" text-anchor="middle" dominant-baseline="central">ResNet + MedGemma reasoning</text><text class="ts" x="340" y="142" text-anchor="middle" dominant-baseline="central">Suspected bucket + confidence</text></g>
 <line x1="340" y1="160" x2="340" y2="188" class="arr" marker-end="url(#arrow)"/>
 <g class="c-teal"><rect x="200" y="190" width="280" height="56" rx="8"/><text class="th" x="340" y="208" text-anchor="middle" dominant-baseline="central">Doctor confirms bucket</text><text class="ts" x="340" y="228" text-anchor="middle" dominant-baseline="central">Low confidence flagged</text></g>
 <path d="M340 246 L340 262" class="ln"/>

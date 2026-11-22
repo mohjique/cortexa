@@ -115,7 +115,9 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     except ValueError as exc:  # BadImage, or a schema error from the classifier
         audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
         raise HTTPException(422, f"could not classify: {exc}") from None
-    output = _with_medgemma(output)
+    # MedGemma never votes (its solo eval was below 0.5): the ResNet call is the
+    # only suspected bucket, so a classifier's medgemma_bucket is discarded.
+    output = _with_medgemma(output.model_copy(update={"medgemma_bucket": None}))
     try:
         store.create(case_id)
     except CaseExists:
@@ -127,33 +129,36 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
 
 
 def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
-    """Add the precomputed MedGemma result (demo cases), if there is one.
+    """Add MedGemma's precomputed reasoning (demo cases), if there is one.
 
-    The summary is always added when it passes rule 1. MedGemma's call is
-    added only when `classifier.medgemma_vote` is on in policy.yaml, so it
-    can flag a disagreement. Re-validated, so the rule-1 check always runs.
+    MedGemma does not vote: the ResNet call is the suspected bucket. Its
+    reasoning was written for one bucket, so it is attached only when that
+    matches this upload's suspected bucket. Each text is re-validated, so the
+    rule-1 check always runs; a text that fails is dropped and audited.
     """
     from classifier.medgemma import cached
 
     r = cached(output.case_id)
     if r is None:
         return output
-    update: dict[str, Any] = {}
-    if r.get("findings_summary"):
-        update["findings_summary"] = r["findings_summary"]
-    vote = get_policy().classifier.medgemma_vote
-    if vote and r.get("medgemma_bucket"):
-        update["medgemma_bucket"] = r["medgemma_bucket"]
-    try:
-        out = ClassifierOutput.model_validate(output.model_dump() | update)
-    except ValidationError as exc:  # summary failed rule 1: drop it, keep the vote
-        update.pop("findings_summary", None)
-        out = ClassifierOutput.model_validate(output.model_dump() | update)
-        audit("agent", "findings_summary_rejected", {"error": str(exc.errors()[0]["msg"])},
-              case_id=output.case_id)
-    audit("agent", "tool_call:medgemma_cache",
-          {"summary": "findings_summary" in update, "vote": vote,
-           "medgemma_bucket": r.get("medgemma_bucket")}, case_id=output.case_id)
+    candidates: dict[str, Any] = {"findings_summary": r.get("findings_summary")}
+    if r.get("reasoning_bucket") == output.suspected_bucket:
+        candidates["reasoning"] = r.get("reasoning")
+    elif r.get("reasoning"):
+        audit("agent", "reasoning_skipped",
+              {"why": "written for a different bucket", "reasoning_bucket": r.get("reasoning_bucket"),
+               "suspected_bucket": output.suspected_bucket}, case_id=output.case_id)
+    out, added = output, []
+    for field, text in candidates.items():
+        if not text:
+            continue
+        try:
+            out = ClassifierOutput.model_validate(out.model_dump() | {field: text})
+            added.append(field)
+        except ValidationError as exc:
+            audit("agent", f"{field}_rejected", {"error": str(exc.errors()[0]["msg"])},
+                  case_id=output.case_id)
+    audit("agent", "tool_call:medgemma_cache", {"added": added}, case_id=output.case_id)
     return out
 
 
