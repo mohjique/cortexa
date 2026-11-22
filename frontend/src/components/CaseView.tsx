@@ -274,13 +274,22 @@ function Detail({
                 <span>{Math.round(p * 100)}%</span>
               </div>
             ))}
-          {c.medgemma_bucket && (
-            <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
-              MedGemma suggests: {BUCKET_LABEL[c.medgemma_bucket]}
-              {c.medgemma_bucket !== c.suspected_bucket && " (disagrees with the classifier)"}
+          {c.heatmap_path && <Heatmap caseId={s.case_id} />}
+          {c.reasoning && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 12 }}>
+                <b>Reasoning: suspected {BUCKET_LABEL[c.suspected_bucket].toLowerCase()}</b>{" "}
+                <span className="chip warn">AI draft · not a diagnosis</span>
+              </div>
+              <div className="muted" style={{ marginTop: 4, fontSize: 13, whiteSpace: "pre-wrap" }}>
+                {c.reasoning}
+              </div>
+              <div className="faint" style={{ fontSize: 11 }}>
+                Written by MedGemma from the image, the classifier's call and this bucket's pathway. The doctor
+                confirms or corrects the bucket.
+              </div>
             </div>
           )}
-          {c.heatmap_path && <Heatmap caseId={s.case_id} />}
           {c.findings_summary && (
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 12 }}>

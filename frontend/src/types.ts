@@ -45,6 +45,9 @@ export interface ClassifierOutput {
   // MedGemma draft findings text (PR 37). The backend rejects any summary that
   // breaks rule 1 (agent/findings.py), so only checked text reaches the UI.
   findings_summary?: string | null;
+  // MedGemma draft reasoning on the classifier's call and its decision-tree
+  // pathway. Rule-1 checked by the backend (agent/reasoning.py).
+  reasoning?: string | null;
 }
 
 export interface PituitaryResults {
