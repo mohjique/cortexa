@@ -68,6 +68,7 @@ deploy/           Hugging Face Space (backend) + Vercel (frontend) deployment
 - Dataset: Kaggle `mohamadabouali1/mri-brain-tumor-dataset-4-class-7023-images`, 7,023 images, 4 classes (glioma, meningioma, pituitary, no tumor). Same images as `masoudnickparvar/brain-tumor-mri-dataset` with renamed folders, plus blurred / noisy / motion-artifact copies used for a robustness check.
 - **Remove exact and near-duplicate images before splitting.** The dataset leaks duplicates across train and test. Use perceptual hashing.
 - The "no tumor" class comes from a different source dataset (Br35H). Check Grad-CAM heatmaps to confirm the model looks at tumors, not source artifacts.
+- The 23 demo MRIs are committed in `classifier/demo_scans/` (0.16 MB, byte-for-byte copies from the public Kaggle dataset, built by `python -m classifier.demo_scans`). This is the one exception to "never commit data": the demo and the deployed backend need them, and the doctor views them in the app. Files are named by case ID only, never by label.
 - Report per-class accuracy on the deduplicated test set. Calibrate the confidence score on held-out data; agreement between two models is not a confidence score.
 - Evaluate MedGemma alone on the test set first. If it is weak on brain MRI, use it to write the plain-language findings summary instead of voting.
 

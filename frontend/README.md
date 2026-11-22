@@ -20,7 +20,8 @@ React + Vite + TypeScript app for the doctor-facing side of Cortexa. It reads ca
 | No-match plan: near misses, alert, tumor board log | No-match plan tab | `record.no_match` |
 | Audit log | Audit log tab | `GET /cases/{id}/audit` |
 | MRI upload | `/new` | `POST /cases?case_id=&filename=`, raw image bytes as the body |
-| Grad-CAM heatmap | detail panel | `GET /cases/{id}/heatmap` (hidden on 404) |
+| Demo scans: the 23 demo MRIs, click to view full screen, then open as a case | `/new` | `GET /demo-scans`, `GET /demo-scans/{id}`, then `POST /cases` |
+| MRI scan + Grad-CAM, click for the full-screen viewer (toggle, zoom, brightness/contrast) | detail panel, above the doctor action | `GET /cases/{id}/image`, `GET /cases/{id}/heatmap` (each hidden on 404) |
 | Retry a failed agent step | detail panel | `POST /cases/{id}/run` |
 
 Safety rules the UI follows: model output is always labelled "suspected"; the confirm screen never pre-selects a bucket; results fields start blank (the doctor picks `pending` or `unknown` explicitly); only the ZIP is entered, never an address; the mutation check is shown as context only; there is no patient-contact feature. The doctor ID typed in the header is recorded on every decision.
