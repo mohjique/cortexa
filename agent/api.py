@@ -161,20 +161,34 @@ def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
     reasoning was written for one bucket, so it is attached only when that
     matches this upload's suspected bucket. Each text is re-validated, so the
     rule-1 check always runs; a text that fails is dropped and audited.
+
+    If the reasoning for this bucket was dropped because it contradicted the
+    ResNet call (when it was generated, or on re-check here), the output gets
+    `reasoning_withheld` so the doctor sees a fixed note. It is a cue only.
     """
+    from agent.reasoning import check_reasoning, is_disagreement
     from classifier.medgemma import cached
 
     r = cached(output.case_id)
     if r is None:
         return output
     candidates: dict[str, Any] = {"findings_summary": r.get("findings_summary")}
+    withheld = False
     if r.get("reasoning_bucket") == output.suspected_bucket:
-        candidates["reasoning"] = r.get("reasoning")
+        text = r.get("reasoning")
+        problem = check_reasoning(text, output.suspected_bucket) if text else r.get("reasoning_rejected")
+        if is_disagreement(problem):
+            withheld = True  # the text itself is never attached
+            audit("agent", "reasoning_withheld", {"why": problem}, case_id=output.case_id)
+        else:
+            candidates["reasoning"] = text
     elif r.get("reasoning"):
         audit("agent", "reasoning_skipped",
               {"why": "written for a different bucket", "reasoning_bucket": r.get("reasoning_bucket"),
                "suspected_bucket": output.suspected_bucket}, case_id=output.case_id)
     out, added = output, []
+    if withheld:
+        out = ClassifierOutput.model_validate(out.model_dump() | {"reasoning_withheld": True})
     for field, text in candidates.items():
         if not text:
             continue

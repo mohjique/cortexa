@@ -292,6 +292,15 @@ function Detail({
               </div>
             </div>
           )}
+          {c.reasoning_withheld && !c.reasoning && (
+            <div style={{ marginTop: 10, fontSize: 12 }}>
+              <span className="chip warn">Draft reasoning withheld</span>{" "}
+              <span className="muted">
+                MedGemma's draft did not support the classifier's suspected call, so it is not shown. MedGemma does not
+                vote; the doctor confirms or corrects the bucket.
+              </span>
+            </div>
+          )}
           {c.findings_summary && (
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 12 }}>

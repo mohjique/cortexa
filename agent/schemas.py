@@ -128,6 +128,10 @@ class ClassifierOutput(Schema):
     # Draft reasoning from MedGemma, written for `suspected_bucket` (the ResNet
     # call) and its decision-tree pathway. Checked against rule 1 below.
     reasoning: NonEmptyStr | None = None
+    # True when MedGemma's draft reasoning was dropped because it contradicted
+    # the ResNet call. The UI shows a fixed note; no MedGemma text is kept.
+    # Information only: it never changes the bucket, the flag or the route.
+    reasoning_withheld: bool = False
 
     @field_validator("medgemma_bucket", mode="before")
     @classmethod
@@ -139,6 +143,8 @@ class ClassifierOutput(Schema):
 
     @model_validator(mode="after")
     def _summary_rule_1(self) -> ClassifierOutput:
+        if self.reasoning_withheld and self.reasoning is not None:
+            raise ValueError("reasoning_withheld means no reasoning is shown")
         if self.findings_summary is not None:
             from agent.findings import check_summary
 

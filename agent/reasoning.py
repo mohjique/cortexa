@@ -133,6 +133,25 @@ def check_alignment(text: str, bucket: str) -> str | None:
     return None
 
 
+# The reasons check_alignment returns. A text dropped for one of these
+# disagreed with the ResNet call (as opposed to breaking rule 1's wording).
+_DISAGREEMENT_PREFIXES = (
+    "names another tumor type than the call",
+    "describes a mass when the call is",
+    "says nothing is there when the call is",
+)
+
+
+def is_disagreement(problem: str | None) -> bool:
+    """True when a rejection reason means the reasoning contradicted the ResNet call.
+
+    Used only to tell the doctor the draft was withheld. It never changes the
+    suspected bucket, the uncertainty flag or the case's route: MedGemma does
+    not vote.
+    """
+    return bool(problem) and problem.startswith(_DISAGREEMENT_PREFIXES)  # type: ignore[union-attr]
+
+
 def check_reasoning(text: str, bucket: str | None = None) -> str | None:
     """Why the reasoning can't be shown, or None if it is fine as a draft.
 
