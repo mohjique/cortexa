@@ -40,9 +40,13 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 
 ### Upload endpoint
 
-`POST /cases?case_id=<id>&filename=<name>` with the raw image bytes as the request body, for example `fetch(url, {method: "POST", body: file})`. Both query parameters are optional; without `case_id` the API makes `case-<8 hex>`. The API classifies the image, creates the case and moves it to `confirm_bucket`. It returns the case state (201), or 422 for an unreadable image (no case is created) and 409 if the case exists. The image is not stored.
+`POST /cases?case_id=<id>&filename=<name>` with the raw image bytes as the request body, for example `fetch(url, {method: "POST", body: file})`. Both query parameters are optional; without `case_id` the API makes `case-<8 hex>`. The API classifies the image, creates the case and moves it to `confirm_bucket`. It returns the case state (201), or 422 for an unreadable image (no case is created) and 409 if the case exists. The image is kept so the doctor can read it: the API decodes it and stores its own PNG re-encoding (never the uploaded bytes) under the data folder. An upload PIL can't decode (possible with the stub) is not kept; the case works without it.
 
 `GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub).
+
+`GET /cases/{case_id}/image` returns the case's MRI as that PNG (404 if it was not kept).
+
+`GET /demo-scans` lists the committed demo MRIs as `[{"case_id": "demo-001"}, ...]`: case IDs only, never a label or the model's call, so the gallery can't hand the doctor an answer. `GET /demo-scans/{case_id}` returns one, unchanged. The UI opens a demo scan as a case by uploading those bytes with `POST /cases`, so it goes through the same classifier and gates as any upload.
 
 `flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`, or MedGemma disagreeing when `flag_on_model_disagreement` is set. The agent never clears a flag the classifier set.
 

@@ -16,6 +16,7 @@ import {
   WatchOrTreatForm,
 } from "./GateForms";
 import ResultsForm from "./ResultsForm";
+import ScanViewer, { type ViewerImage } from "./ScanViewer";
 import { NoMatch, PreOp, ShortlistReview } from "./Trials";
 
 // Mirrors GATE_AT_STAGE in agent/workflow.py. The backend still checks it.
@@ -193,6 +194,8 @@ function Detail({
         <div>{nodeById[cur]?.t ?? s.stage}</div>
       </div>
 
+      <ScanPanel key={s.case_id} caseId={s.case_id} hasHeatmap={!!c?.heatmap_path} />
+
       {gate && (
         <div className="box gate">
           <h4>Doctor action needed</h4>
@@ -274,7 +277,6 @@ function Detail({
                 <span>{Math.round(p * 100)}%</span>
               </div>
             ))}
-          {c.heatmap_path && <Heatmap caseId={s.case_id} />}
           {c.reasoning && (
             <div style={{ marginTop: 10 }}>
               <div style={{ fontSize: 12 }}>
@@ -312,21 +314,36 @@ function Detail({
   );
 }
 
-/** Grad-CAM overlay served by GET /cases/{id}/heatmap. Hidden on 404 (no heatmap, e.g. the stub). */
-function Heatmap({ caseId }: { caseId: string }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [caseId]);
-  if (failed) return null;
+const HEATMAP_NOTE = "Grad-CAM: where the model looked. Not a tumor outline.";
+
+/**
+ * The MRI itself (GET /cases/{id}/image) and the Grad-CAM overlay (GET /cases/{id}/heatmap).
+ * Click either to open the full-screen viewer. Each one hides on 404 (e.g. the stub has no heatmap).
+ */
+function ScanPanel({ caseId, hasHeatmap }: { caseId: string; hasHeatmap: boolean }) {
+  const [failed, setFailed] = useState<Record<string, boolean>>({});
+  const [open, setOpen] = useState<number | null>(null);
+  const images: ViewerImage[] = [
+    { key: "scan", label: "MRI scan", src: api.scanUrl(caseId) },
+    ...(hasHeatmap ? [{ key: "heatmap", label: "Grad-CAM", src: api.heatmapUrl(caseId), note: HEATMAP_NOTE }] : []),
+  ].filter((im) => !failed[im.key]);
+  if (images.length === 0) return null;
   return (
-    <>
-      <img
-        src={api.heatmapUrl(caseId)}
-        alt="Grad-CAM heatmap: where the classifier looked"
-        onError={() => setFailed(true)}
-        style={{ width: "100%", marginTop: 8, borderRadius: 6 }}
-      />
-      <div className="faint" style={{ fontSize: 11 }}>Grad-CAM: where the model looked. Not a tumor outline.</div>
-    </>
+    <div className="box">
+      <h4>MRI</h4>
+      <div className="thumbs">
+        {images.map((im, k) => (
+          <button key={im.key} className="thumb" onClick={() => setOpen(k)} title={`Open ${im.label} full screen`}>
+            <img src={im.src} alt={im.label} onError={() => setFailed((f) => ({ ...f, [im.key]: true }))} />
+            <span>{im.label}</span>
+          </button>
+        ))}
+      </div>
+      <div className="faint" style={{ fontSize: 11, marginTop: 4 }}>
+        Click to enlarge. Read the scan yourself before confirming or correcting the suspected bucket.
+      </div>
+      {open !== null && <ScanViewer title={caseId} images={images} start={open} onClose={() => setOpen(null)} />}
+    </div>
   );
 }
 
