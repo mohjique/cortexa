@@ -5,7 +5,6 @@
     "resnet_confidence": 0.9992,
     "reasoning": "The image shows a brain MRI slice. There are no obvious masses or lesions visible in the brain tissue. The image appears to be a normal brain MRI. The next step in the pathway is for the doctor to confirm or correct the classifier's suspected call. The doctor's confirmation will determine whether the case stops or proceeds to further investigation.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a brain MRI slice. There are no obvious masses or lesions visible in the brain tissue. The image appears to be a normal brain MRI. The next step in the pathway is for the doctor to confirm or correct the classifier's suspected call. The doctor's confirmation will determine whether the case stops or proceeds to further investigation.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -15,7 +14,6 @@
     "resnet_confidence": 0.9996,
     "reasoning": "The image shows a brain MRI slice. There are no obvious masses or lesions that would suggest a tumor. The image appears to be a normal brain structure. The next step in the pathway is for the doctor to confirm or correct the classifier's suspected call. The doctor's confirmation will determine whether the case stops or proceeds to further investigation.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a brain MRI slice. There are no obvious masses or lesions that would suggest a tumor. The image appears to be a normal brain structure. The next step in the pathway is for the doctor to confirm or correct the classifier's suspected call. The doctor's confirmation will determine whether the case stops or proceeds to further investigation.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -25,7 +23,6 @@
     "resnet_confidence": 0.9959,
     "reasoning": "The image shows a cross-sectional view of the brain, with visible structures like the ventricles and sulci. There are no obvious masses or lesions that would suggest a tumor. The image appears to be a standard axial T1-weighted MRI. The next step in the pathway is for a doctor to review the image and confirm or correct the classifier's suspected call. If the doctor confirms that there is no tumor, the case will be closed.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a cross-sectional view of the brain, with visible structures like the ventricles and sulci. There are no obvious masses or lesions that would suggest a tumor. The image appears to be a standard axial T1-weighted MRI. The next step in the pathway is for a doctor to review the image and confirm or correct the classifier's suspected call. If the doctor confirms that there is no tumor, the case will be closed.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -35,7 +32,6 @@
     "resnet_confidence": 0.9996,
     "reasoning": "The image shows a large, well-defined lesion in the supratentorial region, appearing as a mass with a relatively smooth border. The lesion is located in the region of the brain, and the surrounding brain tissue appears relatively normal. The next steps in the pathway will determine whether the lesion is benign or malignant, and if it requires treatment. The doctor will review the image and the patient's clinical history to make a decision about whether to watch the lesion or treat it.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, well-defined lesion in the supratentorial region, appearing as a mass with a relatively smooth border. The lesion is located in the region of the brain, and the surrounding brain tissue appears relatively normal.\n\nThe next steps in the pathway will determine whether the lesion is benign or malignant, and if it requires treatment. The doctor will review the image and the patient's clinical history to make a decision about whether to watch the lesion or treat it.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -44,8 +40,7 @@
     "reasoning_bucket": "meningioma",
     "resnet_confidence": 0.9997,
     "reasoning": null,
-    "reasoning_rejected": "forbidden wording: 'confirm the diagnosis'",
-    "raw_reasoning": "The image shows a well-defined, round lesion with a distinct border located in the brain parenchyma. The lesion appears to be causing some mass effect, pushing on the surrounding brain tissue. The image does not show any obvious signs of hemorrhage or necrosis.\n\nThe next steps in the pathway will determine whether the lesion is benign or malignant, and if it requires treatment. The doctor will review the image and potentially order additional imaging to confirm the diagnosis and assess the extent of the tumor.",
+    "reasoning_rejected": "forbidden wording",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -55,7 +50,6 @@
     "resnet_confidence": 0.9999,
     "reasoning": "The image shows a well-defined, round lesion with a slightly irregular border located on the surface of the brain. This appearance is consistent with a meningioma. The app's pathway will determine whether the lesion requires further investigation or treatment. The doctor will decide whether to watch the lesion for future changes or proceed with surgical removal and pathological analysis. The results of the pathology will then be used to determine if the patient is eligible for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a well-defined, round lesion with a slightly irregular border located on the surface of the brain. This appearance is consistent with a meningioma. The app's pathway will determine whether the lesion requires further investigation or treatment. The doctor will decide whether to watch the lesion for future changes or proceed with surgical removal and pathological analysis. The results of the pathology will then be used to determine if the patient is eligible for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -65,7 +59,6 @@
     "resnet_confidence": 0.9986,
     "reasoning": "The image shows a well-defined, round, bright lesion in the brain parenchyma, which is consistent with a meningioma. The lesion appears to be located in the frontal lobe. The next steps in the pathway will determine whether the lesion requires treatment or observation. The doctor will decide whether to treat the lesion with surgery and pathology, or to observe it with a follow-up scan. The results of the pathology will then be used to determine if the patient is eligible for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a well-defined, round, bright lesion in the brain parenchyma, which is consistent with a meningioma. The lesion appears to be located in the frontal lobe. The next steps in the pathway will determine whether the lesion requires treatment or observation. The doctor will decide whether to treat the lesion with surgery and pathology, or to observe it with a follow-up scan. The results of the pathology will then be used to determine if the patient is eligible for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -75,7 +68,6 @@
     "resnet_confidence": 0.9996,
     "reasoning": "The image shows a large, bright lesion in the brain, likely involving the meninges. There are also smaller, darker lesions present. The large lesion appears to be causing significant mass effect. The next steps in the pathway will determine whether the doctor will watch or treat the suspected meningioma. This decision will be based on the size, location, and characteristics of the lesion, as well as the patient's overall health and preferences.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, bright lesion in the brain, likely involving the meninges. There are also smaller, darker lesions present. The large lesion appears to be causing significant mass effect.\n\nThe next steps in the pathway will determine whether the doctor will watch or treat the suspected meningioma. This decision will be based on the size, location, and characteristics of the lesion, as well as the patient's overall health and preferences.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -85,7 +77,6 @@
     "resnet_confidence": 0.9995,
     "reasoning": "The image shows a large, irregular, and hyperintense lesion in the right frontal lobe, which is consistent with the suspected glioma. There are no obvious signs of hemorrhage or significant edema. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, irregular, and hyperintense lesion in the right frontal lobe, which is consistent with the suspected glioma. There are no obvious signs of hemorrhage or significant edema. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -95,7 +86,6 @@
     "resnet_confidence": 0.9991,
     "reasoning": "The image shows a large, dark area within the brain, obscuring the normal brain tissue. This could be a tumor. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, dark area within the brain, obscuring the normal brain tissue. This could be a tumor. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -105,7 +95,6 @@
     "resnet_confidence": 0.9992,
     "reasoning": "The image shows a brain MRI slice with a large, bright area in the right temporal lobe. This could be a tumor. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a brain MRI slice with a large, bright area in the right temporal lobe. This could be a tumor. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information is crucial for determining eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -114,8 +103,7 @@
     "reasoning_bucket": "glioma",
     "resnet_confidence": 0.9995,
     "reasoning": null,
-    "reasoning_rejected": "forbidden wording: 'confirming the diagnosis'",
-    "raw_reasoning": "The image shows a lesion within the brain parenchyma, appearing as a bright area with irregular borders. The lesion is located in the brain, which is consistent with the suspected glioma. The image does not show any obvious signs of hemorrhage or significant edema.\n\nThe next steps in the pathway will involve confirming the diagnosis and determining the specific type and grade of the glioma. The pre-operative screen will assess the patient's eligibility for clinical trials based on factors like IDH status, 1p/19q codeletion, MGMT methylation, and grade.",
+    "reasoning_rejected": "forbidden wording",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -125,7 +113,6 @@
     "resnet_confidence": 0.9996,
     "reasoning": "The image shows a lesion with surrounding edema in the brain. The lesion appears to be located in the brain parenchyma. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information will be used to determine eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a lesion with surrounding edema in the brain. The lesion appears to be located in the brain parenchyma.\n\nThe next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information will be used to determine eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -135,7 +122,6 @@
     "resnet_confidence": 0.9997,
     "reasoning": "The image shows a brain MRI slice. There is a lesion in the brain. The lesion appears to be in the brain. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. The pre-op screen will also flag any trials that require enrollment before surgery.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a brain MRI slice. There is a lesion in the brain. The lesion appears to be in the brain.\n\nThe next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. The pre-op screen will also flag any trials that require enrollment before surgery.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -145,7 +131,6 @@
     "resnet_confidence": 0.9997,
     "reasoning": "The image shows a large, irregular mass in the brain, obscuring the normal brain structures. The mass appears to be causing significant distortion of the surrounding brain tissue. The next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, irregular mass in the brain, obscuring the normal brain structures. The mass appears to be causing significant distortion of the surrounding brain tissue.\n\nThe next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -155,7 +140,6 @@
     "resnet_confidence": 0.9991,
     "reasoning": "The image shows a large, irregular lesion in the brain, likely within the brain parenchyma. There are also some surrounding edema. The lesion appears to be causing some distortion of the surrounding brain tissue. The next steps in the pathway will determine the specific type of glioma, its grade, and its molecular characteristics (IDH status, 1p/19q codeletion, MGMT methylation). This information is crucial for determining the best treatment approach.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, irregular lesion in the brain, likely within the brain parenchyma. There are also some surrounding edema. The lesion appears to be causing some distortion of the surrounding brain tissue.\n\nThe next steps in the pathway will determine the specific type of glioma, its grade, and its molecular characteristics (IDH status, 1p/19q codeletion, MGMT methylation). This information is crucial for determining the best treatment approach.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -165,7 +149,6 @@
     "resnet_confidence": 0.9994,
     "reasoning": "The image shows a large, irregular mass within the brain, likely involving the brain parenchyma. The mass appears to be causing some distortion of the surrounding brain structures. The next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a large, irregular mass within the brain, likely involving the brain parenchyma. The mass appears to be causing some distortion of the surrounding brain structures.\n\nThe next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -175,7 +158,6 @@
     "resnet_confidence": 0.9996,
     "reasoning": "The image shows a lesion in the brain, appearing as a bright area within the brain tissue. The lesion is located in the region of the brain, which is consistent with the suspected glioma. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the tumor. This information is crucial for determining eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a lesion in the brain, appearing as a bright area within the brain tissue. The lesion is located in the region of the brain, which is consistent with the suspected glioma. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the tumor. This information is crucial for determining eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -185,7 +167,6 @@
     "resnet_confidence": 0.9994,
     "reasoning": "The image shows a lesion in the brain, which could be a glioma. The lesion appears to be located in the brain tissue. The next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information will be used to determine eligibility for clinical trials.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a lesion in the brain, which could be a glioma. The lesion appears to be located in the brain tissue.\n\nThe next steps in the pathway will determine the IDH status, 1p/19q codeletion, MGMT methylation, and grade of the suspected glioma. This information will be used to determine eligibility for clinical trials.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -195,7 +176,6 @@
     "resnet_confidence": 0.9997,
     "reasoning": "The image shows a lesion in the pituitary region, which is consistent with a pituitary tumor. The lesion appears to be located near the pituitary gland. The next steps in the pathway will determine whether hormone labs are needed, and if so, the results of those labs will be reviewed by the doctor. The doctor will then decide whether surgery or medication is the appropriate course of action.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a lesion in the pituitary region, which is consistent with a pituitary tumor. The lesion appears to be located near the pituitary gland. The next steps in the pathway will determine whether hormone labs are needed, and if so, the results of those labs will be reviewed by the doctor. The doctor will then decide whether surgery or medication is the appropriate course of action.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -205,7 +185,6 @@
     "resnet_confidence": 0.9997,
     "reasoning": "The image shows a structure within the pituitary gland, which is consistent with a pituitary tumor. The surrounding brain tissue appears normal. The next steps in the pathway will determine whether the patient is a candidate for surgery or medication based on hormone lab results. The pathway will also determine if the patient is eligible for trial matching.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a structure within the pituitary gland, which is consistent with a pituitary tumor. The surrounding brain tissue appears normal. The next steps in the pathway will determine whether the patient is a candidate for surgery or medication based on hormone lab results. The pathway will also determine if the patient is eligible for trial matching.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -215,7 +194,6 @@
     "resnet_confidence": 0.9988,
     "reasoning": "The image shows a well-defined, round lesion within the pituitary gland. This is consistent with a pituitary tumor. The surrounding brain tissue appears normal. The next steps in the pathway will determine whether the patient is a candidate for surgery or medical management. Hormone labs will help assess the patient's hormonal status, which is crucial for guiding treatment decisions.",
     "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a well-defined, round lesion within the pituitary gland. This is consistent with a pituitary tumor. The surrounding brain tissue appears normal.\n\nThe next steps in the pathway will determine whether the patient is a candidate for surgery or medical management. Hormone labs will help assess the patient's hormonal status, which is crucial for guiding treatment decisions.",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -223,9 +201,8 @@
     "case_id": "demo-023",
     "reasoning_bucket": "meningioma",
     "resnet_confidence": 0.7828,
-    "reasoning": "The image shows a cross-sectional view of the brain. The visible structures appear normal, with no obvious masses or abnormalities. The image does not show any features that would strongly suggest a meningioma. The next steps in the pathway will determine whether the doctor will watch or treat the suspected meningioma. This decision will be based on the doctor's assessment of the image and the patient's clinical history.",
-    "reasoning_rejected": null,
-    "raw_reasoning": "The image shows a cross-sectional view of the brain. The visible structures appear normal, with no obvious masses or abnormalities. The image does not show any features that would strongly suggest a meningioma.\n\nThe next steps in the pathway will determine whether the doctor will watch or treat the suspected meningioma. This decision will be based on the doctor's assessment of the image and the patient's clinical history.",
+    "reasoning": null,
+    "reasoning_rejected": "says nothing is there when the call is meningioma",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   }

@@ -5,13 +5,19 @@ so it does not vote. The ResNet classifier picks the suspected bucket. The
 pathway for that bucket comes from this file (docs/decision-tree.md), in code,
 so the LLM cannot change which steps the case follows. MedGemma gets the image,
 the ResNet call and this pathway, and explains them for the care team: which
-visible features fit or argue against the suspected bucket, and what each next
-step answers.
+visible features are consistent with the suspected bucket, and what each next
+step answers. The reasoning supports the ResNet call; it never offers a second
+opinion. Whether the call is right is the doctor's decision at confirm_bucket.
 
-`check_reasoning` enforces rule 1 in code. The reasoning may name the pathway's
-steps (surgery, pathology, labs), because the tree already contains them and the
-doctor decides each one. It may not diagnose, recommend, tell anyone what they
-should do, refer, or name a tumor type without hedging.
+`check_reasoning` enforces this in code:
+- Rule 1: the reasoning may name the pathway's steps (surgery, pathology, labs),
+  because the tree already contains them and the doctor decides each one. It may
+  not diagnose, recommend, tell anyone what they should do, refer, or name a
+  tumor type without hedging.
+- Alignment (given the bucket): it may not contradict the ResNet call, e.g. call
+  the image normal when the call is a tumor, name a different tumor type, or
+  describe a mass when the call is no tumor.
+A text that fails either check is dropped entirely; it is never stored or shown.
 """
 
 from __future__ import annotations
@@ -72,9 +78,9 @@ def reasoning_prompt(bucket: str, confidence: float, flagged: bool) -> str:
         f"(confidence {confidence:.2f}).{flag}\n"
         f"The app's pathway for this suspected bucket:\n{steps}\n\n"
         "In 3 to 5 short sentences: first, describe the visible features in the image that are "
-        "consistent with the suspected call, and any that argue against it (say so plainly if the "
-        "image does not look like it). Then explain what the next steps of this pathway will "
-        "answer for the team. Do not add steps that are not listed."
+        "consistent with the suspected call. Then explain what the next steps of this pathway will "
+        "answer for the team. Do not add steps that are not listed, and do not name any other "
+        "tumor type."
     )
 
 
@@ -96,14 +102,51 @@ _REASONING_HEDGE = re.compile(
 )
 
 
-def check_reasoning(text: str) -> str | None:
-    """Why the reasoning breaks rule 1, or None if it is fine to show as a draft."""
+_FAMILY = {
+    "glioma": re.compile(r"\b(glioma|glioblastoma|astrocytoma|oligodendroglioma)s?\b", re.IGNORECASE),
+    "meningioma": re.compile(r"\bmeningiomas?\b", re.IGNORECASE),
+    "pituitary": re.compile(r"\b(pituitary (?:adenoma|tumou?r|mass|lesion)|adenomas?)\b", re.IGNORECASE),
+}
+# Saying there is nothing there, when the ResNet call is a tumor.
+_NO_FINDING = re.compile(
+    r"\b(no (?:obvious |visible |clear |apparent |definite )?(?:mass|masses|lesions?|tumou?rs?|abnormalit\w*)"
+    r"|(?:appears?|looks?|is|are)(?: to be)?(?: an?)?(?: entirely| completely)? normal"
+    r"|does not (?:show|suggest|appear|look)|not consistent|inconsistent|argues? against|unlikely)\b",
+    re.IGNORECASE,
+)
+_MASS = re.compile(r"\b(mass|masses|lesions?|tumou?rs?)\b", re.IGNORECASE)
+_NEGATION = re.compile(r"\b(no|not|without|any|absence)\b", re.IGNORECASE)
+
+
+def check_alignment(text: str, bucket: str) -> str | None:
+    """Why the reasoning contradicts the ResNet call `bucket`, or None if it goes along with it."""
+    for sentence in re.split(r"(?<=[.!?])\s+", " ".join(text.split())):
+        for other, pat in _FAMILY.items():
+            if other != bucket and pat.search(sentence):
+                return f"names another tumor type than the call {bucket}"
+        if bucket == "no_tumor":
+            if _MASS.search(sentence) and not _NEGATION.search(sentence):
+                return "describes a mass when the call is no tumor"
+        elif "surrounding" not in sentence.lower() and _NO_FINDING.search(sentence):
+            # "the surrounding tissue appears normal" supports the call; "the image appears normal" does not
+            return f"says nothing is there when the call is {bucket}"
+    return None
+
+
+def check_reasoning(text: str, bucket: str | None = None) -> str | None:
+    """Why the reasoning can't be shown, or None if it is fine as a draft.
+
+    The reason never quotes the text, so a rejected text is not kept anywhere.
+
+    Always checks rule 1. With `bucket` (the ResNet call), also checks that the
+    reasoning goes along with that call.
+    """
     t = " ".join(text.split())
     if not t:
         return "empty"
-    if m := _FORBIDDEN.search(t):
-        return f"forbidden wording: {m.group(0)!r}"
+    if _FORBIDDEN.search(t):
+        return "forbidden wording (diagnoses, recommends, directs or refers)"
     for sentence in re.split(r"(?<=[.!?])\s+", t):
         if _TUMOR.search(sentence) and not (_HEDGE.search(sentence) or _REASONING_HEDGE.search(sentence)):
-            return f"unhedged tumor type: {sentence!r}"
-    return None
+            return "unhedged tumor type"
+    return check_alignment(t, bucket) if bucket else None

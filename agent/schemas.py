@@ -148,7 +148,7 @@ class ClassifierOutput(Schema):
         if self.reasoning is not None:
             from agent.reasoning import check_reasoning
 
-            problem = check_reasoning(self.reasoning)
+            problem = check_reasoning(self.reasoning, self.suspected_bucket)
             if problem:
                 raise ValueError(f"rule 1: reasoning rejected ({problem})")
         return self

@@ -142,14 +142,13 @@ def run_demo(mg: MedGemma) -> list[dict]:
         flagged = bool(d.get("flagged_uncertain_at_0_99"))
         raw = mg.ask(_open(d["image_file"]), reasoning_prompt(bucket, conf, flagged),
                      system=REASONING_SYSTEM, max_new_tokens=220)
-        problem = check_reasoning(raw)
+        problem = check_reasoning(raw, bucket)  # rule 1 + goes along with the ResNet call
         out.append({
             "case_id": d["case_id"],
             "reasoning_bucket": bucket,  # the ResNet call this was written for
             "resnet_confidence": conf,
-            "reasoning": None if problem else " ".join(raw.split()),
+            "reasoning": None if problem else " ".join(raw.split()),  # rejected text is not kept
             "reasoning_rejected": problem,
-            "raw_reasoning": raw,
             "model": mg.model_id,
             "prompt_version": REASONING_PROMPT_VERSION,
         })
@@ -170,17 +169,19 @@ def cached(case_id: str, path: Path | None = None) -> dict | None:
 
 
 def recheck(path: Path | None = None) -> list[dict]:
-    """Re-run the rule-1 check on each cached raw_reasoning. No GPU, no model load.
+    """Re-run check_reasoning on each cached reasoning. No GPU, no model load.
 
-    For when check_reasoning changes after a Colab run: the model text stays
-    exactly as generated; only which texts pass is recomputed.
+    For when check_reasoning changes after a Colab run. Rejected text is not
+    kept, so a recheck can only drop more reasoning, never bring any back.
     """
     path = path or OUT_DIR / "demo.json"
     rows = json.loads(path.read_text(encoding="utf-8"))
     for r in rows:
-        problem = check_reasoning(r["raw_reasoning"])
-        r["reasoning"] = None if problem else " ".join(r["raw_reasoning"].split())
-        r["reasoning_rejected"] = problem
+        r.pop("raw_reasoning", None)
+        if r.get("reasoning") and (problem := check_reasoning(r["reasoning"], r["reasoning_bucket"])):
+            r["reasoning"], r["reasoning_rejected"] = None, problem
+        elif r.get("reasoning_rejected"):
+            r["reasoning_rejected"] = r["reasoning_rejected"].split(":")[0]  # older reasons quoted the text
     path.write_text(json.dumps(rows, indent=2), encoding="utf-8")
     return rows
 

@@ -180,3 +180,42 @@ def test_committed_demo_cache_passes_rule_1():
         assert r["reasoning_bucket"] == demo[r["case_id"]]["model_pred"]  # written for the ResNet call
         if r["reasoning"]:
             assert check_reasoning(r["reasoning"]) is None
+
+
+@pytest.mark.parametrize("text, bucket", [
+    ("The visible structures appear normal, with no obvious masses.", "meningioma"),
+    ("The image does not show features of a tumor.", "glioma"),
+    ("The lesion is consistent with a suspected meningioma.", "glioma"),
+    ("A round lesion sits in the sella, possibly a pituitary adenoma.", "meningioma"),
+    ("There is a large mass in the frontal lobe.", "no_tumor"),
+])
+def test_reasoning_that_contradicts_resnet_is_rejected(text, bucket):
+    assert check_reasoning(text) is None or "unhedged" in check_reasoning(text)
+    assert check_reasoning(text, bucket) is not None
+
+
+@pytest.mark.parametrize("text, bucket", [
+    ("A round lesion consistent with a suspected pituitary tumor. The surrounding brain tissue appears normal.", "pituitary"),
+    ("There are no obvious masses or lesions. The image appears to be a normal brain MRI.", "no_tumor"),
+    ("An irregular mass with surrounding edema, consistent with the suspected glioma.", "glioma"),
+])
+def test_reasoning_that_supports_resnet_passes(text, bucket):
+    assert check_reasoning(text, bucket) is None
+
+
+def test_rejection_reason_never_quotes_the_text():
+    text = "The visible structures appear normal, with no obvious masses."
+    assert "normal" not in check_reasoning(text, "meningioma")
+
+
+def test_schema_rejects_reasoning_against_the_call():
+    with pytest.raises(ValidationError, match="rule 1"):
+        out(suspected_bucket="glioma", reasoning="The image appears normal.")
+
+
+def test_cache_keeps_no_rejected_text():
+    rows = json.loads((medgemma.OUT_DIR / "demo.json").read_text(encoding="utf-8"))
+    assert all("raw_reasoning" not in r for r in rows)
+    for r in rows:
+        if r["reasoning"]:
+            assert check_reasoning(r["reasoning"], r["reasoning_bucket"]) is None
