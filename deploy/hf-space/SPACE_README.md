@@ -6,7 +6,7 @@ colorTo: blue
 sdk: docker
 app_port: 7860
 pinned: false
-short_description: Backend for the Cortexa care-management demo (synthetic data)
+short_description: Cortexa demo backend (synthetic data only)
 ---
 
 # Cortexa API
