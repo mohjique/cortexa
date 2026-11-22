@@ -11,7 +11,7 @@ them. Runs on a GPU (Colab: classifier/medgemma_colab.ipynb):
     python -m classifier.medgemma demo                  # reasoning for the 23 demo images
 
 Outputs (JSON, committed, synthetic case ids only):
-- classifier/medgemma/eval.json: per-class accuracy, confusion, raw answers
+- classifier/medgemma/eval.json (eval only, not committed): per-class accuracy, confusion, raw answers
 - classifier/medgemma/demo.json: per demo case, `reasoning` and the `reasoning_bucket` it was written for
 
 The ResNet call per demo image comes from classifier/splits/demo_images.json

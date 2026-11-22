@@ -91,7 +91,7 @@ The API picks the classifier with `CORTEXA_CLASSIFIER=real|stub`. The default is
 
 ## MedGemma (F2.3)
 
-MedGemma was evaluated alone first, as CLAUDE.md requires (`python -m classifier.medgemma eval --per-class 25`, `classifier/medgemma/eval.json`). It scored below 0.5 overall, far behind the ResNet, so it does not vote.
+MedGemma was evaluated alone first, as CLAUDE.md requires (`python -m classifier.medgemma eval --per-class 25`; results not committed). It scored below 0.5 overall, far behind the ResNet, so it does not vote.
 
 Instead it explains the ResNet call. `python -m classifier.medgemma demo` (Colab: `classifier/medgemma_colab.ipynb`, about 10 minutes on a T4) gives MedGemma each demo image, the ResNet call from `splits/demo_images.json`, and the decision-tree pathway for that bucket from `agent/reasoning.py`. It writes `classifier/medgemma/demo.json`: draft reasoning per case and the `reasoning_bucket` it was written for.
 

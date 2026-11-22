@@ -1,6 +1,6 @@
 """MedGemma's clinical reasoning, grounded in the ResNet call and the decision tree.
 
-MedGemma was weak at classifying brain MRI alone (classifier/medgemma/eval.json),
+MedGemma was weak at classifying brain MRI alone (below 0.5 on the test split),
 so it does not vote. The ResNet classifier picks the suspected bucket. The
 pathway for that bucket comes from this file (docs/decision-tree.md), in code,
 so the LLM cannot change which steps the case follows. MedGemma gets the image,
