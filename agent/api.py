@@ -27,6 +27,8 @@ HEATMAP_DIR = DATA_DIR / "heatmaps"
 
 # ---------------------------------------------------------------------------
 # Classifier: CORTEXA_CLASSIFIER=real | stub. Default: real if model.pt exists.
+# Set it explicitly on a deployment: the choice is then loaded at startup, and a
+# missing model.pt stops the server instead of silently serving the stub.
 # ---------------------------------------------------------------------------
 
 _classifier: Any = None
@@ -35,13 +37,18 @@ _classifier: Any = None
 def get_classifier() -> Any:
     global _classifier
     if _classifier is None:
-        from classifier.real import DEFAULT_MODEL
+        from classifier import real
 
-        choice = os.environ.get("CORTEXA_CLASSIFIER") or ("real" if DEFAULT_MODEL.exists() else "stub")
+        choice = os.environ.get("CORTEXA_CLASSIFIER") or ("real" if real.DEFAULT_MODEL.exists() else "stub")
+        if choice not in ("real", "stub"):
+            raise RuntimeError(f"CORTEXA_CLASSIFIER must be 'real' or 'stub', got {choice!r}")
         if choice == "real":
-            from classifier.real import ResNetClassifier
-
-            _classifier = ResNetClassifier(heatmap_dir=HEATMAP_DIR)
+            if not real.DEFAULT_MODEL.exists():
+                raise RuntimeError(
+                    f"CORTEXA_CLASSIFIER=real but there is no model at {real.DEFAULT_MODEL} "
+                    "(set CORTEXA_MODEL_PATH, or set CORTEXA_CLASSIFIER=stub on purpose)"
+                )
+            _classifier = real.ResNetClassifier(model_path=real.DEFAULT_MODEL, heatmap_dir=HEATMAP_DIR)
         else:
             from classifier.stub import StubClassifier
 
@@ -59,6 +66,8 @@ def set_classifier(c: Any) -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     get_policy()  # fail fast on a bad policy file
+    if os.environ.get("CORTEXA_CLASSIFIER"):
+        get_classifier()  # explicit choice: load now, so a bad setup fails the boot, not the first upload
     yield
 
 
@@ -66,9 +75,17 @@ app = FastAPI(title="Cortexa agent", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORTEXA_CORS_ORIGINS", "http://localhost:5173").split(","),
+    # Optional, for Vercel preview URLs, e.g. ^https://cortexa(-[a-z0-9-]+)?\.vercel\.app$
+    allow_origin_regex=os.environ.get("CORTEXA_CORS_ORIGIN_REGEX") or None,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Liveness, plus which classifier is serving: ResNetClassifier, StubClassifier or not_loaded."""
+    return {"status": "ok", "classifier": type(_classifier).__name__ if _classifier is not None else "not_loaded"}
 
 
 def _get(case_id: str) -> CaseRecord:

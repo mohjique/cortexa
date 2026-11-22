@@ -3,7 +3,7 @@
 .env.*
 *.key
 
-# Data and models (never commit)
+# Data and models (never commit; the one exception is the trained classifier below)
 data/
 datasets/
 *.pt
@@ -11,7 +11,10 @@ datasets/
 *.ckpt
 *.safetensors
 *.onnx
-artifacts/
+artifacts/*
+!artifacts/classifier/
+artifacts/classifier/*
+!artifacts/classifier/model.pt
 cache/
 
 # Python
@@ -27,3 +30,6 @@ dist/
 
 # OS
 .DS_Store
+
+# Deploy staging (deploy/hf-space/deploy.py --stage-only)
+build/
