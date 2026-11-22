@@ -134,6 +134,19 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     return workflow.attach_classification(case_id, output).state
 
 
+@app.get("/cases/{case_id}/heatmap")
+def get_heatmap(case_id: str) -> FileResponse:
+    """The Grad-CAM overlay for the case's classification (PNG)."""
+    rec = _get(case_id)
+    path = rec.classifier.heatmap_path if rec.classifier else None
+    if not path:
+        raise HTTPException(404, "no heatmap for this case")
+    p = Path(path).resolve()
+    if HEATMAP_DIR.resolve() not in p.parents or not p.is_file():  # only serve our own heatmaps
+        raise HTTPException(404, "no heatmap for this case")
+    return FileResponse(p, media_type="image/png")
+
+
 def _save_scan(case_id: str, image: bytes) -> bool:
     """Keep the upload for the doctor's viewer, decoded and re-encoded as PNG.
 
@@ -193,19 +206,6 @@ def get_demo_scan(case_id: str) -> FileResponse:
     if p is None:
         raise HTTPException(404, f"no demo scan {case_id}")
     return FileResponse(p, media_type="image/png" if p.suffix == ".png" else "image/jpeg")
-
-
-@app.get("/cases/{case_id}/heatmap")
-def get_heatmap(case_id: str) -> FileResponse:
-    """The Grad-CAM overlay for the case's classification (PNG)."""
-    rec = _get(case_id)
-    path = rec.classifier.heatmap_path if rec.classifier else None
-    if not path:
-        raise HTTPException(404, "no heatmap for this case")
-    p = Path(path).resolve()
-    if HEATMAP_DIR.resolve() not in p.parents or not p.is_file():  # only serve our own heatmaps
-        raise HTTPException(404, "no heatmap for this case")
-    return FileResponse(p, media_type="image/png")
 
 
 @app.get("/cases/{case_id}", response_model=CaseState)
