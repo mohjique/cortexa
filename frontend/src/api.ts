@@ -54,7 +54,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+export type Health = { status: string; classifier: string; trial_source?: "demo" | "live" };
+
 export const api = {
+  /** Liveness, classifier, and where trials come from (`demo` or `live`). */
+  health: () => request<Health>("/health"),
   listCases: () => request<CaseState[]>("/cases"),
   getCase: (id: string) => request<CaseState>(`/cases/${encodeURIComponent(id)}`),
   getRecord: (id: string) => request<CaseRecord>(`/cases/${encodeURIComponent(id)}/record`),

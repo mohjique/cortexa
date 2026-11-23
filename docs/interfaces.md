@@ -17,6 +17,7 @@ The public demo gives each browser its own workspace (issue 48), so one visitor 
 - A new workspace starts the way the app always has: no cases, and the shared demo gallery (`GET /demo-scans`). The backend does not pre-create demo cases.
 - `POST /workspace/reset` (header required, no body) deletes the caller's cases, audit log, stored scans and heatmaps, starts a fresh workspace, and returns `{"status": "reset", "removed_cases": 2}`. The fresh log's first entry is `workspace_reset` with `{"removed_cases": n}` (rule 7). Other workspaces are untouched. The UI has a **Reset demo** button in the header, behind a confirm dialog.
 - Global routes need no workspace: `GET /health`, `GET /demo-scans`, `GET /demo-scans/{case_id}`.
+- `GET /health` → `{status, classifier, trial_source}`. `trial_source` is `demo` (synthetic trials from `agent/demo_cache/`) or `live` (ClinicalTrials.gov); the UI banner says which.
 - Housekeeping: when a new workspace starts, workspaces unused for more than `CORTEXA_WORKSPACE_TTL_HOURS` (default 24) are deleted, then the least recently used ones until at most `CORTEXA_MAX_WORKSPACES` (default 200) remain. A visitor whose workspace was evicted just gets a fresh, empty one.
 - CORS allows the `X-Cortexa-Workspace` request header (with `Accept` and `Content-Type`).
 

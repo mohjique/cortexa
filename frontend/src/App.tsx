@@ -1,6 +1,6 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import logo from "./assets/logo.png";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { API_BASE, api } from "./api";
 import { DoctorContext, useDoctorIdState } from "./hooks";
 import Board from "./components/Board";
@@ -18,10 +18,7 @@ export default function App() {
     <DoctorContext.Provider value={doctorId}>
       <TutorialProvider>
       <div className="app-top">
-      <div className="notice" role="note">
-        <strong>Research and demo use only.</strong> Synthetic data, not a medical device. Model output is suspected,
-        never a diagnosis; a doctor approves every step.
-      </div>
+      <Notice />
       <header>
         <div className="logo">
           <img src={logo} alt="Cortexa brain mark" />
@@ -119,5 +116,25 @@ function TourButton() {
     <button className="btn ghost small" data-tour="tour-button" onClick={start} disabled={active} title="Replay the guided tour">
       Tour
     </button>
+  );
+}
+
+/** What is synthetic and what is real, from the backend's trial source. */
+function Notice() {
+  const [source, setSource] = useState<"demo" | "live" | null>(null);
+  useEffect(() => {
+    api.health().then((h) => setSource(h.trial_source ?? null), () => setSource(null));
+  }, []);
+  const data =
+    source === "live"
+      ? "Synthetic patients and images; trials are real records from ClinicalTrials.gov."
+      : source === "demo"
+        ? "Synthetic patients, images and trials."
+        : "Synthetic patients and images.";
+  return (
+    <div className="notice" role="note">
+      <strong>Research and demo use only.</strong> {data} Not a medical device. Model output is suspected, never a
+      diagnosis; a doctor approves every step.
+    </div>
   );
 }
