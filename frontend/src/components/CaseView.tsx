@@ -103,14 +103,14 @@ export default function CaseView() {
         <div className="center">
           <div className="ctabs" role="tablist">
             {tabs.map(([k, label]) => (
-              <button key={k} role="tab" aria-selected={shownTab === k} className={shownTab === k ? "on" : ""} onClick={() => setTab(k)}>
+              <button key={k} data-tour={`tab-${k}`} role="tab" aria-selected={shownTab === k} className={shownTab === k ? "on" : ""} onClick={() => setTab(k)}>
                 {label}
               </button>
             ))}
           </div>
           <div className="cbody">
             {shownTab === "pathway" && (
-              <div className="canvas">
+              <div className="canvas" data-tour="pathway-tree">
                 <Tree route={route} />
               </div>
             )}
@@ -170,7 +170,7 @@ function Detail({
         {c?.flagged_uncertain && <span className="chip danger">Low confidence: look harder</span>}
         {overrode && <span className="chip danger">Doctor override</span>}
       </div>
-      <div className="kv">
+      <div className="kv" data-tour="suspected">
         <div>Suspected</div>
         <div>
           {s.suspected_bucket ? <b>{BUCKET_LABEL[s.suspected_bucket]}</b> : "pending"}
@@ -197,7 +197,7 @@ function Detail({
       <ScanPanel key={s.case_id} caseId={s.case_id} hasHeatmap={!!c?.heatmap_path} />
 
       {gate && (
-        <div className="box gate">
+        <div className="box gate" data-tour="gate">
           <h4>Doctor action needed</h4>
           <div>{gate === "preop_review" ? "Review the pre-op screen and answer each enroll-before-surgery trial" : STAGE_LABEL[s.stage]}</div>
           {gate === "confirm_bucket" && <ConfirmBucketForm record={record} onDone={onDone} />}

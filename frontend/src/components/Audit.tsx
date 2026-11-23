@@ -14,7 +14,7 @@ export default function Audit({ caseId, refreshKey }: { caseId: string; refreshK
   if (!data) return <div className="empty">Loading…</div>;
   const rows = [...data].reverse();
   return (
-    <table className="audit">
+    <table className="audit" data-tour="audit">
       <thead>
         <tr>
           <th>Time</th>

@@ -13,7 +13,7 @@ export default function TrialMap({ shortlist }: { shortlist: Shortlist }) {
   const bounds = [origin, ...sites.map((s) => s.pos)];
 
   return (
-    <div className="map">
+    <div className="map" data-tour="trial-map">
       <MapContainer
         bounds={bounds.length > 1 ? bounds : undefined}
         center={bounds.length > 1 ? undefined : origin}
