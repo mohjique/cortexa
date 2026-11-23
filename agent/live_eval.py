@@ -37,8 +37,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from agent.criteria_parse import PARSED_PREFIX, ParseSource, dict_source, evaluate_with_parse
-from agent.eligibility import NOT_MET_DOUBT_MARKER, Facts, split_criteria, to_row
+from agent.criteria_parse import PARSED_PREFIX, ParseSource, criterion_key, dict_source, evaluate_with_parse
+from agent.eligibility import NOT_MET_DOUBT_MARKER, Criterion, Facts, split_criteria, to_row
 from agent.policy import Policy, get_policy
 from agent.schemas import DoctorResults
 
@@ -226,17 +226,34 @@ def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None
     return rep, fm
 
 
+def load_parses(path: Path) -> dict[str, Any]:
+    """{criterion_key: raw parse}, from a parse cache file or that mapping itself.
+
+    A parse cache (agent.criteria_llm.ParseCache) keeps each bullet's type and
+    text, so its entries are re-keyed by criterion_key.
+    """
+    data = json.loads(path.read_text(encoding="utf-8"))
+    out: dict[str, Any] = {}
+    for k, v in data.items():
+        if isinstance(v, dict) and {"criterion_type", "text", "raw"} <= v.keys():
+            out[criterion_key(Criterion(v["criterion_type"], v["text"]))] = v["raw"]
+        else:
+            out[k] = v
+    return out
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Eligibility checker vs hand labels on live criteria text")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true", help="list every false met")
     ap.add_argument("--parses", type=Path, metavar="FILE",
-                    help="JSON {criterion_key: raw LLM parse} to refine the checker with (issue 56)")
+                    help="LLM parses to refine the checker with (issue 56): a parse cache from "
+                         "agent.parse_batch, or JSON {criterion_key: raw parse}")
     args = ap.parse_args(argv)
     fixtures, labels = load_fixtures(), load_labels()
     parses = None
     if args.parses is not None:
-        parses = dict_source(json.loads(args.parses.read_text(encoding="utf-8")))
+        parses = dict_source(load_parses(args.parses))
     results = [report(p, fixtures, labels, parses) for p in labels["profiles"]]
     if args.json:
         out = [asdict(rep) | {"false_mets": [asdict(f.row) | {"label": f.label} for f in fm]}

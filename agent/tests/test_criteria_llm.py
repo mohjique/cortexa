@@ -195,3 +195,14 @@ def test_batch_fixture_source_has_the_labeled_bullets():
     crit = parse_batch.from_fixtures()
     assert len(crit) >= 658
     assert isinstance(validate_parse(GOOD, C), Parse) and not isinstance(validate_parse(GOOD, C), Invalid)
+
+
+def test_live_eval_reads_a_parse_cache(tmp_path):
+    from agent import live_eval
+    from agent.criteria_parse import criterion_key
+
+    src = _source(tmp_path, FakeBackend())
+    src(C)
+    src.cache.save()
+    loaded = live_eval.load_parses(tmp_path / "p.json")
+    assert loaded == {criterion_key(C): GOOD}

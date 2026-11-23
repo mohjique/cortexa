@@ -62,6 +62,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from agent.concepts import ConceptName, detect
 from agent.eligibility import (
+    FILLER_WORDS,
     GLIOMA_FAMILY,
     MARKER_LABELS,
     NO_RULE_FIELD,
@@ -216,7 +217,95 @@ def _negative(r: Req) -> bool:
     return r.op == "!=" or r.value is False
 
 
-def _check_req(r: Req, text: str) -> str | None:
+# Anchor check: a quote must name what its field is about. Without it a model
+# can quote "pregnant or breastfeeding" and file it under pituitary radiation,
+# and the full-read check would pass (issue 56, first Qwen3-4B run).
+_TREATMENT_ANCHORS = {
+    "surgery": r"surg\w*|resect\w*|biops\w*|craniotom\w*|debulk\w*|operat\w*",
+    "radiation": r"radiat\w*|radiother\w*|chemoradi\w*|irradiat\w*|rt|imrt|proton|srs|stereotactic",
+    "temozolomide": r"temozolomide|tmz|temodar",
+    "bevacizumab": r"bevacizumab|avastin",
+    "idh_inhibitor": r"idh|vorasidenib|ivosidenib|olutasidenib|enasidenib",
+    "checkpoint_inhibitor": r"checkpoint|pd-?1|pd-?l1|ctla-?4|nivolumab|pembrolizumab|ipilimumab|atezolizumab"
+                            r"|durvalumab|cemiplimab|avelumab",
+    "pituitary_radiation": r"pituitary",
+}
+_ANCHORS: dict[str, str] = {
+    "age": r"age|aged|years?|yrs?|old|older|adults?|child(?:ren)?|pa?ediatric|adolescents?",
+    "sex": r"wom[ae]n|m[ae]n|females?|males?",
+    "grade": r"grade",
+    "idh": r"idh[12]?",
+    "codeletion_1p19q": r"1p|19q|co-?delet\w*",
+    "mgmt": r"mgmt",
+    "recurrent": r"recurr\w*|progress\w*|relaps\w*|refractory|newly|new|primary|initial",
+    "recurrence_number": r"recurr\w*|relaps\w*|progress\w*",
+    "tmb_clia": r"tmb|mutational",
+    "can_use_phone_or_tablet": r"phones?|tablets?|smartphones?|devices?",
+}
+
+# Purity check: every content word of a quote must be one its field can
+# express, or generic wording (time, comparison, negation). A qualifier the
+# field drops ("whole-brain radiotherapy", "diffuse hemispheric glioma",
+# "non-canonical IDH") rejects the parse; the regex answer stands.
+_GENERIC_WORDS = frozenset("""
+    at least most more less than greater fewer equal over under up between from within since after before
+    prior previous previously last first completion completed complete end ended finished receive received
+    receiving undergone underwent treatment treated treatments therapy therapies history any all must should will
+    been be week weeks month months day days dose doses course courses only also either both current currently
+    no not without never none nor neither absence free naive it its they their them
+""".split())
+_FIELD_WORDS: dict[str, frozenset[str]] = {
+    "age": frozenset("""older younger adult adults years year yrs old age aged time consent informed signing
+        enrollment registration screening""".split()),
+    "sex": frozenset("women woman men man female male females males".split()),
+    "diagnosis": frozenset("""histologic histological histologically histopathologic histopathological
+        histopathologically pathologic pathological pathologically confirmed confirmation proven verified
+        documented diagnosis diagnosed glioma gliomas glioblastoma glioblastomas gbm astrocytoma astrocytomas
+        oligodendroglioma oligodendrogliomas meningioma meningiomas""".split()),
+    "grade": frozenset("grade grades who cns high low".split()),
+    "idh": frozenset("idh idh1 idh2 mutant mutated mutation mutations wildtype wild type status".split()),
+    "codeletion_1p19q": frozenset("1p 19q codeleted codeletion co deleted deletion intact non status".split()),
+    "mgmt": frozenset("mgmt promoter methylated unmethylated methylation status".split()),
+    "recurrent": frozenset("""recurrent recurrence recurred progressive progression progressed relapsed relapse
+        refractory disease newly diagnosed new primary initial radiographic radiologic evidence second third
+        recurrences""".split()),
+    "recurrence_number": frozenset("""recurrence recurrences relapse relapses progression progressions second third
+        line lines one two three""".split()),
+    "tmb_clia": frozenset("tmb tumor mutational burden mut mb megabase clia certified lab laboratory test high".split()),
+    "can_use_phone_or_tablet": frozenset("able ability use using phone phones tablet tablets smartphone device".split()),
+    "prior_treatments": frozenset("""surgery surgical resection resected biopsy craniotomy debulking radiation
+        radiotherapy chemoradiation chemoradiotherapy irradiation rt imrt temozolomide tmz temodar bevacizumab
+        avastin idh inhibitor inhibitors agent agents vorasidenib ivosidenib olutasidenib enasidenib checkpoint pd
+        l1 ctla nivolumab pembrolizumab ipilimumab atezolizumab durvalumab cemiplimab avelumab pituitary concurrent
+        adjuvant cycle cycles elapsed interval washout gross total subtotal""".split()),
+}
+_QUOTE_WORD = re.compile(r"[a-z0-9]+")
+
+
+def _base(field: str) -> str:
+    return "prior_treatments" if field.startswith("prior_treatments.") else field
+
+
+def _anchor_missing(r: Req, context: str = "") -> bool:
+    """`context`: the condition quotes of a conditional parse, which may name the
+    treatment a requirement times ("if prior bevacizumab, ... since the last dose")."""
+    q = f"{r.quote} {context}".lower()
+    if r.field == "diagnosis":
+        return not all(re.search(rf"\b{e}s?\b" + ("|\\bgbm\\b" if e == "glioblastoma" else ""), q)
+                       for e in r.value)
+    if r.field.startswith("prior_treatments."):
+        pat = _TREATMENT_ANCHORS[r.field.split(".")[1]]
+    else:
+        pat = _ANCHORS[r.field]
+    return re.search(rf"\b(?:{pat})\b", q) is None
+
+
+def _impure_words(r: Req) -> list[str]:
+    allowed = FILLER_WORDS | _GENERIC_WORDS | _FIELD_WORDS[_base(r.field)]
+    return [w for w in _QUOTE_WORD.findall(r.quote.lower()) if not w.isdigit() and w not in allowed]
+
+
+def _check_req(r: Req, text: str, context: str = "") -> str | None:
     spec = FIELDS.get(r.field)
     if spec is None:
         return f"unknown field {r.field!r}"
@@ -228,6 +317,10 @@ def _check_req(r: Req, text: str) -> str | None:
         return f"quote not found in the criterion: {r.quote[:60]!r}"
     if r.op not in _DIRECTED_OPS and _NEGATION.search(r.quote) and not _negative(r):
         return f"quote negates but the requirement is positive: {r.quote[:60]!r}"
+    if _anchor_missing(r, context):
+        return f"quote does not name what {r.field} is about: {r.quote[:60]!r}"
+    if extra := _impure_words(r):
+        return f"quote has wording {r.field} cannot express: {' '.join(dict.fromkeys(extra))[:60]!r}"
     return None
 
 
@@ -248,8 +341,12 @@ def validate_parse(raw: Any, criterion: Criterion) -> Parse | Invalid:
     if (p.applies == "conditional") != bool(p.condition):
         return Invalid("a condition goes with applies=conditional, and only then")
     text = _squash(criterion.text)
-    for r in (*p.condition, *p.requirements):
+    for r in p.condition:
         if why := _check_req(r, text):
+            return Invalid(why)
+    context = " ".join(r.quote for r in p.condition)
+    for r in p.requirements:
+        if why := _check_req(r, text, context):
             return Invalid(why)
     return p
 

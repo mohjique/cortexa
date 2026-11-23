@@ -41,7 +41,7 @@ import httpx
 from agent.audit import audit
 from agent.criteria_parse import ENTITIES, FIELDS, TREATMENTS, Criterion, criterion_key
 
-PROMPT_VERSION = "p1"
+PROMPT_VERSION = "p2"
 CACHE_DIR = Path(__file__).resolve().parent / "parse_cache"
 ParseMode = Literal["cached_only", "live"]
 
@@ -74,6 +74,8 @@ _FIELD_DOCS = [
     ("tmb_clia", "tumor mutational burden in mutations/Mb from a CLIA lab; ops >= <= > <"),
     ("can_use_phone_or_tablet", "true/false; op =="),
     *[(f"prior_treatments.{t}", f"true = has received {_TREATMENT_MEANING[t]} before; op ==") for t in TREATMENTS],
+    ("chemotherapy", "there is no general chemotherapy field: prior_treatments.temozolomide means temozolomide "
+                     "only, so leave the word chemotherapy unquoted"),
     ("prior_treatments.<type>.weeks_ago", "weeks since that treatment ended; ops >= <= > <. "
                                           '"at least 12 weeks since radiation" -> >= 12; "within 4 weeks" -> < 4'),
     ("prior_treatments.temozolomide.cycles", "number of temozolomide cycles; ops >= <= > <"),
@@ -91,8 +93,12 @@ kind:
 - "requirement": the text states something about the patient that the fields below can express.
 - "heading": a lead-in or label that introduces other items (often ends with ":"), with no requirement itself.
 - "arm_option": the text describes one arm, cohort, part or stratum among alternatives.
-- "unreadable": nothing in the text fits the fields (labs, performance status, consent, contraception, \
-organ function, other cancers, other drugs, and so on).
+- "unreadable": nothing in the text fits the fields. This is the right answer for most criteria: lab values \
+(blood counts, bilirubin, creatinine, liver enzymes), performance status (KPS, ECOG, Lansky), life expectancy, \
+organ function, tissue or specimen availability, consent, contraception, pregnancy, other cancers, other drugs \
+and infections. Never put such a requirement into a field that does not name it.
+- A permission ("prior chemotherapy is allowed", "patients may have received X") requires nothing; if the \
+text has no other requirement, use "unreadable".
 For any kind other than "requirement", use applies "always", combine "all" and empty lists.
 
 Describe the condition exactly as written. Under an exclusion, describe the excluded condition; do NOT \
@@ -160,6 +166,8 @@ FEW_SHOT: list[dict[str, str]] = [
     *_ex("inclusion", "Cohort B: participants with recurrent disease after standard therapy", {"kind": "arm_option"}),
     *_ex("inclusion", "Adequate organ function as defined by:", {"kind": "heading"}),
     *_ex("exclusion", "Known hypersensitivity to any component of the study drug.", {"kind": "unreadable"}),
+    *_ex("inclusion", "Hemoglobin ≥ 9 g/dL", {"kind": "unreadable"}),
+    *_ex("inclusion", "Karnofsky performance status ≥ 60%", {"kind": "unreadable"}),
 ]
 
 

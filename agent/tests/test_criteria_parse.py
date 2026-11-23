@@ -228,15 +228,37 @@ def test_unquoted_words_block_the_parse():
 
 
 def test_concept_missing_from_parse_blocks_it():
-    """The quote covers the IDH words, but the parse never checks IDH."""
-    c = Criterion("inclusion", "Glioma, IDH-mutant per local testing")
+    """A parse that never checks IDH cannot pass a bullet that asks for it."""
+    c = Criterion("inclusion", "Glioma, IDH-mutant, previously documented")
     assert evaluate(c, _facts(), POLICY).holds is None
-    status, _ = _status(c, _req("diagnosis", "in", ["glioma"], "Glioma, IDH-mutant per local testing"))
+    status, _ = _status(c, _req("diagnosis", "in", ["glioma"], "Glioma"))
     assert status == "unknown"
     ok = {"kind": "requirement", "requirements": [
         {"field": "diagnosis", "op": "in", "value": ["glioma"], "quote": "Glioma"},
-        {"field": "idh", "op": "==", "value": "mutant", "quote": "IDH-mutant per local testing"}]}
+        {"field": "idh", "op": "==", "value": "mutant", "quote": "IDH-mutant, previously documented"}]}
     assert _status(c, ok)[0] == "met"
+
+
+def test_quote_must_name_its_field():
+    """First Qwen3-4B run: pregnancy filed under pituitary radiation, KPS under grade."""
+    c = Criterion("exclusion", "Women who are pregnant or breastfeeding")
+    bad = validate_parse(_req("prior_treatments.pituitary_radiation", "==", True, "pregnant or breastfeeding"), c)
+    assert isinstance(bad, Invalid) and "does not name" in bad.reason
+    c2 = Criterion("inclusion", "WHO performance status of 2 or less")
+    bad2 = validate_parse(_req("grade", "<=", 2, "WHO performance status of 2 or less"), c2)
+    assert isinstance(bad2, Invalid) and "does not name" in bad2.reason
+
+
+@pytest.mark.parametrize("text, field, value", [
+    ("Received whole-brain radiotherapy.", "prior_treatments.radiation", True),
+    ("Diffuse hemispheric glioma, H3 G34-mutant", "diagnosis", ["glioma"]),
+    ("Patient known to harbor any other non-canonical IDH mutations", "idh", "mutant"),
+])
+def test_quote_qualifier_the_field_drops_is_rejected(text, field, value):
+    """'whole-brain', 'hemispheric', 'non-canonical' change the meaning; the field cannot hold them."""
+    quote = text.rstrip(".").split(",")[0]
+    out = validate_parse(_req(field, "==" if field != "diagnosis" else "in", value, quote), Criterion("exclusion", text))
+    assert isinstance(out, Invalid) and "cannot express" in out.reason
 
 
 def test_parsed_not_met_needs_the_wording_guard():
