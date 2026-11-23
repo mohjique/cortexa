@@ -914,6 +914,8 @@ def _guard(unread: list[ConceptHit], facts: Facts, policy: Policy, checked: Find
 # ---------------------------------------------------------------------------
 
 _OR_WORD = re.compile(r"\bor\b|\beither\b", _I)
+# Separators that may join the items of an exclusion list (see `evaluate`).
+_LIST_SEP = re.compile(r"[,;/]|\band\b", _I)
 
 # Words a bullet can hold that change nothing about what it asks: grammar,
 # and the framing around the parts the rules read ("Histologically confirmed
@@ -962,6 +964,8 @@ def _combine(parts: list[Finding], either_or: bool, unread: bool) -> Finding:
     failing part decides nothing. If anything else in the bullet holds or is
     unknown, the answer is then unknown. This is the same for inclusions and
     exclusions: AND/OR confusion can turn a not_met into a met either way.
+    For exclusions, `evaluate` also treats list separators as a possible
+    either/or, since a list there excludes on any one item.
     """
     yes = [p for p in parts if p.holds is True]
     no = [p for p in parts if p.holds is False]
@@ -1049,7 +1053,18 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
     if not parts:
         return _guard(unread, facts, policy, None) if unread else Finding(None, NO_RULE_FIELD, NO_RULE_REASON)
     rest, words = _leftover(text, read)
-    out = _combine(parts, bool(_OR_WORD.search(rest)), bool(unread or words))
+    either_or = bool(_OR_WORD.search(rest))
+    if criterion.type == "exclusion":
+        # An exclusion list ("prior bevacizumab, checkpoint inhibitors") excludes
+        # on any one item. A pattern rule that finds its own clause applies
+        # decides: the exclusion applies, whatever the other items say.
+        applies = next((p for p in specific if p.holds is True), None)
+        if applies is not None:
+            return applies
+        # A comma, semicolon, slash or "and" between the read parts may join
+        # list items, not qualifiers, so parts that disagree cannot pass.
+        either_or = either_or or bool(_LIST_SEP.search(rest))
+    out = _combine(parts, either_or, bool(unread or words))
     if out.holds is None:
         return out
     if not _passes(out, criterion.type):

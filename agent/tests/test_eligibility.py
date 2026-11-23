@@ -364,6 +364,25 @@ def test_exclusion_direction_never_passes_on_unknown_or_unread():
     assert status("exclusion", "Prior radiation", post(**REC_GBM)) == "not_met"
 
 
+def test_exclusion_list_excludes_on_any_one_item():
+    # Prior bevacizumab, no checkpoint or IDH inhibitor. One item applying
+    # excludes; the items that do not apply never make the row pass.
+    rec = post(**REC_GBM | dict(prior_treatments=(
+        PriorTreatment(type="surgery"), PriorTreatment(type="radiation"),
+        PriorTreatment(type="temozolomide"), PriorTreatment(type="bevacizumab"))))
+    for text in ("Prior bevacizumab, checkpoint inhibitors, IDH inhibitors",
+                 "Prior checkpoint inhibitors; prior bevacizumab",
+                 "Prior checkpoint inhibitors and prior bevacizumab",
+                 "Prior checkpoint inhibitor or prior bevacizumab"):
+        f = ev("exclusion", text, rec)
+        assert f.holds is True and "bevacizumab" in f.reason, (text, f)
+    # Concept parts that disagree across a list separator: never met.
+    for text in ("IDH-mutant, MGMT promoter unmethylated tumors", "IDH-mutant or MGMT promoter unmethylated"):
+        assert status("exclusion", text, post(**NEW_GBM)) == "unknown", text
+    # A qualifier with no separator still reads as one condition.
+    assert status("exclusion", "IDH-mutant glioma", post(**NEW_GBM)) == "met"
+
+
 def test_either_or_outside_read_spans_is_unknown():
     f = ev("inclusion", "MGMT promoter methylated or prior temozolomide", post(**REC_GBM))
     assert f.holds is None and "either/or" in f.reason
