@@ -133,7 +133,7 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
 function TrialCard({ t, canReview, choice, onChange }: { t: ShortlistTrial; canReview: boolean; choice: Choice; onChange: (c: Partial<Choice>) => void }) {
   const decided = canReview ? choice.keep : t.doctor_decision === "pending" ? null : t.doctor_decision === "keep";
   return (
-    <div className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}`}>
+    <div data-tour="trial-card" className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}`}>
       <div className="thead">
         <b>{t.trial_id}</b>
         <RecruitChip status={t.recruitment_status} label={t.status_label} />

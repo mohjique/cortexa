@@ -14,7 +14,7 @@ export default function Board() {
     <>
       {error && <ErrorBanner error={error} />}
       <section id="kanban">
-        {COLUMNS.map((c) => {
+        {COLUMNS.map((c, i) => {
           const items = cases.filter((s) => c.stages.includes(s.stage));
           const counts: Record<string, number> = {};
           items.forEach((s) => {
@@ -23,7 +23,7 @@ export default function Board() {
           });
           return (
             <div className="col" key={c.key}>
-              <div className="colhead">
+              <div className="colhead" data-tour={i === 0 ? "board-column" : undefined}>
                 <h3>
                   {c.title}
                   <span className="n">{items.length}</span>

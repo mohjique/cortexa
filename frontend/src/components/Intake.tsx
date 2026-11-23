@@ -17,7 +17,7 @@ export default function Intake() {
 
   return (
     <div className="page">
-      <div className="box">
+      <div className="box" data-tour="intake">
         <h2 style={{ margin: "0 0 4px" }}>New case: upload MRI</h2>
         <div className="muted" style={{ fontSize: 13 }}>
           The classifier returns a <b>suspected</b> bucket and a confidence score. A doctor confirms or corrects every case

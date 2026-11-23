@@ -5,6 +5,9 @@ import { DoctorContext, useDoctorIdState } from "./hooks";
 import Board from "./components/Board";
 import CaseView from "./components/CaseView";
 import Intake from "./components/Intake";
+import { TutorialProvider, useTutorial } from "./tutorial/TutorialContext";
+import Tour from "./tutorial/Tour";
+import Welcome from "./tutorial/Welcome";
 
 export default function App() {
   const [doctorId, setDoctorId] = useDoctorIdState();
@@ -12,6 +15,7 @@ export default function App() {
 
   return (
     <DoctorContext.Provider value={doctorId}>
+      <TutorialProvider>
       <header>
         <div className="logo">
           <img src={logo} alt="Cortexa brain mark" />
@@ -31,7 +35,7 @@ export default function App() {
           <NavLink to="/new">New case</NavLink>
         </nav>
         <div className="spacer" />
-        <div className="legend">
+        <div className="legend" data-tour="legend">
           <span>
             <i className="sw" style={{ background: "var(--ai-bg)", border: "1px solid var(--ai-line)" }} />
             AI / agent step
@@ -41,7 +45,7 @@ export default function App() {
             Doctor decision
           </span>
         </div>
-        <label className="doctor-id">
+        <label className="doctor-id" data-tour="doctor-id">
           Doctor ID
           <input
             value={doctorId}
@@ -50,6 +54,7 @@ export default function App() {
             aria-label="Doctor ID recorded on every decision"
           />
         </label>
+        <TourButton />
       </header>
       {misconfigured && (
         <div className="banner err">
@@ -69,6 +74,18 @@ export default function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+      <Tour />
+      <Welcome />
+      </TutorialProvider>
     </DoctorContext.Provider>
+  );
+}
+
+function TourButton() {
+  const { start, active } = useTutorial();
+  return (
+    <button className="btn ghost small" data-tour="tour-button" onClick={start} disabled={active} title="Replay the guided tour">
+      Tour
+    </button>
   );
 }
