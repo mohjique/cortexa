@@ -372,6 +372,7 @@ function ResultsSummary({ record }: { record: CaseRecord }) {
     ["MGMT", r.mgmt],
     ["Recurrent", r.recurrent ? (r.recurrence_number ? `yes (recurrence ${r.recurrence_number})` : "yes") : "no"],
     ["Age / ZIP", `${r.age} · ${r.zip}`],
+    ["Sex", r.sex ?? "not recorded"],
     ["Sequencing", r.sequencing ?? (r.broad_sequencing_available ? "broad" : "none recorded")],
   ];
   return (

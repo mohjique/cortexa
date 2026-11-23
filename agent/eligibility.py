@@ -60,6 +60,7 @@ class Facts:
     stage: CaseStage
     bucket: Bucket | None
     age: int | None = None
+    sex: str | None = None  # "female" | "male"; None = not recorded
     diagnosis: str | None = None
     grade: int | str | None = None
     idh: str | None = None
@@ -83,6 +84,7 @@ class Facts:
             stage="post_pathology",
             bucket=r.confirmed_bucket,
             age=r.age,
+            sex=r.sex,
             diagnosis=r.diagnosis,
             grade=r.grade,
             idh=r.idh,
@@ -704,6 +706,28 @@ def structured_age_row(trial: TrialRecord, facts: Facts, policy: Policy) -> Elig
     return to_row(trial.trial_id, Criterion("inclusion", text), f)
 
 
+def structured_sex_row(trial: TrialRecord, facts: Facts, policy: Policy) -> EligibilityResult | None:
+    """The registry's structured sex eligibility (ClinicalTrials.gov
+    eligibilityModule.sex, NCI eligibility.structured.sex) as one inclusion row.
+
+    None when the trial accepts all sexes or the registry gives no value. The
+    criterion text names the registry limit it read (rule 4). No sex recorded:
+    unknown, never guessed (rule 3).
+    """
+    limit = trial.sex_eligibility
+    if limit is None or limit == "ALL":
+        return None
+    want = limit.lower()  # "female" | "male", same values as DoctorResults.sex
+    text = f"Sex: {want} only (trial registry sex eligibility)"
+    if facts.sex is None:
+        f = _missing("sex", "sex", policy)
+    elif facts.sex == want:
+        f = _yes("sex", f"sex {facts.sex} matches {want} only")
+    else:
+        f = _no("sex", f"sex {facts.sex}; trial enrolls {want} patients only")
+    return to_row(trial.trial_id, Criterion("inclusion", text), f)
+
+
 def check_trial(
     trial: TrialRecord,
     facts: Facts,
@@ -726,6 +750,10 @@ def check_trial(
         age_row = structured_age_row(trial, facts, policy)
         if age_row is not None:
             rows.insert(0, age_row)
+    if not any(r.evidence_field == "sex" for r in rows):
+        sex_row = structured_sex_row(trial, facts, policy)
+        if sex_row is not None:
+            rows.insert(0, sex_row)
     s = summarize(rows)
     audit(
         "agent",

@@ -68,6 +68,17 @@ def is_remote(*texts: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
+# Registry sex eligibility. ClinicalTrials.gov uses ALL/FEMALE/MALE; NCI uses
+# BOTH/FEMALE/MALE. Anything else (missing, unrecognized) stays None: never guessed.
+_SEX_MAP = {"ALL": "ALL", "BOTH": "ALL", "FEMALE": "FEMALE", "MALE": "MALE"}
+
+
+def parse_sex(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    return _SEX_MAP.get(value.strip().upper())
+
+
 def _ctgov_sites(locations: list[dict[str, Any]], statuses: set[str]) -> list[TrialSite]:
     sites = []
     for loc in locations:
@@ -107,6 +118,7 @@ def normalize_ctgov(study: dict[str, Any], fetched: http_cache.Fetched, policy: 
             "criteria_text": criteria,
             "min_age_years": parse_age_years(elig.get("minimumAge")),
             "max_age_years": parse_age_years(elig.get("maximumAge")),
+            "sex_eligibility": parse_sex(elig.get("sex")),
             "remote_participation": is_remote(title, criteria),
             "sites": _ctgov_sites(
                 ps.get("contactsLocationsModule", {}).get("locations", []),
@@ -204,6 +216,7 @@ def normalize_nci(trial: dict[str, Any], fetched: http_cache.Fetched, policy: Po
             "criteria_text": criteria,
             "min_age_years": _nci_age(structured.get("min_age_in_years")),
             "max_age_years": _nci_age(structured.get("max_age_in_years")),
+            "sex_eligibility": parse_sex(structured.get("sex")),
             "remote_participation": is_remote(title, criteria),
             "sites": sites,
             "fetched_at": fetched.fetched_at,
@@ -250,6 +263,7 @@ def merge(ctgov: list[TrialRecord], nci: list[TrialRecord]) -> list[TrialRecord]
                 "phases": c.phases or n.phases,
                 "min_age_years": c.min_age_years if c.min_age_years is not None else n.min_age_years,
                 "max_age_years": c.max_age_years if c.max_age_years is not None else n.max_age_years,
+                "sex_eligibility": c.sex_eligibility if c.sex_eligibility is not None else n.sex_eligibility,
                 "remote_participation": c.remote_participation or n.remote_participation,
                 "sites": c.sites or n.sites,
                 "from_cache": c.from_cache and n.from_cache,

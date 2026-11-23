@@ -66,16 +66,16 @@ CONDITION_FOR_BUCKET = {
 
 # A trial that fails only on one of these is for a different tumor or
 # disease stage (new vs recurrent, another hormone), or needed enrollment
-# before a surgery that already happened. None can change, so it is not a
-# near miss. The alert still catches new trials.
+# before a surgery that already happened, or enrolls only the other sex. None
+# can change, so it is not a near miss. The alert still catches new trials.
 NOT_NEAR_MISS_FIELDS = frozenset(
-    {"confirmed_bucket", "diagnosis", "stage", "recurrent", "pituitary.secreting_hormone"}
+    {"confirmed_bucket", "diagnosis", "stage", "recurrent", "pituitary.secreting_hormone", "sex"}
 )
 
 
 # Rows on these fields are demographics, not clinical criteria: a trial whose
 # only met rows are these goes to "needs_review", never "eligible".
-DEMOGRAPHIC_FIELDS = frozenset({"age"})
+DEMOGRAPHIC_FIELDS = frozenset({"age", "sex"})
 
 
 @dataclass

@@ -3,7 +3,7 @@
 // be chosen, including "pending" (ordered, not back) or "unknown" (not tested).
 import { useState } from "react";
 import { BUCKET_LABEL } from "../pathway";
-import type { CaseRecord, DoctorResults, Grade, PituitaryResults, PriorTreatment, TreatmentType } from "../types";
+import type { CaseRecord, DoctorResults, Grade, PituitaryResults, PriorTreatment, Sex, TreatmentType } from "../types";
 import { useSubmit } from "./GateForms";
 
 // Synthetic demo records (clinical/patients/demo-*.json), only their doctor_decisions block.
@@ -38,6 +38,7 @@ interface F {
   comorbNone: boolean;
   phone: Tri;
   age: string;
+  sex: "" | Sex; // "" = not recorded
   zip: string;
   sequencing: string;
   pit: { secreting_hormone: string; size: string; cavernous_sinus_invasion: string; surgical: Tri; levels: { k: string; v: string }[] };
@@ -57,6 +58,7 @@ const blank = (): F => ({
   comorbNone: false,
   phone: "",
   age: "",
+  sex: "",
   zip: "",
   sequencing: "",
   pit: { secreting_hormone: "", size: "", cavernous_sinus_invasion: "", surgical: "", levels: [] },
@@ -86,6 +88,7 @@ function fromResults(r: DoctorResults): F {
     comorbNone: Array.isArray(r.comorbidities) && r.comorbidities.length === 0,
     phone: tri(r.can_use_phone_or_tablet),
     age: s(r.age),
+    sex: r.sex ?? "",
     zip: r.zip,
     sequencing: r.sequencing ?? (r.broad_sequencing_available ? "" : "none"),
     pit: {
@@ -213,6 +216,7 @@ export default function ResultsForm({ record, onDone }: { record: CaseRecord; on
           : null,
       can_use_phone_or_tablet: f.phone === "" ? null : f.phone === "yes",
       age,
+      sex: f.sex === "" ? null : f.sex,
       zip: f.zip,
       broad_sequencing_available: f.sequencing === "exome" || f.sequencing === "genome",
       sequencing: f.sequencing as DoctorResults["sequencing"],
@@ -414,6 +418,15 @@ export default function ResultsForm({ record, onDone }: { record: CaseRecord; on
           <label className="field">
             <span>Age</span>
             <input type="number" min={0} max={120} value={f.age} onChange={(e) => set("age", e.target.value)} />
+          </label>
+          <label className="field">
+            <span>Sex</span>
+            <select value={f.sex} onChange={(e) => set("sex", e.target.value as F["sex"])}>
+              <option value="">not recorded</option>
+              <option value="female">female</option>
+              <option value="male">male</option>
+            </select>
+            <small>Checked only against a trial&apos;s registry sex eligibility. Not recorded = unknown, never guessed.</small>
           </label>
           <label className="field">
             <span>ZIP code</span>

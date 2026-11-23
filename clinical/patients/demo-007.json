@@ -73,6 +73,7 @@
       "mgmt": "unknown",
       "recurrent": false,
       "age": 61,
+      "sex": "female",
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [
