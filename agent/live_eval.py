@@ -120,6 +120,20 @@ def false_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[FalseM
     return out
 
 
+def false_not_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[FalseMet]:
+    """Checker `not_met` where the label is `met` or `unknown`.
+
+    A wrong not_met hides the trial from the shortlist, so it is the other
+    safety number next to false met (issue 48 live dry run).
+    """
+    out = []
+    for r in rows:
+        gold = labels.get(r.key)
+        if r.status == "not_met" and gold in ("met", "unknown"):
+            out.append(FalseMet(r, gold))
+    return out
+
+
 def false_met_rate(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> float:
     """False mets / checker `met` rows on labeled bullets (0.0 when there are none)."""
     rows = [r for r in rows if r.key in labels]
@@ -143,6 +157,7 @@ class ProfileReport:
     agree: int
     agreement_rate: float
     confusion: dict[str, dict[str, int]]  # label -> checker -> n
+    false_not_met: int = 0
 
 
 def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None,
@@ -168,6 +183,7 @@ def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None
         agree=agree,
         agreement_rate=agree / n if n else 0.0,
         confusion=confusion,
+        false_not_met=len(false_not_met(rows, gold)),
     )
     return rep, fm
 
@@ -189,6 +205,7 @@ def main(argv: list[str] | None = None) -> int:
     for rep, fm in results:
         print(f"\n== profile: {rep.profile} ==")
         print(f"false met: {rep.false_met}/{rep.checker_met} checker mets = {rep.false_met_rate:.1%}"
+              f"   false not_met: {rep.false_not_met}"
               f"   agreement: {rep.agree}/{rep.bullets} = {rep.agreement_rate:.1%}")
         print("label -> checker:", rep.confusion)
         if args.verbose:

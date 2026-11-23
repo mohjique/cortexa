@@ -418,3 +418,68 @@ def test_sex_in_text_is_checked_against_sex():
 
 def test_glioma_subtype_is_doctor_review():
     assert status("inclusion", "Diffuse midline glioma", post(**NEW_GBM)) == "unknown"
+
+
+# --- issue 48 live dry run: a misread must not hide the trial (not-met guard) -----
+# Bullet texts below are verbatim from live ClinicalTrials.gov trials.
+
+FEMALE_GBM = NEW_GBM | dict(sex="female")
+MALE_GBM = NEW_GBM | dict(sex="male")
+
+
+@pytest.mark.parametrize("kind, text, facts", [
+    # A condition on those who had the treatment, or a permission.
+    ("inclusion", "For patients who have received prior bevacizumab, at least 6 weeks must have elapsed prior "
+                  "to enrollment.", NEW_GBM),
+    ("inclusion", "Prior checkpoint inhibitors permitted 3 weeks prior to enrollment", NEW_GBM),
+    ("inclusion", "Patients may have received prior chemotherapy regimens and prior radiation (there is no limit)",
+     NEW_GBM),
+    ("inclusion", "Prior brain surgery is allowed, although a lesion situated in the operative bed would not be "
+                  "selected", NEW_GBM | dict(prior_treatments=())),
+    # A requirement or a qualifier, read as an exclusion that applies.
+    ("exclusion", "Prior Surgery - completed wound healing must occur prior to initiation of treatment", NEW_GBM),
+    ("exclusion", "Prior radiation therapy that would overlap with current target volume", REC_GBM),
+    ("exclusion", "In cohorts who have received prior brain-directed radiation, patients are not eligible for "
+                  "this study if they have active radiation necrosis", REC_GBM),
+    # "Not eligible" sentences under Inclusion Criteria.
+    ("inclusion", "Patients with IDH2 mutations are not eligible.", NEW_GBM),
+    ("inclusion", "Patients with oligodendroglioma, IDH-mutant and 1p/19q-codeleted are not eligible.", NEW_GBM),
+    # One arm or cohort of several, or a slash list of alternatives.
+    ("inclusion", "Arm B (newly diagnosed GBM)", REC_GBM),
+    ("inclusion", "Cohort A: Newly Diagnosed DIPG", REC_GBM),
+    ("inclusion", "Histologically diagnosed as primary/relapsed/metastasized brain glioma", NEW_GBM),
+    # A heading for the sub-bullets under it (the registry said ALL sexes).
+    ("inclusion", "Female patients:", MALE_GBM),
+    ("inclusion", "For Female participants:", MALE_GBM),
+])
+def test_not_met_guard_leaves_misreadable_failures_to_the_doctor(kind, text, facts):
+    f = ev(kind, text, post(**facts))
+    assert status(kind, text, post(**facts)) == "unknown", f
+    # Either the guard caught a rule's failure, or no rule read the bullet at all.
+    assert "may not rule the patient out" in f.reason or f.reason == el.NO_RULE_REASON
+
+
+def test_not_met_guard_keeps_decisive_failures():
+    # Treatment wording does not undo a failing tumor type in the same bullet.
+    text = ("Confirmed with recurrent/progressive IDH-mutant 1p/19q co-deleted Oligodendroglioma WHO grade 2 or "
+            "WHO grade 3 (Patients who received prior radiation must be more than 12 weeks from completion of "
+            "radiation).")  # NCT06254326, labeled not_met for this patient
+    assert status("inclusion", text, post(**NEW_GBM)) == "not_met"
+    # A lead-in that says "must" still asks for something.
+    text = "Patients must have an established diagnosis of recurrent glioblastoma and:"
+    assert status("inclusion", text, post(**NEW_GBM)) == "not_met"
+    # Plain requirements still fail.
+    assert status("inclusion", "Histologically confirmed recurrent glioblastoma.", post(**NEW_GBM)) == "not_met"
+    assert status("exclusion", "Prior radiation therapy to the brain.", post(**REC_GBM)) == "not_met"
+    assert status("inclusion", "Women aged 18-75 years (inclusive).", post(**MALE_GBM)) == "not_met"
+    assert status("inclusion", "Newly diagnosed primary glioblastoma by World Health Organization (WHO) 2021 "
+                               "criteria", post(**REC_GBM)) == "not_met"
+
+
+def test_not_met_guard_never_creates_a_met():
+    """The guard only turns a not_met into unknown; it never adds a met of its own."""
+    for text in ("Female patients:", "Arm B (newly diagnosed GBM)", "Prior checkpoint inhibitors permitted"):
+        for facts in (FEMALE_GBM, MALE_GBM, REC_GBM, NEW_GBM):
+            # A female patient may still pass "Female patients:" via the sex rule.
+            assert status("inclusion", text, post(**facts)) in ("unknown", "met"), (text, facts)
+    assert status("inclusion", "Female patients:", post(**MALE_GBM)) == "unknown"

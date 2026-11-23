@@ -17,8 +17,11 @@ unread "or" means the bullet might be an either/or; then it is unknown.
 A bullet never passes on a part of it. A would-be `met` becomes `unknown`
 when the bullet mentions a concept no rule checked (coverage guard: H3 K27M,
 BRAF, or a value regex could not read) or has content words outside every
-span a rule read (full-read guard). A `not_met` from a failing part stands,
-as it can only make the shortlist more conservative.
+span a rule read (full-read guard). A bullet never fails on a misread
+either, since a `not_met` hides the trial: one whose wording may make the
+failing part not a requirement (a condition, a permission, timing after a
+treatment, one arm of several, a heading, or "not eligible" under inclusion)
+is `unknown` (not-met guard).
 
 - Rule 3: a missing field gives `unknown` with the reason; it is never
   guessed. A `pending` result also gives `unknown`, with a reason starting
@@ -980,6 +983,69 @@ def _combine(parts: list[Finding], either_or: bool, unread: bool) -> Finding:
     return _first_unknown(unk) if unk else _joined(yes)
 
 
+# Wording that makes a bullet's failing part not a reason to fail the patient
+# (issue 48 live dry run). A rule can read "prior bevacizumab" correctly and
+# still miss that the bullet only sets a condition on those who had it, allows
+# it, or is one arm of several. A not_met in such a bullet becomes unknown for
+# the doctor: a misread not_met hides the trial, which is a guess (rule 3).
+# Word lists could move to policy.yaml later.
+# Treatment wording (condition, permission, timing, overlap) only casts doubt
+# on a failing treatment or recurrence part: a failing tumor type, marker or
+# grade elsewhere in the bullet still decides. Arm, heading and negation
+# wording cast doubt on any failing part.
+_TREATMENT_FIELDS = frozenset({"prior_treatments", "recurrent", "recurrence_number"})
+_TREATMENT_DOUBTS = 4  # the first four entries below
+_NEW_STATUS = r"(?:primary|newly[- ]diagnosed|new)"
+_REC_STATUS = r"(?:recurrent|relapsed|refractory|progressive|metastasi[sz]ed)"
+_NOT_MET_DOUBT: list[tuple[str, re.Pattern[str]]] = [
+    ("it sets a condition", re.compile(
+        r"\bif\b|\bunless\b|\bfor (?:patients|participants|subjects|those) (?:who|with|that)\b"
+        r"|\bin (?:cohorts?|patients|participants|subjects) (?:who|with|that)\b", _I)),
+    ("it allows or limits something rather than requiring it", re.compile(
+        r"\bpermitted\b|\ballowed\b|\bacceptable\b|\bmay (?:have )?(?:received|be|include|undergo)\b"
+        r"|\bno limit\b|\bregardless\b", _I)),
+    ("it sets timing or recovery after a treatment", re.compile(
+        r"\binterval\b|\bsince\b|\bmust have elapsed\b|\brecovered\b|\bwound heal|\btoxicit(?:y|ies)\b"
+        r"|[≤≥<>]\s*\d+\s*(?:days?|weeks?|months?)\b|\b\d+\s*(?:days?|weeks?|months?)\s+(?:before|prior|after|from)\b",
+        _I)),
+    ("it depends on details the record lacks", re.compile(r"\boverlap|\bwould\b|\btarget volume\b", _I)),
+    ("it names one arm or cohort of several", re.compile(
+        r"\b(?:arm|stratum|strata|cohort|group|part)\s+(?:[a-z]|\d{1,2}|[ivx]{1,4})\b(?=\s*[:(\-–]|\s*$)"
+        # A slash joining a new-tumor status to a recurrent one ("primary/relapsed")
+        # lists alternatives; "recurrent/progressive" are synonyms and still ask.
+        rf"|\b{_NEW_STATUS}\s*/(?:\s*\w+\s*/)*\s*{_REC_STATUS}\b|\b{_REC_STATUS}\s*/(?:\s*\w+\s*/)*\s*{_NEW_STATUS}\b",
+        _I)),
+    # A lead-in ending in ":" ("Female patients:") introduces sub-items; one
+    # that says "must" ("must have recurrent glioblastoma and:") still asks.
+    ("it is a heading or fragment, not a requirement", re.compile(
+        r"^(?!.*\b(?:must|required?|shall)\b).*:\s*$|^\s*(?:i\.e\.|e\.g\.)", _I)),
+]
+# Under "Inclusion Criteria", a sentence that says who is NOT eligible reads
+# backwards for the rules ("Patients with IDH2 mutations are not eligible").
+_INCLUSION_NEGATION = re.compile(
+    r"\bnot eligible\b|\bineligible\b|\bare excluded\b|\bwill be excluded\b|\bnot allowed\b|^\s*no\b", _I)
+
+
+def _not_met_doubt(text: str, kind: CriterionType, failing: Iterable[Finding]) -> str | None:
+    """Why a not_met in this bullet cannot be trusted, or None.
+
+    `failing` are the parts that made it not_met.
+    """
+    treatment_only = {f.field for f in failing} <= _TREATMENT_FIELDS
+    for i, (why, pat) in enumerate(_NOT_MET_DOUBT):
+        if i < _TREATMENT_DOUBTS and not treatment_only:
+            continue
+        if pat.search(text):
+            return why
+    if kind == "inclusion" and _INCLUSION_NEGATION.search(text):
+        return "it says who is not eligible, inside the inclusion criteria"
+    return None
+
+
+def _doubted(out: Finding, why: str) -> Finding:
+    return _review(out.field, f"{out.reason}, but this may not rule the patient out: {why}")
+
+
 def _passes(f: Finding, kind: CriterionType) -> bool:
     """Would this finding make the row `met`?"""
     return f.holds is (True if kind == "inclusion" else False)
@@ -1005,8 +1071,13 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
     5. Full-read guard: a would-be `met` also needs every content word of
        the bullet inside a span some rule read; otherwise `unknown`.
 
-    Guards 4 and 5 only stop passes. A `not_met` from a failing part stands:
-    it can only make the shortlist more conservative.
+    6. Not-met guard: a `not_met` hides the trial, so a bullet whose wording
+       may make the failing part not a requirement (a condition, a permission,
+       timing after a treatment, one arm of several, a heading, or a "not
+       eligible" sentence under inclusion; see `_NOT_MET_DOUBT`) is `unknown`.
+
+    Guards 4 and 5 stop wrong passes; guard 6 stops wrong failures. Both
+    leave the call to the doctor (rule 3).
     """
     text = criterion.text
     hits = {h.name: h for h in detect(text)}
@@ -1060,7 +1131,8 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
         # decides: the exclusion applies, whatever the other items say.
         applies = next((p for p in specific if p.holds is True), None)
         if applies is not None:
-            return applies
+            why = _not_met_doubt(text, criterion.type, [applies])
+            return _doubted(applies, why) if why else applies
         # A comma, semicolon, slash or "and" between the read parts may join
         # list items, not qualifiers, so parts that disagree cannot pass.
         either_or = either_or or bool(_LIST_SEP.search(rest))
@@ -1068,7 +1140,12 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
     if out.holds is None:
         return out
     if not _passes(out, criterion.type):
-        # A not_met. A pattern rule that read the deciding phrase may decide
+        # A not_met hides the trial, so wording that may make the failing part
+        # not a requirement (a condition, a permission, one arm of several, a
+        # heading) leaves it to the doctor.
+        if why := _not_met_doubt(text, criterion.type, [p for p in parts if p.holds is out.holds]):
+            return _doubted(out, why)
+        # A pattern rule that read the deciding phrase may decide
         # it; a tumor type or concept found anywhere in a long bullet may be
         # context ("history of malignancy other than glioma"), not the ask.
         # An exclusion that applies only through such parts needs a full read:
