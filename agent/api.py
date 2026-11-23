@@ -26,6 +26,7 @@ from pydantic import ValidationError
 
 from agent import workflow
 from agent.audit import DATA_DIR, audit, get_audit_log
+from agent.http_cache import source_mode
 from agent.policy import get_policy
 from agent.schemas import AuditEntry, CaseState, ClassifierOutput, DoctorDecisionAdapter, NonEmptyStr, Schema
 from agent.store import CaseExists, CaseNotFound, CaseRecord, get_store
@@ -146,8 +147,10 @@ def reset_workspace(ws: Workspace = Ws) -> dict[str, Any]:
 
 @app.get("/health")
 def health() -> dict[str, str]:
-    """Liveness, plus which classifier is serving: ResNetClassifier, StubClassifier or not_loaded."""
-    return {"status": "ok", "classifier": type(_classifier).__name__ if _classifier is not None else "not_loaded"}
+    """Liveness, which classifier is serving (ResNetClassifier, StubClassifier or not_loaded),
+    and where trials come from (`demo`: the synthetic demo cache, `live`: ClinicalTrials.gov)."""
+    return {"status": "ok", "classifier": type(_classifier).__name__ if _classifier is not None else "not_loaded",
+            "trial_source": source_mode()}
 
 
 def _get(case_id: str) -> CaseRecord:

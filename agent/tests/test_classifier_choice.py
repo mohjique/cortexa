@@ -35,8 +35,9 @@ def test_unknown_choice_fails_the_boot(monkeypatch):
 
 def test_explicit_stub_loads_at_startup_and_shows_in_health(monkeypatch, audit_log):
     monkeypatch.setenv("CORTEXA_CLASSIFIER", "stub")
+    monkeypatch.delenv("CORTEXA_TRIAL_SOURCE", raising=False)
     with TestClient(api.app, headers=WS_HEADERS) as c:
-        assert c.get("/health").json() == {"status": "ok", "classifier": "StubClassifier"}
+        assert c.get("/health").json() == {"status": "ok", "classifier": "StubClassifier", "trial_source": "demo"}
     assert any(e.action == "classifier_loaded" for e in audit_log.read())
 
 
@@ -52,3 +53,11 @@ def test_explicit_real_loads_resnet(monkeypatch):
     monkeypatch.setenv("CORTEXA_CLASSIFIER", "real")
     with TestClient(api.app, headers=WS_HEADERS) as c:
         assert c.get("/health").json()["classifier"] == "ResNetClassifier"
+
+
+def test_health_shows_live_trial_source(monkeypatch):
+    """The banner reads this to say whether trials are real registry records or the synthetic demo set."""
+    monkeypatch.setenv("CORTEXA_CLASSIFIER", "stub")
+    monkeypatch.setenv("CORTEXA_TRIAL_SOURCE", "live")
+    with TestClient(api.app, headers=WS_HEADERS) as c:
+        assert c.get("/health").json()["trial_source"] == "live"

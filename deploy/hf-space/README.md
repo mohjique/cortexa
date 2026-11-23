@@ -28,7 +28,7 @@ Check that it is up and using the real model:
 
 ```bash
 curl https://<hf-user>-cortexa-api.hf.space/health
-# {"status":"ok","classifier":"ResNetClassifier"}
+# {"status":"ok","classifier":"ResNetClassifier","trial_source":"demo"}   ("live" once CORTEXA_TRIAL_SOURCE=live is set)
 ```
 
 The Space must be **public**: a browser cannot call a private Space without a Hugging Face token. It holds synthetic data only and has no login. Each browser gets its own workspace (a random ID it keeps in localStorage), so visitors don't see each other's cases. That is isolation, not authentication: anyone with a workspace ID can open it.
