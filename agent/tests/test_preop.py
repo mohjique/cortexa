@@ -184,3 +184,132 @@ def test_rescreen_only_at_preop_review(case_store):
     new_case(case_store)
     with pytest.raises(WrongGate, match="rescreen only"):
         workflow.rescreen_preop("c1", "dr-synthetic-01")
+
+
+# -- tests_needed (what the biopsy must answer) --------------------------------
+
+
+def _live(*ids: str) -> list[TrialRecord]:
+    from agent import live_eval
+
+    fx = live_eval.load_fixtures()
+    return [
+        trial(
+            trial_id=f["trial_id"],
+            title=f["title"],
+            conditions=f["conditions"],
+            criteria_text=f["criteria_text"],
+            recruitment_status=f["overall_status"],
+        )
+        for f in (fx[i] for i in ids)
+    ]
+
+
+def _by_field(tests) -> dict:
+    return {t.field: t for t in tests}
+
+
+def test_live_idh_and_grade_counts():
+    from agent.preop import find_tests_needed
+
+    # IDH-mutant grade 2 (safusidenib), IDH-wildtype grade 4 (P134 cells),
+    # IDH-mutant grade 3 + 1p/19q codeleted, and an IDH-mutant LGG trial that
+    # only says "low grade" (grade mentioned, no readable requirement).
+    ids = ("NCT07712757", "NCT07318818", "NCT07832123", "NCT03922555")
+    tests = _by_field(find_tests_needed(_live(*ids), get_policy()))
+
+    idh = tests["idh"]
+    assert idh.trial_ids == sorted(ids) and idh.decides_trials == 4
+    req = {e.trial_id: e.requires for e in idh.evidence}
+    assert req == {"NCT07712757": "mutant", "NCT07318818": "wildtype", "NCT07832123": "mutant", "NCT03922555": "mutant"}
+
+    grade = tests["grade"]
+    assert grade.trial_ids == ["NCT07318818", "NCT07712757", "NCT07832123"]
+    assert grade.mention_trial_ids == ["NCT03922555"]
+    assert {e.trial_id: e.requires for e in grade.evidence if e.requires} == {
+        "NCT07318818": "4-4",
+        "NCT07712757": "2-2",
+        "NCT07832123": "3-3",
+    }
+
+
+def test_every_listed_trial_cites_its_inclusion_criterion():
+    from agent.preop import find_tests_needed
+
+    trials = _live("NCT07476794", "NCT07888647")
+    for t in find_tests_needed(trials, get_policy()):
+        for e in t.evidence:
+            source = next(x for x in trials if x.trial_id == e.trial_id)
+            inclusion = source.criteria_text.split("Exclusion Criteria")[0]
+            # The bullet text is whitespace-normalized; compare the same way.
+            assert " ".join(e.criterion_text.split()) in " ".join(inclusion.split())
+
+
+def test_value_none_hits_are_mentions_not_requirements():
+    from agent.preop import find_tests_needed
+
+    t = trial(
+        criteria_text="Inclusion Criteria:\n* IDH mutation status and MGMT promoter methylation status will be collected\n"
+        "* Glioma of any grade\n\nExclusion Criteria:\n* IDH-mutant glioma",
+    )
+    tests = _by_field(find_tests_needed([t], get_policy()))
+    for field in ("idh", "mgmt", "grade"):
+        assert tests[field].decides_trials == 0 and tests[field].trial_ids == []
+        assert tests[field].mention_trial_ids == ["NCT99000099"]
+        assert [e.requires for e in tests[field].evidence] == [None]
+
+
+def test_exclusion_bullets_and_non_glioma_trials_are_ignored():
+    from agent.preop import find_tests_needed
+
+    excl_only = trial(criteria_text="Inclusion Criteria:\n* Adults\n\nExclusion Criteria:\n* IDH-mutant tumor")
+    meningioma = trial(
+        trial_id="NCT99000098",
+        conditions=["Meningioma"],
+        title="[SYNTHETIC] Meningioma study",
+        criteria_text="Inclusion Criteria:\n* WHO grade 2 or 3 meningioma",
+    )
+    assert find_tests_needed([excl_only, meningioma], get_policy()) == []
+
+
+def test_tests_ordered_by_trials_decided():
+    from agent.preop import find_tests_needed
+
+    tests = find_tests_needed(_live("NCT07476794", "NCT07894549", "NCT07416188", "NCT05544526"), get_policy())
+    # IDH 2, MGMT 2 (tie: fixed order), grade 1, H3 K27M 0 decided (1 mention).
+    assert [(t.field, t.decides_trials) for t in tests] == [("idh", 2), ("mgmt", 2), ("grade", 1), ("h3k27m", 0)]
+    assert tests[-1].mentions_trials == 1
+
+
+def test_demo_cache_screen_matches_fixture(case_store, audit_log):
+    import json
+    from pathlib import Path
+
+    from agent.preop import preop_screen_hook
+
+    screen = preop_screen_hook(case_store.create("demo-001"), get_policy())
+    fixture = json.loads((Path(__file__).parent / "fixtures" / "preop_screen.json").read_text(encoding="utf-8"))
+    assert [t.model_dump(mode="json") for t in screen.tests_needed] == fixture["tests_needed"]
+    assert screen.label == "Suspected glioma. Biopsy results pending."  # rule 1
+    [entry] = [e for e in audit_log.read("demo-001") if e.action == "tool_call:preop_tests_needed"]
+    assert entry.detail["tests"]["idh"] == {"decides": 4, "mentions": 0, "requires": {"mutant": 2, "wildtype": 2}}
+    assert entry.detail["tests"]["grade"]["mentions"] == 1
+
+
+def test_all_live_fixtures_summary():
+    # Regression on the 25 real trials (24 pass the glioma filter). H3 K27M and
+    # BRAF have no readable value in concepts.py, so they are mentions only.
+    from agent import live_eval
+    from agent.preop import find_tests_needed, tests_needed_summary
+
+    tests = find_tests_needed(_live(*live_eval.load_fixtures()), get_policy())
+    counts = {f: (v["decides"], v["mentions"]) for f, v in tests_needed_summary(tests).items()}
+    assert counts == {
+        "idh": (12, 4),
+        "grade": (12, 3),
+        "mgmt": (4, 1),
+        "codeletion_1p19q": (3, 1),
+        "h3k27m": (0, 4),
+        "braf": (0, 1),
+    }
+    assert tests_needed_summary(tests)["idh"]["requires"] == {"mutant": 5, "wildtype": 7}

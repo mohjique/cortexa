@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { CaseRecord, EligibilityResult, NoMatchPlan, PreOpScreen, ShortlistTrial } from "../types";
+import type { CaseRecord, EligibilityResult, NoMatchPlan, PreOpScreen, ShortlistTrial, TestNeeded } from "../types";
 import { RecruitChip, StatusPill, fmtTime, siteText } from "./common";
 import { useSubmit } from "./GateForms";
 import TrialMap from "./TrialMap";
@@ -225,6 +225,21 @@ export function NoMatch({ plan }: { plan: NoMatchPlan }) {
   );
 }
 
+function formatRequirement(field: TestNeeded["field"], requires: string): string {
+  if (field !== "grade") return requires;
+  const [lo, hi] = requires.split("-");
+  return lo === hi ? `grade ${lo}` : `grade ${lo}-${hi}`;
+}
+
+/** [requirement, trials] pairs, most trials first. */
+function requirementCounts(t: TestNeeded): [string, number][] {
+  const counts = new Map<string, number>();
+  for (const e of t.evidence ?? []) {
+    if (e.requires) counts.set(e.requires, (counts.get(e.requires) ?? 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]);
+}
+
 export function PreOp({ preop }: { preop: PreOpScreen }) {
   return (
     <div className="box">
@@ -240,16 +255,44 @@ export function PreOp({ preop }: { preop: PreOpScreen }) {
             </tr>
           </thead>
           <tbody>
-            {preop.tests_needed.map((t) => (
-              <tr key={t.field}>
-                <td>{t.label}</td>
-                <td>{t.current_value}</td>
-                <td>
-                  {t.decides_trials} trial(s)
-                  <div className="faint">{t.trial_ids.join(", ")}</div>
-                </td>
-              </tr>
-            ))}
+            {preop.tests_needed.map((t) => {
+              const evidence = t.evidence ?? [];
+              const reqs = requirementCounts(t);
+              const mentions = t.mentions_trials ?? 0;
+              return (
+                <tr key={t.field}>
+                  <td>{t.label}</td>
+                  <td>{t.current_value}</td>
+                  <td>
+                    {t.decides_trials} trial(s)
+                    {reqs.length > 0 && (
+                      <div className="muted">{reqs.map(([r, n]) => `${n} need ${formatRequirement(t.field, r)}`).join(", ")}</div>
+                    )}
+                    {mentions > 0 && (
+                      <div>
+                        <span className="chip warn">Mentioned by {mentions}: check criteria</span>
+                      </div>
+                    )}
+                    {evidence.length > 0 ? (
+                      <details>
+                        <summary className="faint">Criteria cited</summary>
+                        {evidence.map((e) => (
+                          <div className="crit" key={`${e.trial_id}-${e.requires ?? "mention"}`}>
+                            <span>
+                              {e.trial_id} ·{" "}
+                              {e.requires ? `needs ${formatRequirement(t.field, e.requires)}` : "mentions, check criteria"}
+                            </span>
+                            "{e.criterion_text}"
+                          </div>
+                        ))}
+                      </details>
+                    ) : (
+                      <div className="faint">{t.trial_ids.join(", ")}</div>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       ) : (
