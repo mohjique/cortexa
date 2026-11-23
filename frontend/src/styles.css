@@ -6,17 +6,21 @@
   --blue:#1998DD; --cyan:#64E6FF;
   --warn:#E8B54A; --warn-bg:rgba(232,181,74,.13);
   --danger:#F2894B; --danger-bg:rgba(242,137,75,.15);
+  --notice-h:29px;
 }
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.45 "Montserrat","Avenir Next",-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text)}
-header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
 .logo{display:flex;align-items:center;gap:10px}
 .logo img{height:40px;width:auto;display:block}
 .wordmark{line-height:1}
 .wordmark .name{font-weight:700;font-size:22px;letter-spacing:.2px;color:var(--text)}
 .wordmark .name span{color:var(--teal)}
 .wordmark .tagline{font-size:9.5px;letter-spacing:1.6px;color:var(--muted);margin-top:4px;font-weight:600}
-.tag{font-size:11px;padding:3px 9px;border-radius:999px;background:transparent;color:var(--muted);font-weight:500;border:1px dashed var(--line2)}
+/* Research-use notice + header stay pinned together; not dismissible. */
+.app-top{position:sticky;top:0;z-index:5}
+.notice{padding:5px 20px;font-size:12px;line-height:1.45;background:var(--bg);color:var(--muted);border-bottom:1px solid var(--line);text-align:center}
+.notice strong{font-weight:700;color:var(--warn)}
 .tabs{display:flex;gap:4px;margin-left:16px;background:var(--bg);padding:3px;border-radius:8px;border:1px solid var(--line)}
 .tabs button{border:0;background:transparent;padding:6px 14px;border-radius:6px;font:inherit;color:var(--muted);cursor:pointer}
 .tabs button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
@@ -26,7 +30,7 @@ header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var
 .sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 
 /* Kanban */
-#kanban{display:flex;gap:12px;padding:16px 20px;overflow-x:auto;min-height:calc(100vh - 62px);align-items:flex-start}
+#kanban{display:flex;gap:12px;padding:16px 20px;overflow-x:auto;min-height:calc(100vh - 62px - var(--notice-h));align-items:flex-start}
 .col{flex:0 0 220px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px}
 .col h3{margin:2px 4px 8px;font-size:12px;font-weight:600;color:var(--muted);display:flex;justify-content:space-between}
 .col h3 .n{background:var(--panel2);border-radius:999px;padding:0 7px;font-weight:500;color:var(--text)}
@@ -60,7 +64,7 @@ header{display:flex;align-items:center;gap:16px;padding:10px 20px;background:var
 .chip.danger{background:var(--danger-bg);color:var(--danger);font-weight:600}
 
 /* Pathway */
-#pathway{display:none;grid-template-columns:220px minmax(420px,1fr) 380px;gap:16px;padding:16px 20px;height:calc(100vh - 62px)}
+#pathway{display:none;grid-template-columns:220px minmax(420px,1fr) 380px;gap:16px;padding:16px 20px;height:calc(100vh - 62px - var(--notice-h))}
 .list{background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:auto}
 .list .row{padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
 .list .row:hover{background:var(--panel2);box-shadow:inset 3px 0 0 var(--mint)}
@@ -205,6 +209,7 @@ table.audit pre{margin:0;white-space:pre-wrap;word-break:break-word;color:var(--
 }
 @media (max-width:720px){
   header{padding:10px 16px;gap:10px}
+  .notice{padding:5px 16px;text-align:left}
   .tabs{margin-left:0}
   .legend{display:none}
   #kanban{padding:16px}
