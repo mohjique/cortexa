@@ -1,0 +1,14 @@
+{
+  "trial_id": "NCT04775485",
+  "title": "A Study to Evaluate Tovorafenib in Pediatric and Young Adult Participants With Relapsed or Progressive Low-Grade Glioma and Advance Solid Tumors",
+  "conditions": [
+    "Low-grade Glioma",
+    "Advanced Solid Tumor"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Low Grade Glioma \\& Low-Grade Glioma Extension: a relapsed or progressive LGG with documented known activating BRAF alteration.\n* Advanced Solid Tumor: locally advanced or metastatic solid tumor with documented known or expected to be activating RAF fusion.\n* Participants must have histopathologic verification of malignancy at either original diagnosis or relapse.\n* Must have received at least one line of prior systemic therapy and have documented evidence of radiographic progression.\n* Must have at least 1 measurable lesion as defined by RANO (Arms 1 \\& 2) or RECIST v1.1 (Arm 3) criteria\n\nExclusion Criteria:\n\n* Participant's tumor has additional previously-known activating molecular alterations.\n* Participant has symptoms of without radiographically recurrent or radiographically progressive disease.\n* Known or suspected diagnosis of neurofibromatosis type 1 (NF-1) via genetic testing or current diagnostic criteria.\n\nOther inclusion/exclusion criteria as stipulated by protocol may apply",
+  "minimum_age": "6 Months",
+  "maximum_age": "25 Years",
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

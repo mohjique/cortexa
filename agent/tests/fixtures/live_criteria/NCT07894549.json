@@ -1,0 +1,14 @@
+{
+  "trial_id": "NCT07894549",
+  "title": "A Single-Arm, Open-Label, Multicenter Clinical Study of Teniposide Combined With Temozolomide for the Treatment of Newly Diagnosed Glioblastoma (nGBM) With MGMT Promotor Region Unmethylated",
+  "conditions": [
+    "Newly Diagnosed Glioblastoma",
+    "MGMT-Unmethylated Glioblastoma"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* 1\\. Newly diagnosed with glioblastoma (nGBM), histopathologically confirmed according to the 2021 WHO Classification of Tumors of the Central Nervous System.\n\n  2\\. Aged ≥18 years, regardless of gender. 3. Recovered from maximal cytoreductive surgery; patients with gross total resection, partial resection, or biopsy only are all acceptable.\n\n  4\\. Previously received standard concurrent chemoradiotherapy with temozolomide (TMZ), having completed standard adjuvant radiotherapy of approximately 60 Gy (or biologically equivalent dose) with daily TMZ chemotherapy at 75 mg/m².\n\n  5\\. About to enter the adjuvant TMZ maintenance therapy phase. 6. Confirmed MGMT promoter methylation-negative (MGMT-unmethylated) status, as determined by central laboratory analysis at each participating site.\n\n  7\\. At least 4 weeks (≥28 days) have elapsed since the completion of radiotherapy prior to enrollment.\n\n  8\\. Karnofsky Performance Status (KPS) score ≥70, and Eastern Cooperative Oncology Group (ECOG) performance sta\n\nExclusion Criteria:\n\n* 1\\. Early progressive disease following the completion of TMZ/RT (including patients with suspected pseudoprogression).\n\n  2\\. Patients with a history of other malignancies (excluding those who have achieved complete remission from cancer and have not received any disease-related treatment for more than 3 years); patients who have previously received brain radiotherapy, chemotherapy, or immunotherapy; or patients who are currently undergoing or planning to undergo other anti-tumor therapies.\n\n  3\\. Baseline MRI indicating a recent risk of intracranial hemorrhage or brain herniation.\n\n  4\\. Unresolved toxicity reactions of CTCAE 5.0 grade ≥2 caused by any prior treatment, excluding alopecia.\n\n  5\\. Inability to take oral medications or inability to swallow. 6. Presence of any severe and/or uncontrolled diseases, including: (1) Patients with poorly controlled blood pressure despite the use of one antihypertensive medication (systolic blood pressure ≥150 mmHg, diastolic blood pressure ≥100 mmHg); pat",
+  "minimum_age": "18 Years",
+  "maximum_age": null,
+  "sex": "ALL",
+  "overall_status": "NOT_YET_RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

@@ -1,0 +1,13 @@
+{
+  "trial_id": "NCT07476794",
+  "title": "Daily Temozolomide for Elderly Patients With Unmethylated MGMT- Promoter Newly Diagnosed GliOblatoma",
+  "conditions": [
+    "Glioblastoma"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Age ≥65 years.\n* Histopathologically confirmed newly diagnosed WHO grade 4, IDH wild-type GBM\n* Unmethylated MGMT promoter, according to local assessment\n* Completed treatment with 40 Gy in 15 fractions over three weeks, with concurrent TMZ, within six weeks prior to enrollment\n* Eastern Cooperative Oncology Group (ECOG) performance status scale of 0, 1, or 2.\n* Karnofsky Performance Status (KPS) ≥60.\n* Adequate organ function, as defined by the following laboratory values obtained within 28 days prior to enrollment:\n\n  * Absolute neutrophil count (ANC) \\>1.5 × 10⁹/L (1,500 cells/mm³).\n  * Platelet count \\>100 × 10⁹/L (100,000 cells/mm³).\n  * Serum creatinine \\<1.5 times the upper limit of normal.\n  * Total serum bilirubin \\<1.5 times the upper limit of normal.\n  * ALT (SGPT) \\<2.5 times the upper limit of normal and/or AST (SGOT) \\<2.5 times the upper limit of normal.\n* Signed informed consent (and assent, if applicable) must be obtained from the participant or their legal representative, ensuring the participant's ability to adhere to the study requirements.\n\nExclusion Criteria:\n\n* Diffuse leptomeningeal involvement at the time of diagnosis.\n* Inability to undergo contrast-enhanced magnetic resonance imaging (MRI)\n* Known hypersensitivity to TMZ components or Dacarbazine\n* Severe myelosuppression\n* Active hepatitis B infection\n* Severe or uncontrolled medical conditions (e.g., active systemic infection, diabetes, hypertension, coronary artery disease, or psychiatric disorders) that, in the investigator's judgment, could compromise patient safety or impede study completion.\n* History of prior or second invasive malignancy, except for:\n\n  * Non-melanoma skin cancer.\n  * Completely resected cervical carcinoma in situ.\n  * Low risk prostate cancer or under active surveillance.\n  * Other cancers for which the subject has completed potentially curative treatment more than 3 years prior to study entry are allowed.",
+  "minimum_age": "65 Years",
+  "maximum_age": null,
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

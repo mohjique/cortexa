@@ -1,0 +1,13 @@
+{
+  "trial_id": "NCT06140875",
+  "title": "Amplitude Modulated Radiofrequency Electromagnetic Field Treatment Combined With Radiochemotherapy and Maintenance Chemotherapy in Patients With Glioblastoma (Brain-RF)",
+  "conditions": [
+    "Glioblastoma"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Pathological evidence of newly diagnosed glioblastoma according to WHO classification criteria\n* Patients 18 to 70 years of age with a WHO performance status of 2 or less\n* All patients must sign written informed consent\n* Adequate hematologic, renal, and hepatic function (absolute neutrophil count, ≥1,5 x 103/μL; platelet count, ≥100 x 103/μL; serum creatinine ≤1.7 mg/dL; total bilirubin \\> upper limit of normal; AST or ALT ≤3 times the upper limit of normal)\n* Patient must have received subtotal or gross total resection of the tumor\n* MGMT-promotor methylated patients must have refused therapy according to the CeTeG/NOA-09 protocol (+ Lomustin)\n* Patient must be planned for concomitant RCT with a total RT dose of 60 Gy over six weeks and temozolomide followed by six cycles of maintenance CT using temozolomide\n\nExclusion Criteria:\n\n* Previous cranial RT\n* Cytostatic therapy / anti-angiogenic substances / CT or radiation therapy for cancer within the past 5 years\n* History of cancers or other comorbidities that limit life expectancy to less than five years\n* Postoperative evidence of increased intracranial pressure (midline shift \\> 5mm, clinically significant papilledema, vomiting and nausea or reduced level of consciousness)\n* Technical impossibility to use magnetic resonance imaging (MRI) or known allergies against MRI and/or computed tomography (CT) contrast agents\n* Technical impossibility to use AM-RF-EMF (pacemaker, defibrillator or deep brain stimulator, metal implants)\n* Participants of childbearing age unwilling to use or not capable of using effective contraception\n* Pregnant patients",
+  "minimum_age": "18 Years",
+  "maximum_age": "70 Years",
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

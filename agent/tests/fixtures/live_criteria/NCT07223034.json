@@ -1,0 +1,18 @@
+{
+  "trial_id": "NCT07223034",
+  "title": "A Study of 177Lu-PSMA-617 in People With Gliomas",
+  "conditions": [
+    "Glioma",
+    "Diffuse Astrocytoma, IDH-Wildtype (Grade 2-4)",
+    "Glioblastoma, IDH-wildtype",
+    "Diffuse Midline Glioma, H3 K27-Altered",
+    "Diffuse Hemispheric Glioma, H3 G34-mutant",
+    "Diffuse Pediatric-type High-grade Glioma, H3-wildtype and IDH-wildtype"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Confirmed histologic diagnosis of a WHO grade 2-4 glioma that is IDH1 R132H-wildtype, including the following:\n\n  * Diffuse astrocytoma, IDH-wildtype (grade 2-4)\n  * Glioblastoma, IDH-wildtype\n  * Diffuse midline glioma, H3 K27-altered\n  * Diffuse hemispheric glioma, H3 G34-mutant\n  * Diffuse pediatric-type high-grade glioma, H3-wildtype and IDH-wildtype PSMA positive pathological stain (by immunohistochemistry) of baseline (pre-radiotherapy) resection or biopsy sample\n* Completion of standard of care therapy including surgery (for resectable tumors) and adjuvant EBRT for glioma\n* Patients must be on a dose of 4 mg or less of dexamethasone (or dexamethasone equivalent steroid) for 5 days prior to first planned dose of radiopharmaceutical\n* Age ≥ 18\n* ECOG ≤ 2\n* Serum creatinine level \\< 1.5 x ULN or EGFR \\> 60 mL/min\n* Liver laboratory values: ALT and AST ≤ 2.5 x ULN; Albumin \\> 2 g/ dL; Bilirubin \\< 3 X ULN\n* Normal organ and marrow function as defined as the following\n\n  * Total white blood count \\> 3.0 K/mcL\n  * ANC ≥ 1.5 K/mcL\n  * Platelets ≥ 100 K/mcL\n  * Hemoglobin ≥ 9 g/dL\n* Adequate contraception prior to registration (see section 9.0)\n* Ability to understand, and willingness to sign the informed consent.\n\nExclusion Criteria:\n\n* Patient known to harbor any other non-canonical IDH mutations (i.e., non-R132H)\n* Target lesion within 5 mm of either the brainstem, optic chiasm or optic nerves Receipt of bevacizumab as part of the initial treatment for glioma\n* Life expectancy less than 12 weeks\n* Nonhealing wound, ulcer or bone fracture\n* History of severe brain injury\n* Patient not eligible for sequential MRI evaluations\n* Patients with prior RT to \\> 25% of the skeleton or prior exposure to prior Radium223, Strontium89 or Samarium153 containing compounds\n* Patients with a prior or concurrent malignancy whose natural history or treatment has the potential to interfere with the safety or efficacy assessment of the investigational regimen\n* Unable to tolerate the PSMA PET/MR or PSMA PET/CT\n* History of viral hepatitis or chronic liver disease with active symptoms\n* History of pituitary or adrenal dysfunction\n* Previously diagnosed active infection (e.g., human immunodeficiency virus \\[HIV\\] or viral hepatitis)\n* Any condition that in the opinion of the investigator, would preclude participation in this study\n* Receipt of any other investigational agents or participation in a concurrent treatment protocol\n* Known allergies, hypersensitivities, or intolerance to 68Ga-PSMA-11/177Lu-PSMA-617 or its inactive compounding components\n* Current or planned pregnancy\n* Refusal to comply with detailed contraception requirements",
+  "minimum_age": "18 Years",
+  "maximum_age": null,
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

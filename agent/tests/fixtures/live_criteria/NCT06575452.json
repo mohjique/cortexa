@@ -1,0 +1,13 @@
+{
+  "trial_id": "NCT06575452",
+  "title": "Using the Epitranscriptome to Diagnose and Treat Gliomas",
+  "conditions": [
+    "Glioma"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Male / female over 18 years of age,\n* Surgery (tumor resection) scheduled at Montpellier University Hospital for suspected, diffuse glioma, confirmed on tissue sample: IDH mutated grade 2 glioma (excluding tumors with a focus of grade 3 or 4 glioma), IDH mutated grade 3 glioma or GBM, IDH wild-type,\n* No history of treatment (surgery, radiotherapy or chemotherapy) for glioma,\n* Willingness and ability to comply with scheduled visits, treatment plan, laboratory tests and other study procedures,\n* Patient has given express written informed consent prior to any study procedure,\n* Patient affiliated to a French health insurance.\n\nExclusion Criteria:\n\n* Patients whose regular follow-up is impossible for psychological, family, social or geographical reasons,\n* Patients under guardianship, curatorship or safeguard of justice,\n* Pregnant and/or breast-feeding patient (information gathered from the medical file, as part of the patient's standard medical care and follow-up),\n* Histo-molecular diagnosis of grade 4 IDH-mutated astrocytoma,\n* For grade 2 gliomas, presence within the tumor of one or more higher-grade sites (3 or 4).",
+  "minimum_age": "18 Years",
+  "maximum_age": null,
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}
