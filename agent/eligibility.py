@@ -319,7 +319,24 @@ def _entity(facts: Facts, entity: str, policy: Policy) -> Finding:
         ok = entity in dx
     if ok:
         return _yes("diagnosis", f"diagnosis: {facts.diagnosis}")
+    if _who_naming_overlap(entity, dx, facts):
+        return _review("diagnosis", f"diagnosis is {facts.diagnosis}; criterion says {entity}. WHO naming "
+                       "overlaps here (older or grade-based terms), so the doctor must decide")
     return _no("diagnosis", f"diagnosis is {facts.diagnosis}, not {entity}")
+
+
+def _who_naming_overlap(entity: str, dx: str, facts: Facts) -> bool:
+    """Astrocytoma and glioblastoma names overlap across WHO editions.
+
+    "WHO grade 4 astrocytoma" or "diffuse astrocytoma, IDH-wildtype" may
+    include glioblastoma, and an IDH-mutant grade 4 astrocytoma was once
+    called glioblastoma. A mismatch between the two is not a confident no.
+    """
+    if entity == "astrocytoma" and "glioblastoma" in dx:
+        return True
+    if entity == "glioblastoma" and "astrocytoma" in dx:
+        return facts.grade == 4 or "grade 4" in dx or "grade iv" in dx
+    return False
 
 
 def _entities(text: str, facts: Facts, policy: Policy) -> Finding | None:
@@ -782,6 +799,26 @@ def _word_grade(text: str) -> tuple[int, int] | None:
 
 ConceptCall = Finding | bool | None  # a Finding; True = covered, no requirement; None = not read
 
+_R132H = re.compile(r"r\s*132\s*h", re.IGNORECASE)
+
+
+def _idh_r132h(facts: Facts, want: str, policy: Policy) -> Finding:
+    """A criterion about the IDH1 R132H variant only (the antibody test).
+
+    IDH-wildtype implies R132H-wildtype, and rules out R132H-positive. An
+    IDH-mutant patient may carry another IDH1/IDH2 variant, so for them the
+    criterion is unknown unless the variant is recorded (it is not in Facts).
+    """
+    value, why = _marker(facts, "idh", policy)
+    if why:
+        return why
+    if value == "wildtype":
+        if want == "wildtype":
+            return _yes("idh", "IDH status: wildtype, so IDH1 R132H-wildtype")
+        return _no("idh", "IDH status is wildtype, criterion needs IDH1 R132H-positive")
+    return _review("idh", "IDH status is mutant, but the criterion is about the IDH1 R132H variant only; "
+                   "the doctor must check which IDH variant the pathology found")
+
 
 def _concept_rule(hit: ConceptHit, hits: dict[str, ConceptHit], text: str, kind: CriterionType,
                   facts: Facts, policy: Policy) -> ConceptCall:
@@ -789,6 +826,8 @@ def _concept_rule(hit: ConceptHit, hits: dict[str, ConceptHit], text: str, kind:
     name = hit.name
     if name in _NO_REQUIREMENT and _NO_REQUIREMENT[name].search(text):
         return True
+    if name == "idh" and hit.value and _R132H.search(text):
+        return _idh_r132h(facts, hit.value, policy)
     if name in ("idh", "codeletion_1p19q", "mgmt"):
         return _marker_is(facts, name, hit.value, policy) if hit.value else None
     if name == "grade":
@@ -1000,6 +1039,8 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
                 parts.append(call)
             if name in _NO_REQUIREMENT:
                 read += [m.span() for m in _NO_REQUIREMENT[name].finditer(text)]
+            if name == "idh" and isinstance(call, Finding):
+                read += [m.span() for m in _R132H.finditer(text)]  # read by _idh_r132h
         if (at := _span_at(text, hit.span)) is not None:
             tail = _FORM_TAIL.match(text, at[1]) if name in MARKER_LABELS else None
             read.append((at[0], tail.end() if tail else at[1]))

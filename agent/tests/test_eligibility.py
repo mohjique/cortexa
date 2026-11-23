@@ -236,9 +236,37 @@ def test_histology_or_list_accepts_any_listed_entity():
     f = el.evaluate(c, post(diagnosis="Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
                             idh="mutant", codeletion_1p19q="codeleted", grade=2), policy.get_policy())
     assert f.holds is True
-    f = el.evaluate(c, post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4),
-                    policy.get_policy())
+    f = el.evaluate(c, post(diagnosis="Ependymoma", idh="wildtype", grade=2), policy.get_policy())
     assert f.holds is False
+
+
+def test_astrocytoma_vs_glioblastoma_is_doctor_review_not_a_no():
+    """WHO naming overlaps: never a confident not_met between the two (issue 48)."""
+    gbm = post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4)
+    for text in ("Diffuse astrocytoma, IDH-wildtype (grade 2-4)", "Histologically confirmed WHO Grade 4 astrocytoma"):
+        f = el.evaluate(el.Criterion("inclusion", text), gbm, policy.get_policy())
+        assert f.holds is None and f.field == "diagnosis" and "WHO naming" in f.reason
+    g4_astro = post(diagnosis="Astrocytoma, IDH-mutant, CNS WHO grade 4", idh="mutant", grade=4)
+    f = el.evaluate(el.Criterion("inclusion", "Histologically confirmed glioblastoma"), g4_astro, policy.get_policy())
+    assert f.holds is None and "WHO naming" in f.reason
+    # A grade 3 astrocytoma is still not a glioblastoma.
+    g3_astro = post(diagnosis="Astrocytoma, IDH-mutant", idh="mutant", grade=3)
+    f = el.evaluate(el.Criterion("inclusion", "Histologically confirmed glioblastoma"), g3_astro, policy.get_policy())
+    assert f.holds is False
+
+
+def test_idh1_r132h_criterion():
+    """R132H-wildtype rules out one IDH1 variant only; a mutant patient is unknown."""
+    c = el.Criterion("inclusion", "WHO grade 2-4 glioma that is IDH1 R132H-wildtype")
+    wt = post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4)
+    mut = post(diagnosis="Astrocytoma, IDH-mutant", idh="mutant", grade=3)
+    assert el.evaluate(c, wt, policy.get_policy()).holds is True
+    f = el.evaluate(c, mut, policy.get_policy())
+    assert f.holds is None and f.field == "idh" and "R132H" in f.reason
+    pos = el.Criterion("inclusion", "Astrocytoma, IDH1 R132H-positive")
+    assert el.evaluate(pos, mut, policy.get_policy()).holds is None
+    pending = post(diagnosis="Glioblastoma", idh="pending", grade=4)
+    assert el.is_pending(el.to_row("NCT99000001", c,el.evaluate(c, pending, policy.get_policy())))
 
 
 def test_histology_both_idh_forms_is_no_idh_requirement():
@@ -314,7 +342,7 @@ def test_coverage_guard_downgrades_met_on_unchecked_concept():
 
 
 def test_coverage_guard_lets_a_failing_part_stand():
-    f = ev("inclusion", "Histologically confirmed astrocytoma, H3 K27M-altered", post(**NEW_GBM))
+    f = ev("inclusion", "Histologically confirmed oligodendroglioma, H3 K27M-altered", post(**NEW_GBM))
     assert f.holds is False and f.field == "diagnosis"
 
 
