@@ -1,6 +1,12 @@
 """FastAPI backend for case state and doctor decisions (F1.5, F3.1).
 
 Run: uvicorn agent.api:app --reload
+
+Every case route is scoped to the caller's workspace (issue 48): the browser
+sends a random ID in the `X-Cortexa-Workspace` header (or `?ws=` on the two
+case image routes, which an <img> loads). Missing or invalid: 400. A case in
+another workspace: 404, as if it did not exist. Isolation, not
+authentication: see agent/workspace.py.
 """
 
 from __future__ import annotations
@@ -13,7 +19,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Request
+from fastapi import Body, Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import ValidationError
@@ -23,11 +29,20 @@ from agent.audit import DATA_DIR, audit, get_audit_log
 from agent.policy import get_policy
 from agent.schemas import AuditEntry, CaseState, ClassifierOutput, DoctorDecisionAdapter, NonEmptyStr, Schema
 from agent.store import CaseExists, CaseNotFound, CaseRecord, get_store
+from agent.workspace import (
+    WORKSPACE_HEADER,
+    WORKSPACE_QUERY,
+    InvalidWorkspace,
+    Workspace,
+    get_registry,
+    validate_id,
+)
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
+# Where the classifier writes a heatmap. Each upload's heatmap is then moved
+# into its workspace (Workspace.heatmap_dir), since case IDs repeat across
+# workspaces. The uploaded MRI, re-encoded as PNG, goes to Workspace.scan_dir.
 HEATMAP_DIR = DATA_DIR / "heatmaps"
-# The uploaded MRI, re-encoded as PNG, so the doctor can read the scan itself.
-SCAN_DIR = DATA_DIR / "scans"
 # The 23 demo MRIs (public Kaggle dataset), committed and named by case ID only.
 DEMO_SCANS_DIR = Path(__file__).resolve().parents[1] / "classifier" / "demo_scans"
 _DEMO_SCAN = re.compile(r"^(demo-\d{3})\.(jpg|jpeg|png)$")
@@ -85,8 +100,48 @@ app.add_middleware(
     # Optional, for Vercel preview URLs, e.g. ^https://cortexa(-[a-z0-9-]+)?\.vercel\.app$
     allow_origin_regex=os.environ.get("CORTEXA_CORS_ORIGIN_REGEX") or None,
     allow_methods=["GET", "POST"],
-    allow_headers=["*"],
+    # Must include X-Cortexa-Workspace: the Vercel UI calls the Space cross-origin.
+    allow_headers=["Accept", "Content-Type", WORKSPACE_HEADER],
 )
+
+
+# ---------------------------------------------------------------------------
+# Workspaces (issue 48). Isolation, not authentication.
+# ---------------------------------------------------------------------------
+
+
+def _open_workspace(raw: str | None) -> Workspace:
+    try:
+        ws, created = get_registry().open(validate_id(raw))
+    except InvalidWorkspace as exc:
+        raise HTTPException(400, str(exc)) from None
+    if created:
+        ws.log.append("system", "workspace_created", {})
+    return ws
+
+
+def workspace(request: Request) -> Workspace:
+    """The caller's workspace, from the X-Cortexa-Workspace header. 400 if missing or invalid."""
+    return _open_workspace(request.headers.get(WORKSPACE_HEADER))
+
+
+def workspace_for_image(request: Request) -> Workspace:
+    """Same, but also accepts `?ws=` (an <img src> can't send a header). The header wins."""
+    return _open_workspace(request.headers.get(WORKSPACE_HEADER) or request.query_params.get(WORKSPACE_QUERY))
+
+
+Ws = Depends(workspace)
+
+
+@app.post("/workspace/reset")
+def reset_workspace(ws: Workspace = Ws) -> dict[str, Any]:
+    """Delete the caller's cases, audit log and images, and start a fresh demo workspace.
+
+    Only the caller's workspace. The reset is the first entry in the fresh log (rule 7).
+    """
+    fresh, removed = get_registry().reset(ws.id)
+    fresh.log.append("system", "workspace_reset", {"removed_cases": removed})
+    return {"status": "reset", "removed_cases": removed}
 
 
 @app.get("/health")
@@ -105,12 +160,21 @@ def _get(case_id: str) -> CaseRecord:
 
 
 @app.get("/cases", response_model=list[CaseState])
-def list_cases() -> list[CaseState]:
-    return get_store().list_cases()
+def list_cases(ws: Workspace = Ws) -> list[CaseState]:
+    """The caller's workspace's cases only."""
+    with ws.active():
+        return get_store().list_cases()
 
 
 @app.post("/cases", response_model=CaseState, status_code=201)
-async def create_case(request: Request, case_id: str | None = None, filename: str | None = None) -> CaseState:
+async def create_case(
+    request: Request, case_id: str | None = None, filename: str | None = None, ws: Workspace = Ws
+) -> CaseState:
+    with ws.active():
+        return await _create_case(request, ws, case_id, filename)
+
+
+async def _create_case(request: Request, ws: Workspace, case_id: str | None, filename: str | None) -> CaseState:
     """Upload an MRI image (raw bytes as the request body) and classify it.
 
     `fetch("/cases?case_id=demo-016", {method: "POST", body: file})`.
@@ -140,6 +204,9 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     except ValueError as exc:  # BadImage, or a schema error from the classifier
         audit("agent", "classification_failed", {"error": str(exc)}, case_id=case_id)
         raise HTTPException(422, f"could not classify: {exc}") from None
+    # No await between classify and this move, so two uploads of the same case
+    # ID (from different workspaces) can't swap heatmaps in HEATMAP_DIR.
+    output = _move_heatmap(output, ws)
     # MedGemma only adds draft text; it never votes (the schema drops any
     # medgemma_bucket), so the ResNet call is the only suspected bucket.
     output = _with_medgemma(output)
@@ -150,8 +217,21 @@ async def create_case(request: Request, case_id: str | None = None, filename: st
     audit("agent", "tool_call:classifier",
           {"classifier": type(clf).__name__, "suspected_bucket": output.suspected_bucket},
           case_id=case_id)
-    audit("agent", "scan_stored", {"stored": _save_scan(case_id, image)}, case_id=case_id)
+    audit("agent", "scan_stored", {"stored": _save_scan(ws, case_id, image)}, case_id=case_id)
     return workflow.attach_classification(case_id, output).state
+
+
+def _move_heatmap(output: ClassifierOutput, ws: Workspace) -> ClassifierOutput:
+    """Move the classifier's heatmap into the workspace and point the output at it."""
+    if not output.heatmap_path:
+        return output
+    src = Path(output.heatmap_path)
+    if not src.is_file():
+        return output.model_copy(update={"heatmap_path": None})
+    ws.heatmap_dir.mkdir(parents=True, exist_ok=True)
+    dest = ws.heatmap_dir / f"{output.case_id}.png"
+    os.replace(src, dest)
+    return output.model_copy(update={"heatmap_path": dest.as_posix()})
 
 
 def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
@@ -203,19 +283,20 @@ def _with_medgemma(output: ClassifierOutput) -> ClassifierOutput:
 
 
 @app.get("/cases/{case_id}/heatmap")
-def get_heatmap(case_id: str) -> FileResponse:
-    """The Grad-CAM overlay for the case's classification (PNG)."""
-    rec = _get(case_id)
+def get_heatmap(case_id: str, ws: Workspace = Depends(workspace_for_image)) -> FileResponse:
+    """The Grad-CAM overlay for the case's classification (PNG). Accepts `?ws=`."""
+    with ws.active():
+        rec = _get(case_id)
     path = rec.classifier.heatmap_path if rec.classifier else None
     if not path:
         raise HTTPException(404, "no heatmap for this case")
     p = Path(path).resolve()
-    if HEATMAP_DIR.resolve() not in p.parents or not p.is_file():  # only serve our own heatmaps
+    if ws.heatmap_dir.resolve() not in p.parents or not p.is_file():  # only this workspace's heatmaps
         raise HTTPException(404, "no heatmap for this case")
     return FileResponse(p, media_type="image/png")
 
 
-def _save_scan(case_id: str, image: bytes) -> bool:
+def _save_scan(ws: Workspace, case_id: str, image: bytes) -> bool:
     """Keep the upload for the doctor's viewer, decoded and re-encoded as PNG.
 
     Only pixels we decoded are ever served back, never the uploaded bytes. An
@@ -230,18 +311,19 @@ def _save_scan(case_id: str, image: bytes) -> bool:
         img.load()
         if img.mode not in ("L", "RGB"):
             img = img.convert("RGB")
-        SCAN_DIR.mkdir(parents=True, exist_ok=True)
-        img.save(SCAN_DIR / f"{case_id}.png", format="PNG")
+        ws.scan_dir.mkdir(parents=True, exist_ok=True)
+        img.save(ws.scan_dir / f"{case_id}.png", format="PNG")
         return True
     except Exception:  # noqa: BLE001 - a scan we can't keep must not fail the upload
         return False
 
 
 @app.get("/cases/{case_id}/image")
-def get_scan(case_id: str) -> FileResponse:
-    """The case's MRI as uploaded (re-encoded PNG). 404 if it was not kept."""
-    _get(case_id)
-    p = SCAN_DIR / f"{case_id}.png"
+def get_scan(case_id: str, ws: Workspace = Depends(workspace_for_image)) -> FileResponse:
+    """The case's MRI as uploaded (re-encoded PNG). 404 if it was not kept. Accepts `?ws=`."""
+    with ws.active():
+        _get(case_id)  # validates case_id, so it is safe as a file name
+    p = ws.scan_dir / f"{case_id}.png"
     if not p.is_file():
         raise HTTPException(404, "no scan stored for this case")
     return FileResponse(p, media_type="image/png")
@@ -277,25 +359,34 @@ def get_demo_scan(case_id: str) -> FileResponse:
 
 
 @app.get("/cases/{case_id}", response_model=CaseState)
-def get_case(case_id: str) -> CaseState:
+def get_case(case_id: str, ws: Workspace = Ws) -> CaseState:
     """Case state. The frontend picks its screen from `stage`."""
-    return _get(case_id).state
+    with ws.active():
+        return _get(case_id).state
 
 
 @app.get("/cases/{case_id}/record", response_model=CaseRecord)
-def get_record(case_id: str) -> CaseRecord:
+def get_record(case_id: str, ws: Workspace = Ws) -> CaseRecord:
     """Everything known about the case: classifier, decisions, screen, shortlist."""
-    return _get(case_id)
+    with ws.active():
+        return _get(case_id)
 
 
 @app.get("/cases/{case_id}/audit", response_model=list[AuditEntry])
-def get_audit(case_id: str) -> list[AuditEntry]:
-    _get(case_id)
-    return get_audit_log().read(case_id)
+def get_audit(case_id: str, ws: Workspace = Ws) -> list[AuditEntry]:
+    """The case's entries from this workspace's audit log."""
+    with ws.active():
+        _get(case_id)
+        return get_audit_log().read(case_id)
 
 
 @app.post("/cases/{case_id}/decisions", response_model=CaseState)
-def post_decision(case_id: str, body: dict[str, Any] = Body(...)) -> CaseState:
+def post_decision(case_id: str, body: dict[str, Any] = Body(...), ws: Workspace = Ws) -> CaseState:
+    with ws.active():
+        return _post_decision(case_id, body)
+
+
+def _post_decision(case_id: str, body: dict[str, Any]) -> CaseState:
     """Submit a doctor decision for the gate at the case's current stage.
 
     409 if the gate doesn't match the stage. 422 if the decision is malformed
@@ -322,23 +413,25 @@ class RescreenRequest(Schema):
 
 
 @app.post("/cases/{case_id}/preop/rescreen", response_model=CaseState)
-def rescreen_preop(case_id: str, body: RescreenRequest) -> CaseState:
+def rescreen_preop(case_id: str, body: RescreenRequest, ws: Workspace = Ws) -> CaseState:
     """Doctor asks for a fresh pre-op screen. 409 unless the case waits on preop_review."""
-    _get(case_id)
-    try:
-        return workflow.rescreen_preop(case_id, body.doctor_id, body.reason).state
-    except workflow.WrongGate as exc:
-        raise HTTPException(409, str(exc)) from None
+    with ws.active():
+        _get(case_id)
+        try:
+            return workflow.rescreen_preop(case_id, body.doctor_id, body.reason).state
+        except workflow.WrongGate as exc:
+            raise HTTPException(409, str(exc)) from None
 
 
 @app.post("/cases/{case_id}/run", response_model=CaseState)
-def run_agent(case_id: str) -> CaseState:
+def run_agent(case_id: str, ws: Workspace = Ws) -> CaseState:
     """Retry agent stages after a failed hook. A no-op at doctor stages.
 
     503 if the stage fails again; the case is unchanged and can be retried.
     """
-    _get(case_id)
-    try:
-        return workflow.run_agent(case_id).state
-    except Exception as exc:  # hook failure, already audited as stage_failed
-        raise HTTPException(503, f"agent stage failed, retry later: {type(exc).__name__}") from None
+    with ws.active():
+        _get(case_id)
+        try:
+            return workflow.run_agent(case_id).state
+        except Exception as exc:  # hook failure, already audited as stage_failed
+            raise HTTPException(503, f"agent stage failed, retry later: {type(exc).__name__}") from None

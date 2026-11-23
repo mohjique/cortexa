@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
+from agent.tests.conftest import WS_HEADERS
 from agent import workflow
 from agent.api import app
 from agent.schemas import ClassifierOutput
@@ -17,7 +18,7 @@ def client(case_store):
     case_store.create(CID)
     out = json.loads((FIXTURES / "classifier_output.json").read_text()) | {"case_id": CID}
     workflow.attach_classification(CID, ClassifierOutput.model_validate(out))
-    with TestClient(app) as c:
+    with TestClient(app, headers=WS_HEADERS) as c:
         yield c
 
 

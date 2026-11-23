@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from agent.tests.conftest import WS_HEADERS
 from agent import api
 from classifier import real
 
@@ -34,14 +35,14 @@ def test_unknown_choice_fails_the_boot(monkeypatch):
 
 def test_explicit_stub_loads_at_startup_and_shows_in_health(monkeypatch, audit_log):
     monkeypatch.setenv("CORTEXA_CLASSIFIER", "stub")
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         assert c.get("/health").json() == {"status": "ok", "classifier": "StubClassifier"}
     assert any(e.action == "classifier_loaded" for e in audit_log.read())
 
 
 def test_no_choice_loads_lazily(monkeypatch):
     monkeypatch.delenv("CORTEXA_CLASSIFIER", raising=False)
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         assert c.get("/health").json()["classifier"] == "not_loaded"
 
 
@@ -49,5 +50,5 @@ def test_no_choice_loads_lazily(monkeypatch):
 def test_explicit_real_loads_resnet(monkeypatch):
     pytest.importorskip("torchvision")
     monkeypatch.setenv("CORTEXA_CLASSIFIER", "real")
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         assert c.get("/health").json()["classifier"] == "ResNetClassifier"

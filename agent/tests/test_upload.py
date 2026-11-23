@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image, ImageDraw
 
+from agent.tests.conftest import WS_HEADERS
 from agent import api, policy, workflow
 from agent.schemas import ClassifierOutput
 
@@ -32,7 +33,7 @@ def stub_client(case_store, heatmaps):
     from classifier.stub import StubClassifier
 
     api.set_classifier(StubClassifier())
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         yield c
     api.set_classifier(None)
 
@@ -46,7 +47,7 @@ def real_client(case_store, heatmaps, tmp_path):
     ck = tmp_path / "model.pt"
     save_checkpoint(ck, build_model(pretrained=False), temperature=1.0, meta={})
     api.set_classifier(ResNetClassifier(ck, heatmap_dir=heatmaps))
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         yield c
     api.set_classifier(None)
 
@@ -129,7 +130,7 @@ def test_upload_errors(stub_client):
     assert stub_client.post("/cases?case_id=dup", content=png()).status_code == 409
 
 
-def test_upload_with_real_classifier_and_heatmap(real_client, heatmaps):
+def test_upload_with_real_classifier_and_heatmap(real_client, heatmaps, test_ws):
     r = real_client.post("/cases?case_id=r1", content=png())
     assert r.status_code == 201 and r.json()["stage"] == "confirm_bucket"
     rec = real_client.get("/cases/r1/record").json()
@@ -139,7 +140,8 @@ def test_upload_with_real_classifier_and_heatmap(real_client, heatmaps):
     assert c["confidence"] == max(c["probabilities"].values())
     h = real_client.get("/cases/r1/heatmap")
     assert h.status_code == 200 and h.headers["content-type"] == "image/png"
-    assert (heatmaps / "r1.png").is_file()
+    assert (test_ws.heatmap_dir / "r1.png").is_file()  # moved into the workspace
+    assert not (heatmaps / "r1.png").exists()
 
 
 def test_bad_image_leaves_no_case(real_client):

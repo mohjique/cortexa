@@ -8,6 +8,7 @@ import pytest
 from fastapi.testclient import TestClient
 from pydantic import ValidationError
 
+from agent.tests.conftest import WS_HEADERS
 from agent import api, policy
 from agent.findings import check_summary
 from agent.reasoning import PATHWAY, check_reasoning, reasoning_prompt
@@ -96,7 +97,7 @@ def client(case_store, cache, tmp_path, monkeypatch):
 
     monkeypatch.setattr(api, "HEATMAP_DIR", tmp_path / "heatmaps")
     api.set_classifier(StubClassifier())
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         yield c
     api.set_classifier(None)
 
