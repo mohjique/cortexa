@@ -1316,7 +1316,9 @@ def check_trial(
         "eligibility_checked",
         {"trial_id": trial.trial_id, "stage": facts.stage, **s.model_dump(),
          "pending": sum(is_pending(r) for r in rows),
-         **({} if parses is None else {"decided_by_parse": sum(r.reason.startswith("parsed: ") for r in rows)})},
+         **({} if parses is None else {"decided_by_parse": sum(r.reason.startswith("parsed: ") for r in rows)}),
+         # LlmParseSource: model, prompt version and cache hits for this trial (rule 7).
+         **({"parse_stats": take()} if (take := getattr(parses, "take_stats", None)) else {})},
         case_id=case_id,
     )
     return rows
