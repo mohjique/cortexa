@@ -15,6 +15,12 @@ patient's record does not support (safety rules 1 and 3). The target is zero.
 `false_met_rate` = false mets / checker `met` rows: the share of the
 checker's passes that are wrong.
 
+A **false not_met** is a checker `not_met` where the label is `met` or
+`unknown`. It hides the trial from the shortlist. The target is also zero.
+
+**Guard unknowns** are rows the not-met guard turned `unknown`; those labeled
+`not_met` are its cost (correct failures sent to doctor review).
+
 Bullets are checked one at a time with `evaluate()`, offline. This is an
 evaluation, not an agent action, so nothing is written to the audit log.
 """
@@ -29,7 +35,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from agent.eligibility import Facts, evaluate, split_criteria, to_row
+from agent.eligibility import NOT_MET_DOUBT_MARKER, Facts, evaluate, split_criteria, to_row
 from agent.policy import Policy, get_policy
 from agent.schemas import DoctorResults
 
@@ -57,7 +63,9 @@ class LiveRow:
 
 
 @dataclass(frozen=True)
-class FalseMet:
+class WrongCall:
+    """A checker row whose status the hand label contradicts (false met or false not_met)."""
+
     row: LiveRow
     label: str
 
@@ -110,17 +118,17 @@ def _check_alignment(rows: Iterable[LiveRow], texts: Mapping[Key, str] | None) -
             raise ValueError(f"label text for {r.key} does not match the split bullet; regenerate labels")
 
 
-def false_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[FalseMet]:
+def false_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[WrongCall]:
     """Checker `met` where the label is `not_met` or `unknown`. Unlabeled rows are skipped."""
     out = []
     for r in rows:
         gold = labels.get(r.key)
         if r.status == "met" and gold in ("not_met", "unknown"):
-            out.append(FalseMet(r, gold))
+            out.append(WrongCall(r, gold))
     return out
 
 
-def false_not_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[FalseMet]:
+def false_not_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[WrongCall]:
     """Checker `not_met` where the label is `met` or `unknown`.
 
     A wrong not_met hides the trial from the shortlist, so it is the other
@@ -130,8 +138,18 @@ def false_not_met(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> list[Fa
     for r in rows:
         gold = labels.get(r.key)
         if r.status == "not_met" and gold in ("met", "unknown"):
-            out.append(FalseMet(r, gold))
+            out.append(WrongCall(r, gold))
     return out
+
+
+def guard_unknown(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> tuple[int, int]:
+    """(labeled rows the not-met guard turned unknown, of those labeled not_met).
+
+    The second number is the guard's cost: correct not_mets it sent to doctor
+    review. It is the baseline the LLM criteria parser (#56) should lower.
+    """
+    rows = [r for r in rows if r.key in labels and NOT_MET_DOUBT_MARKER in r.reason]
+    return len(rows), sum(labels[r.key] == "not_met" for r in rows)
 
 
 def false_met_rate(rows: Iterable[LiveRow], labels: Mapping[Key, str]) -> float:
@@ -158,10 +176,12 @@ class ProfileReport:
     agreement_rate: float
     confusion: dict[str, dict[str, int]]  # label -> checker -> n
     false_not_met: int = 0
+    guard_unknown: int = 0  # rows the not-met guard turned unknown
+    guard_unknown_labeled_not_met: int = 0  # of those, labeled not_met
 
 
 def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None,
-           labels: Mapping[str, Any] | None = None) -> tuple[ProfileReport, list[FalseMet]]:
+           labels: Mapping[str, Any] | None = None) -> tuple[ProfileReport, list[WrongCall]]:
     labels = labels if labels is not None else load_labels()
     rows = run_profile(profile, fixtures, labels)
     gold = labels_for(labels, profile)
@@ -169,6 +189,7 @@ def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None
     _check_alignment(rows, texts)
     fm = false_met(rows, gold)
     agree, n = agreement(rows, gold)
+    guarded, guarded_not_met = guard_unknown(rows, gold)
     confusion: dict[str, dict[str, int]] = {}
     for r in rows:
         if r.key in gold:
@@ -184,6 +205,8 @@ def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None
         agreement_rate=agree / n if n else 0.0,
         confusion=confusion,
         false_not_met=len(false_not_met(rows, gold)),
+        guard_unknown=guarded,
+        guard_unknown_labeled_not_met=guarded_not_met,
     )
     return rep, fm
 
@@ -208,6 +231,8 @@ def main(argv: list[str] | None = None) -> int:
               f"   false not_met: {rep.false_not_met}"
               f"   agreement: {rep.agree}/{rep.bullets} = {rep.agreement_rate:.1%}")
         print("label -> checker:", rep.confusion)
+        print(f"not-met guard turned unknown: {rep.guard_unknown} "
+              f"(labeled not_met: {rep.guard_unknown_labeled_not_met})")
         if args.verbose:
             for f in fm:
                 r = f.row

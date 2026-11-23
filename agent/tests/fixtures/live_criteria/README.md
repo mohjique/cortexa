@@ -36,7 +36,7 @@ eligibility checker on wording it was not written against (issue 48).
 
 ## Use
 
-    python -m agent.live_eval        # false met, false not_met and agreement per profile
+    python -m agent.live_eval        # false met, false not_met, guard unknowns and agreement per profile
     python -m pytest agent/tests/test_live_criteria.py agent/tests/test_concepts.py
 
 If the bullet splitter changes, the label alignment test fails; the labels

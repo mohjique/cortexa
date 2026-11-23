@@ -989,36 +989,69 @@ def _combine(parts: list[Finding], either_or: bool, unread: bool) -> Finding:
 # it, or is one arm of several. A not_met in such a bullet becomes unknown for
 # the doctor: a misread not_met hides the trial, which is a guess (rule 3).
 # Word lists could move to policy.yaml later.
-# Treatment wording (condition, permission, timing, overlap) only casts doubt
-# on a failing treatment or recurrence part: a failing tumor type, marker or
-# grade elsewhere in the bullet still decides. Arm, heading and negation
-# wording cast doubt on any failing part.
+
+
+@dataclass(frozen=True)
+class _Doubt:
+    """One kind of wording that may make a failing part not a requirement.
+
+    `treatment_only`: the wording only casts doubt on a failing treatment or
+    recurrence part (condition, permission, timing, overlap); a failing tumor
+    type, marker or grade elsewhere in the bullet still decides. Arm, heading
+    and negation wording cast doubt on any failing part.
+    `ignore`: spans removed before `pattern` is searched, for wording that
+    looks like the cue but states the requirement itself ("is not permitted",
+    "excluded if").
+    """
+
+    why: str
+    pattern: re.Pattern[str]
+    treatment_only: bool
+    ignore: re.Pattern[str] | None = None
+
+    def found_in(self, text: str) -> bool:
+        if self.ignore is not None:
+            text = self.ignore.sub(" ", text)
+        return self.pattern.search(text) is not None
+
+
 _TREATMENT_FIELDS = frozenset({"prior_treatments", "recurrent", "recurrence_number"})
-_TREATMENT_DOUBTS = 4  # the first four entries below
 _NEW_STATUS = r"(?:primary|newly[- ]diagnosed|new)"
 _REC_STATUS = r"(?:recurrent|relapsed|refractory|progressive|metastasi[sz]ed)"
-_NOT_MET_DOUBT: list[tuple[str, re.Pattern[str]]] = [
-    ("it sets a condition", re.compile(
+_TIME_SPAN = r"\d+\s*(?:days?|weeks?|months?|years?)"
+_NOT_MET_DOUBT: list[_Doubt] = [
+    _Doubt("it sets a condition", re.compile(
         r"\bif\b|\bunless\b|\bfor (?:patients|participants|subjects|those) (?:who|with|that)\b"
-        r"|\bin (?:cohorts?|patients|participants|subjects) (?:who|with|that)\b", _I)),
-    ("it allows or limits something rather than requiring it", re.compile(
+        r"|\bin (?:cohorts?|patients|participants|subjects) (?:who|with|that)\b", _I),
+        treatment_only=True,
+        # "Patients are excluded if they received X" states the exclusion; a
+        # trailing "(if ...)" qualifies a requirement the bullet already made.
+        ignore=re.compile(r"\b(?:excluded|exclude|ineligible|not\s+(?:be\s+)?eligible|eligible)\b[^,;.]{0,40}?\bif\b"
+                          r"|\(\s*if\b[^)]*\)", _I)),
+    _Doubt("it allows or limits something rather than requiring it", re.compile(
         r"\bpermitted\b|\ballowed\b|\bacceptable\b|\bmay (?:have )?(?:received|be|include|undergo)\b"
-        r"|\bno limit\b|\bregardless\b", _I)),
-    ("it sets timing or recovery after a treatment", re.compile(
-        r"\binterval\b|\bsince\b|\bmust have elapsed\b|\brecovered\b|\bwound heal|\btoxicit(?:y|ies)\b"
-        r"|[≤≥<>]\s*\d+\s*(?:days?|weeks?|months?)\b|\b\d+\s*(?:days?|weeks?|months?)\s+(?:before|prior|after|from)\b",
-        _I)),
-    ("it depends on details the record lacks", re.compile(r"\boverlap|\bwould\b|\btarget volume\b", _I)),
-    ("it names one arm or cohort of several", re.compile(
+        r"|\bno limit\b|\bregardless\b", _I),
+        treatment_only=True,
+        # "is not permitted", "no prior X allowed" forbid; they do not allow.
+        ignore=re.compile(r"\b(?:not|never|no longer)\s+(?:be\s+)?(?:permitted|allowed|acceptable)\b"
+                          r"|\bno\b[^,;.]{0,60}?\b(?:permitted|allowed)\b", _I)),
+    _Doubt("it sets timing or recovery after a treatment", re.compile(
+        rf"\binterval\b|\b{_TIME_SPAN}\s+since\b|\bsince (?:the )?(?:last|completion|end|prior)\b"
+        r"|\bmust have elapsed\b|\brecovered\b|\bwound heal|\btoxicit(?:y|ies)\b"
+        rf"|[≤≥<>]\s*{_TIME_SPAN}\b|\b{_TIME_SPAN}\s+(?:before|prior|after|from)\b",
+        _I), treatment_only=True),
+    _Doubt("it depends on details the record lacks", re.compile(r"\boverlap|\bwould\b|\btarget volume\b", _I),
+           treatment_only=True),
+    _Doubt("it names one arm or cohort of several", re.compile(
         r"\b(?:arm|stratum|strata|cohort|group|part)\s+(?:[a-z]|\d{1,2}|[ivx]{1,4})\b(?=\s*[:(\-–]|\s*$)"
         # A slash joining a new-tumor status to a recurrent one ("primary/relapsed")
         # lists alternatives; "recurrent/progressive" are synonyms and still ask.
         rf"|\b{_NEW_STATUS}\s*/(?:\s*\w+\s*/)*\s*{_REC_STATUS}\b|\b{_REC_STATUS}\s*/(?:\s*\w+\s*/)*\s*{_NEW_STATUS}\b",
-        _I)),
+        _I), treatment_only=False),
     # A lead-in ending in ":" ("Female patients:") introduces sub-items; one
     # that says "must" ("must have recurrent glioblastoma and:") still asks.
-    ("it is a heading or fragment, not a requirement", re.compile(
-        r"^(?!.*\b(?:must|required?|shall)\b).*:\s*$|^\s*(?:i\.e\.|e\.g\.)", _I)),
+    _Doubt("it is a heading or fragment, not a requirement", re.compile(
+        r"^(?!.*\b(?:must|required?|shall)\b).*:\s*$|^\s*(?:i\.e\.|e\.g\.)", _I), treatment_only=False),
 ]
 # Under "Inclusion Criteria", a sentence that says who is NOT eligible reads
 # backwards for the rules ("Patients with IDH2 mutations are not eligible").
@@ -1031,19 +1064,24 @@ def _not_met_doubt(text: str, kind: CriterionType, failing: Iterable[Finding]) -
 
     `failing` are the parts that made it not_met.
     """
-    treatment_only = {f.field for f in failing} <= _TREATMENT_FIELDS
-    for i, (why, pat) in enumerate(_NOT_MET_DOUBT):
-        if i < _TREATMENT_DOUBTS and not treatment_only:
+    fields = {f.field for f in failing}
+    treatment_only = bool(fields) and fields <= _TREATMENT_FIELDS
+    for doubt in _NOT_MET_DOUBT:
+        if doubt.treatment_only and not treatment_only:
             continue
-        if pat.search(text):
-            return why
+        if doubt.found_in(text):
+            return doubt.why
     if kind == "inclusion" and _INCLUSION_NEGATION.search(text):
         return "it says who is not eligible, inside the inclusion criteria"
     return None
 
 
+# In the reason of every row the not-met guard turned unknown (live_eval counts them).
+NOT_MET_DOUBT_MARKER = "but this may not rule the patient out"
+
+
 def _doubted(out: Finding, why: str) -> Finding:
-    return _review(out.field, f"{out.reason}, but this may not rule the patient out: {why}")
+    return _review(out.field, f"{out.reason}, {NOT_MET_DOUBT_MARKER}: {why}")
 
 
 def _passes(f: Finding, kind: CriterionType) -> bool:

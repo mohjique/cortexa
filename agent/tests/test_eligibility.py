@@ -456,7 +456,7 @@ def test_not_met_guard_leaves_misreadable_failures_to_the_doctor(kind, text, fac
     f = ev(kind, text, post(**facts))
     assert status(kind, text, post(**facts)) == "unknown", f
     # Either the guard caught a rule's failure, or no rule read the bullet at all.
-    assert "may not rule the patient out" in f.reason or f.reason == el.NO_RULE_REASON
+    assert el.NOT_MET_DOUBT_MARKER in f.reason or f.reason == el.NO_RULE_REASON
 
 
 def test_not_met_guard_keeps_decisive_failures():
@@ -476,10 +476,39 @@ def test_not_met_guard_keeps_decisive_failures():
                                "criteria", post(**REC_GBM)) == "not_met"
 
 
-def test_not_met_guard_never_creates_a_met():
-    """The guard only turns a not_met into unknown; it never adds a met of its own."""
-    for text in ("Female patients:", "Arm B (newly diagnosed GBM)", "Prior checkpoint inhibitors permitted"):
-        for facts in (FEMALE_GBM, MALE_GBM, REC_GBM, NEW_GBM):
-            # A female patient may still pass "Female patients:" via the sex rule.
-            assert status("inclusion", text, post(**facts)) in ("unknown", "met"), (text, facts)
-    assert status("inclusion", "Female patients:", post(**MALE_GBM)) == "unknown"
+BEV_GBM = REC_GBM | dict(prior_treatments=REC_GBM["prior_treatments"] + (PriorTreatment(type="bevacizumab"),))
+
+
+@pytest.mark.parametrize("kind, text, facts", [
+    # Wording that looks like a permission or condition but states the exclusion.
+    ("exclusion", "Prior bevacizumab is not permitted", BEV_GBM),
+    ("exclusion", "Prior bevacizumab will not be allowed", BEV_GBM),
+    ("exclusion", "Patients are excluded if they have received prior bevacizumab", BEV_GBM),
+    ("exclusion", "Prior bevacizumab or other VEGF inhibitor since diagnosis", BEV_GBM),
+    # A trailing "(if ...)" qualifies a requirement the bullet already made.
+    ("inclusion", "Recurrent glioblastoma (if multiple recurrences, only first eligible)", NEW_GBM),
+])
+def test_not_met_guard_keeps_exclusions_stated_as_permissions_or_conditions(kind, text, facts):
+    assert status(kind, text, post(**facts)) == "not_met", ev(kind, text, post(**facts))
+
+
+GUARD_TEXTS = [
+    "Female patients:", "Arm B (newly diagnosed GBM)", "Prior checkpoint inhibitors permitted",
+    "Prior bevacizumab is not permitted", "Patients are excluded if they have received prior bevacizumab",
+    "For patients who have received prior bevacizumab, at least 6 weeks must have elapsed prior to enrollment.",
+    "Prior radiation therapy that would overlap with current target volume",
+    "Histologically diagnosed as primary/relapsed/metastasized brain glioma",
+    "Patients with IDH2 mutations are not eligible.", "Group 1: IDH-mutant astrocytoma",
+]
+
+
+@pytest.mark.parametrize("kind", ["inclusion", "exclusion"])
+def test_not_met_guard_only_turns_not_met_into_unknown(kind, monkeypatch):
+    """With the guard off and on, the only change allowed is not_met -> unknown."""
+    cases = [(t, f) for t in GUARD_TEXTS for f in (FEMALE_GBM, MALE_GBM, REC_GBM, NEW_GBM, BEV_GBM)]
+    on = [status(kind, t, post(**f)) for t, f in cases]
+    monkeypatch.setattr(el, "_not_met_doubt", lambda *a: None)
+    off = [status(kind, t, post(**f)) for t, f in cases]
+    changed = [(c, b, a) for c, b, a in zip(cases, off, on) if b != a]
+    assert changed, "the guard should change some of these rows"
+    assert all(b == "not_met" and a == "unknown" for _, b, a in changed), changed
