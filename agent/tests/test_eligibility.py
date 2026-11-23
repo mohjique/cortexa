@@ -236,9 +236,37 @@ def test_histology_or_list_accepts_any_listed_entity():
     f = el.evaluate(c, post(diagnosis="Oligodendroglioma, IDH-mutant and 1p/19q-codeleted",
                             idh="mutant", codeletion_1p19q="codeleted", grade=2), policy.get_policy())
     assert f.holds is True
-    f = el.evaluate(c, post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4),
-                    policy.get_policy())
+    f = el.evaluate(c, post(diagnosis="Ependymoma", idh="wildtype", grade=2), policy.get_policy())
     assert f.holds is False
+
+
+def test_astrocytoma_vs_glioblastoma_is_doctor_review_not_a_no():
+    """WHO naming overlaps: never a confident not_met between the two (issue 48)."""
+    gbm = post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4)
+    for text in ("Diffuse astrocytoma, IDH-wildtype (grade 2-4)", "Histologically confirmed WHO Grade 4 astrocytoma"):
+        f = el.evaluate(el.Criterion("inclusion", text), gbm, policy.get_policy())
+        assert f.holds is None and f.field == "diagnosis" and "WHO naming" in f.reason
+    g4_astro = post(diagnosis="Astrocytoma, IDH-mutant, CNS WHO grade 4", idh="mutant", grade=4)
+    f = el.evaluate(el.Criterion("inclusion", "Histologically confirmed glioblastoma"), g4_astro, policy.get_policy())
+    assert f.holds is None and "WHO naming" in f.reason
+    # A grade 3 astrocytoma is still not a glioblastoma.
+    g3_astro = post(diagnosis="Astrocytoma, IDH-mutant", idh="mutant", grade=3)
+    f = el.evaluate(el.Criterion("inclusion", "Histologically confirmed glioblastoma"), g3_astro, policy.get_policy())
+    assert f.holds is False
+
+
+def test_idh1_r132h_criterion():
+    """R132H-wildtype rules out one IDH1 variant only; a mutant patient is unknown."""
+    c = el.Criterion("inclusion", "WHO grade 2-4 glioma that is IDH1 R132H-wildtype")
+    wt = post(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4)
+    mut = post(diagnosis="Astrocytoma, IDH-mutant", idh="mutant", grade=3)
+    assert el.evaluate(c, wt, policy.get_policy()).holds is True
+    f = el.evaluate(c, mut, policy.get_policy())
+    assert f.holds is None and f.field == "idh" and "R132H" in f.reason
+    pos = el.Criterion("inclusion", "Astrocytoma, IDH1 R132H-positive")
+    assert el.evaluate(pos, mut, policy.get_policy()).holds is None
+    pending = post(diagnosis="Glioblastoma", idh="pending", grade=4)
+    assert el.is_pending(el.to_row("NCT99000001", c,el.evaluate(c, pending, policy.get_policy())))
 
 
 def test_histology_both_idh_forms_is_no_idh_requirement():
@@ -262,3 +290,131 @@ def test_histology_met_reason_uses_resolved_grade():
                             idh="wildtype", grade="pending"), policy.get_policy())
     assert f.holds is True
     assert "pending" not in f.reason and "WHO grade 4" in f.reason
+
+
+# --- issue 48: every rule runs, nothing passes on a partial read -----------------
+
+
+def ev(kind: str, text: str, facts: el.Facts) -> el.Finding:
+    return el.evaluate(el.Criterion(kind, text), facts, policy.get_policy())  # type: ignore[arg-type]
+
+
+def status(kind: str, text: str, facts: el.Facts) -> str:
+    c = el.Criterion(kind, text)  # type: ignore[arg-type]
+    return el.to_row("NCT00000000", c, el.evaluate(c, facts, policy.get_policy())).status
+
+
+NEW_GBM = dict(diagnosis="Glioblastoma, IDH-wildtype", idh="wildtype", grade=4, mgmt="unmethylated",
+               codeletion_1p19q="intact", recurrent=False, recurrence_number=0, age=54,
+               prior_treatments=(PriorTreatment(type="surgery", extent="biopsy_only"),))
+REC_GBM = NEW_GBM | dict(recurrent=True, recurrence_number=1, prior_treatments=(
+    PriorTreatment(type="surgery", extent="gross_total"), PriorTreatment(type="radiation"),
+    PriorTreatment(type="temozolomide")))
+
+
+def test_multi_rule_and_every_part_must_hold():
+    text = "Histologically confirmed recurrent glioblastoma, IDH-wildtype"
+    f = ev("inclusion", text, post(**NEW_GBM))
+    assert f.holds is False and f.field == "recurrent"  # diagnosis and IDH pass; recurrence fails
+    f = ev("inclusion", text, post(**REC_GBM))
+    assert f.holds is True and f.field == "diagnosis"
+    assert "fields: diagnosis, recurrent, idh" in f.reason  # rule 4: every field used
+
+
+def test_recurrent_glioblastoma_for_newly_diagnosed_patient():
+    for text in ("Recurrent glioblastoma", "Progressive glioblastoma after prior surgery or biopsy",
+                 "Tissue-based diagnosis of recurrent glioblastoma, IDH-wildtype by a neuropathologist"):
+        assert status("inclusion", text, post(**NEW_GBM)) == "not_met", text
+    assert status("inclusion", "Recurrent glioblastoma", post(**REC_GBM)) == "met"
+
+
+def test_negated_recurrence_is_not_read_as_recurrent():
+    f = ev("inclusion", "No evidence of progression", post(**REC_GBM))
+    assert f.holds is None
+
+
+def test_coverage_guard_downgrades_met_on_unchecked_concept():
+    f = ev("inclusion", "Histologically confirmed glioblastoma, H3 K27M-altered", post(**NEW_GBM))
+    assert f.holds is None and f.field == "h3k27m"
+    assert f.reason.startswith("needs pathology: H3 K27M status")  # rule 3 wording from policy.yaml
+    f = ev("inclusion", "Histologically confirmed glioblastoma, IDH testing done", post(**NEW_GBM))
+    assert f.holds is None and f.field == "doctor_review:idh" and "IDH status" in f.reason
+
+
+def test_coverage_guard_lets_a_failing_part_stand():
+    f = ev("inclusion", "Histologically confirmed oligodendroglioma, H3 K27M-altered", post(**NEW_GBM))
+    assert f.holds is False and f.field == "diagnosis"
+
+
+def test_full_read_guard_downgrades_met_with_unread_wording():
+    f = ev("exclusion", "Prior bevacizumab given within a clinical trial", post(**NEW_GBM))
+    assert f.holds is None and f.field == el.NO_RULE_FIELD and "given" in f.reason
+    assert status("exclusion", "Prior bevacizumab", post(**NEW_GBM)) == "met"
+
+
+def test_exclusion_direction_never_passes_on_unknown_or_unread():
+    # Condition unknown -> unknown, not met.
+    assert status("exclusion", "Prior radiation", post(**NEW_GBM | dict(prior_treatments=None))) == "unknown"
+    # Condition False on what was read, but a concept unread -> unknown, not met.
+    assert status("exclusion", "Prior bevacizumab for H3 K27M-altered glioma", post(**NEW_GBM)) == "unknown"
+    # Every part read and failing -> met; holding -> not_met.
+    meningioma = post(diagnosis="Meningioma, CNS WHO grade 2", grade=2, age=60, prior_treatments=())
+    meningioma = dataclasses.replace(meningioma, bucket="meningioma")
+    assert status("exclusion", "Prior radiation to the meningioma", meningioma) == "met"
+    assert status("exclusion", "Prior radiation", post(**REC_GBM)) == "not_met"
+
+
+def test_exclusion_list_excludes_on_any_one_item():
+    # Prior bevacizumab, no checkpoint or IDH inhibitor. One item applying
+    # excludes; the items that do not apply never make the row pass.
+    rec = post(**REC_GBM | dict(prior_treatments=(
+        PriorTreatment(type="surgery"), PriorTreatment(type="radiation"),
+        PriorTreatment(type="temozolomide"), PriorTreatment(type="bevacizumab"))))
+    for text in ("Prior bevacizumab, checkpoint inhibitors, IDH inhibitors",
+                 "Prior checkpoint inhibitors; prior bevacizumab",
+                 "Prior checkpoint inhibitors and prior bevacizumab",
+                 "Prior checkpoint inhibitor or prior bevacizumab"):
+        f = ev("exclusion", text, rec)
+        assert f.holds is True and "bevacizumab" in f.reason, (text, f)
+    # Concept parts that disagree across a list separator: never met.
+    for text in ("IDH-mutant, MGMT promoter unmethylated tumors", "IDH-mutant or MGMT promoter unmethylated"):
+        assert status("exclusion", text, post(**NEW_GBM)) == "unknown", text
+    # A qualifier with no separator still reads as one condition.
+    assert status("exclusion", "IDH-mutant glioma", post(**NEW_GBM)) == "met"
+
+
+def test_either_or_outside_read_spans_is_unknown():
+    f = ev("inclusion", "MGMT promoter methylated or prior temozolomide", post(**REC_GBM))
+    assert f.holds is None and "either/or" in f.reason
+
+
+def test_pending_propagates_through_combination_and_guard():
+    rows = [el.to_row("NCT00000000", el.Criterion("inclusion", t), ev("inclusion", t, post(**NEW_GBM | dict(
+        mgmt="pending"))))
+            for t in ("Histologically confirmed glioblastoma, IDH-wildtype, MGMT promoter unmethylated",
+                      "MGMT testing required")]
+    assert all(el.is_pending(r) for r in rows), [r.reason for r in rows]
+
+
+def test_pediatric_criteria_and_adult_patient():
+    assert ev("inclusion", "Pediatric patients with glioma", post(**NEW_GBM)).holds is False
+    f = ev("inclusion", "Pediatric patients (8-17 years of age)", post(**NEW_GBM))
+    assert f.holds is False and f.field == "age"
+    assert ev("inclusion", "Pediatric patients with glioma", post(**NEW_GBM | dict(age=10))).holds is None
+    # An adult is named too: the pediatric word decides nothing.
+    assert ev("inclusion", "Children and adults with glioma", post(**NEW_GBM)).holds is not False
+
+
+def test_text_age_range_is_read_against_age():
+    assert status("inclusion", "Patients 18 to 70 years of age", post(**NEW_GBM)) == "met"
+    assert status("inclusion", "Patients 18 to 50 years of age", post(**NEW_GBM)) == "not_met"
+
+
+def test_sex_in_text_is_checked_against_sex():
+    f = ev("inclusion", "Female patients with glioma", post(**NEW_GBM | dict(sex="male")))
+    assert f.holds is False and f.field == "sex"
+    assert ev("inclusion", "Female patients with glioma", post(**NEW_GBM)).holds is None  # not recorded
+
+
+def test_glioma_subtype_is_doctor_review():
+    assert status("inclusion", "Diffuse midline glioma", post(**NEW_GBM)) == "unknown"

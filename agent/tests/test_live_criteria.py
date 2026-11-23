@@ -1,8 +1,8 @@
 """Live ClinicalTrials.gov criteria text vs hand labels (issue 48).
 
-The fixture and label checks pass today. The checker cases are the misses
-reported on live text; they fail until `evaluate()` stops letting one rule
-decide a whole bullet, so they are marked xfail (not strict).
+The checker cases are the misses first reported on live text, where one rule
+decided a whole bullet it had read only part of. `evaluate()` now runs every
+rule and never passes a bullet it cannot fully read, so they must pass.
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from agent.schemas import DoctorResults
 
 PROFILES = ("new_gbm", "recurrent_astro")
 STATUSES = {"met", "not_met", "unknown"}
-FIX_REASON = "fixed by evaluate() rewrite, issue 48 step 5"
 
 
 @pytest.fixture(scope="module")
@@ -111,7 +110,6 @@ def test_cli_runs(capsys):
 # --- (a) histology passes on diagnosis alone; IDH wording not read --------------------
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("text", [
     "Histologically confirmed IDH1-mutant glioma",
     "Histologically confirmed glioma with IDH1 R132H mutation",
@@ -121,7 +119,6 @@ def test_a_idh_mutant_wording_is_read_for_wildtype_patient(text, labels):
     assert _status(text, "inclusion", "new_gbm", labels) != "met"
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("tid,index", [
     ("NCT06410248", 0),  # "isocitrate dehydrogenase (IDH) wild type (WT)": IDH-mutant patient passed
     ("NCT07888647", 0),  # "newly diagnosed ... astrocytoma, IDH1R132H-positive": recurrent patient passed
@@ -135,7 +132,6 @@ def test_a_live_histology_bullets(tid, index, labels):
 # --- (b) recurrent-GBM bullet decided by the treatment rule or by histology ---------------
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("tid,index,profile", [
     ("NCT07538128", 4, "new_gbm"),          # "glioblastoma, with first recurrence after prior surgery": treatment rule
     ("NCT07538128", 4, "recurrent_astro"),
@@ -149,7 +145,6 @@ def test_b_recurrent_bullets(tid, index, profile, labels):
     assert _status(b["text"], b["criterion_type"], profile, labels) != "met"
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("text", [
     "Histologically confirmed recurrent glioblastoma",
     "Progressive glioblastoma after prior surgery or biopsy",
@@ -161,7 +156,6 @@ def test_b_recurrent_wording_for_newly_diagnosed_patient(text, labels):
 # --- (c) age written in text without a leading "age" ----------------------------------
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("profile", PROFILES)
 def test_c_pediatric_age_in_parentheses(profile, labels):
     b = _bullet(labels, "NCT05503797", 12)  # "Pediatric patients (8-17 years of age) with a Grade 3 or 4 glioma"
@@ -169,7 +163,6 @@ def test_c_pediatric_age_in_parentheses(profile, labels):
     assert _status(b["text"], b["criterion_type"], profile, labels) != "met"
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 def test_c_age_range_reads_years_of_age(labels):
     facts = Facts(stage="post_pathology", bucket="glioma", age=54)
     c = Criterion("inclusion", "Patients (8-17 years of age)")
@@ -180,7 +173,6 @@ def test_c_age_range_reads_years_of_age(labels):
 # --- safety: zero false mets across every labeled bullet ----------------------------------
 
 
-@pytest.mark.xfail(strict=False, reason=FIX_REASON)
 @pytest.mark.parametrize("profile", PROFILES)
 def test_no_false_met_on_live_criteria(profile, fixtures, labels):
     rows = live_eval.run_profile(profile, fixtures, labels)

@@ -23,7 +23,7 @@ Every search, geocode, drive-time call, fallback and dropped record is in the au
 
 ## Eligibility checker (F8)
 
-- `agent/eligibility.py`: `check_trial(trial, facts)` → one `EligibilityResult` per criterion bullet. Deterministic: `split_criteria` splits the text into inclusion and exclusion bullets, and the first matching rule in `RULES` decides. No LLM call. Build `Facts` with `Facts.from_results(doctor_results)`, or by hand at the pre-op screen.
+- `agent/eligibility.py`: `check_trial(trial, facts)` → one `EligibilityResult` per criterion bullet. Deterministic: `split_criteria` splits the text into inclusion and exclusion bullets, and every rule that applies runs: the pattern rules in `RULES`, the tumor types named, and the concepts from `agent/concepts.py` checked against `Facts`. A bullet is `met` only when every part holds and every concept and content word in it was read; anything less is `unknown` for the doctor. No LLM call. Build `Facts` with `Facts.from_results(doctor_results)`, or by hand at the pre-op screen.
 - A missing field is `unknown`. Pathology fields use `eligibility.missing_field_reason_template` from `policy.yaml`; other fields say "not recorded". A `pending` result is `unknown` with a reason starting `pending result:` (`is_pending`). `passes(rows)` is the shortlist rule: no `not_met`, nothing pending.
 - A bullet no rule covers is `unknown`, `evidence_field: doctor_review`. Live trials will have many of these, and the doctor reviews them.
 - "Enroll before surgery" bullets match `pre_surgery_detection.inclusion_phrases` in `policy.yaml`.

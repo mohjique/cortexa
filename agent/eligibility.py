@@ -1,14 +1,31 @@
 """Eligibility checker (F8): one `met | not_met | unknown` row per criterion.
 
 Deterministic code makes every call. The trial's criteria text is split into
-inclusion and exclusion bullets, and each bullet is matched against a small
-rule library. A rule reads named patient fields and answers whether the
-criterion's condition holds: yes, no or unknown.
+inclusion and exclusion bullets. For each bullet, every rule that applies
+runs, not just the first (`evaluate`):
+
+- pattern rules (`RULES`) for phrases such as "prior bevacizumab";
+- the tumor types the bullet names, checked against the diagnosis;
+- the concepts `agent.concepts` finds (IDH, 1p/19q, MGMT, grade, age,
+  pediatric, recurrent, newly diagnosed, sex), checked against Facts
+  wherever the bullet states a readable requirement.
+
+Each rule answers whether the criterion's condition holds: yes, no or
+unknown. The answers are combined as AND (a failing part decides) unless an
+unread "or" means the bullet might be an either/or; then it is unknown.
+
+A bullet never passes on a part of it. A would-be `met` becomes `unknown`
+when the bullet mentions a concept no rule checked (coverage guard: H3 K27M,
+BRAF, or a value regex could not read) or has content words outside every
+span a rule read (full-read guard). A `not_met` from a failing part stands,
+as it can only make the shortlist more conservative.
 
 - Rule 3: a missing field gives `unknown` with the reason; it is never
   guessed. A `pending` result also gives `unknown`, with a reason starting
   with `PENDING_PREFIX`, so the shortlist can tell "waiting on the lab" apart.
+  When several parts are unknown, a pending one is reported first.
 - Rule 4: every row names the patient field it used and the criterion text.
+  A `met` built from several parts lists every field in its reason.
 - Rule 10: `Facts` has no mutation check fields, so the check cannot decide
   a criterion. A TMB criterion reads `tmb_clia` (a CLIA lab result) only.
 - A bullet that matches no rule is `unknown`, "doctor review". Live trials
@@ -25,6 +42,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 from agent.audit import audit
+from agent.concepts import ConceptHit, detect
 from agent.policy import Policy, get_policy
 from agent.schemas import (
     Bucket,
@@ -262,19 +280,33 @@ def _comorbidity(facts: Facts, terms: Iterable[str], label: str, policy: Policy,
 
 # ---------------------------------------------------------------------------
 # Rules. Each takes (facts, regex match, policy) and returns a Finding about
-# whether the criterion's condition holds. First matching rule wins, so
-# specific patterns come before general ones.
+# whether the criterion's condition holds. Every rule whose pattern matches a
+# bullet runs (see `evaluate`); a rule whose match lies inside an earlier
+# rule's match is skipped, so specific patterns come before general ones.
 # ---------------------------------------------------------------------------
 
 RuleFn = Callable[[Facts, re.Match[str], Policy], Finding]
 
 GLIOMA_FAMILY = ("glioblastoma", "astrocytoma", "oligodendroglioma", "glioma")
 ENTITY_BUCKET = {e: "glioma" for e in GLIOMA_FAMILY} | {"meningioma": "meningioma"}
-_ENTITY_RE = re.compile(r"\b(glioblastoma|astrocytoma|oligodendroglioma|meningioma|glioma)\b")
-_GRADE_RE = re.compile(r"grade\s*([1-4])(?:\s*(?:or|to|-|–|and)\s*([1-4]))?")
+_ENTITY_WORD = r"(?:glioblastoma|astrocytoma|oligodendroglioma|meningioma|glioma|gbm)s?"
+_ENTITY_RE = re.compile(rf"\b({_ENTITY_WORD})\b", re.IGNORECASE)
+# "glioblastoma or astrocytoma", "astrocytoma, oligodendroglioma and glioma": one span.
+_ENTITY_LIST = re.compile(rf"\b{_ENTITY_WORD}(?:\s*(?:,|or|and/or|/)\s*(?:\w+[\s-]+){{0,2}}{_ENTITY_WORD})*\b",
+                          re.IGNORECASE)
+# A "glioma" with one of these words just before it is a different tumor
+# type (diffuse midline glioma, pediatric-type high-grade glioma, DIPG), not
+# any glioma. The checker does not decide those; the doctor does.
+GLIOMA_SUBTYPE_WORDS = (
+    "midline", "pontine", "brainstem", "brain stem", "optic", "pathway", "intrinsic", "pediatric-type",
+    "paediatric-type", "pediatric type", "infant-type", "pilocytic", "angiocentric", "chordoid", "tectal",
+    "spinal", "astroblastoma",
+)
 
 
 def _entity(facts: Facts, entity: str, policy: Policy) -> Finding:
+    entity = entity.lower().rstrip("s")
+    entity = "glioblastoma" if entity == "gbm" else entity
     want_bucket = ENTITY_BUCKET[entity]
     if facts.bucket is not None and facts.bucket != want_bucket:
         return _no("confirmed_bucket", f"confirmed bucket is {facts.bucket}, criterion needs {entity}")
@@ -287,35 +319,58 @@ def _entity(facts: Facts, entity: str, policy: Policy) -> Finding:
         ok = entity in dx
     if ok:
         return _yes("diagnosis", f"diagnosis: {facts.diagnosis}")
+    if _who_naming_overlap(entity, dx, facts):
+        return _review("diagnosis", f"diagnosis is {facts.diagnosis}; criterion says {entity}. WHO naming "
+                       "overlaps here (older or grade-based terms), so the doctor must decide")
     return _no("diagnosis", f"diagnosis is {facts.diagnosis}, not {entity}")
 
 
-def _histology(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
-    """'Histologically confirmed <entity>, <IDH>, <1p/19q>, CNS WHO grade X or Y'."""
-    text = m.string.lower()
-    entities = list(dict.fromkeys(_ENTITY_RE.findall(text)))
+def _who_naming_overlap(entity: str, dx: str, facts: Facts) -> bool:
+    """Astrocytoma and glioblastoma names overlap across WHO editions.
+
+    "WHO grade 4 astrocytoma" or "diffuse astrocytoma, IDH-wildtype" may
+    include glioblastoma, and an IDH-mutant grade 4 astrocytoma was once
+    called glioblastoma. A mismatch between the two is not a confident no.
+    """
+    if entity == "astrocytoma" and "glioblastoma" in dx:
+        return True
+    if entity == "glioblastoma" and "astrocytoma" in dx:
+        return facts.grade == 4 or "grade 4" in dx or "grade iv" in dx
+    return False
+
+
+def _entities(text: str, facts: Facts, policy: Policy) -> Finding | None:
+    """The tumor types a bullet names, checked against the diagnosis.
+
+    "astrocytoma or oligodendroglioma": any one listed type is enough. A
+    glioma subtype (see GLIOMA_SUBTYPE_WORDS) is doctor review.
+    """
     parts: list[Finding] = []
-    if entities:
-        # "astrocytoma or oligodendroglioma": any one listed entity is enough.
-        parts.append(_any_of(*(_entity(facts, e, policy) for e in entities)))
-    idh_forms = [w for w in ("mutant", "wildtype") if re.search(rf"idh[- ]?{w[:4]}", text)]
-    if len(idh_forms) == 1:  # both forms listed ("IDH-mutant or IDH-wildtype") = no IDH requirement
-        parts.append(_marker_is(facts, "idh", idh_forms[0], policy))
-    if re.search(r"1p/19q[- ]?co[- ]?deleted|1p/19q[- ]?codeletion", text):
-        parts.append(_marker_is(facts, "codeletion_1p19q", "codeleted", policy))
-    g = _GRADE_RE.search(text)
-    if g:
-        lo = int(g.group(1))
-        hi = int(g.group(2) or lo)
-        parts.append(_grade_in(facts, lo, hi, policy))
-    if not parts:
-        return _review(NO_RULE_FIELD, "histology not recognized")
-    out = _all_of(*parts)
-    if out.holds:
-        # Rule 4: cite every field the call used, not just the diagnosis.
-        fields = ", ".join(dict.fromkeys(p.field for p in parts))
-        return _yes("diagnosis", f"{out.reason} (fields: {fields})")
-    return out
+    seen: set[str] = set()
+    for m in _ENTITY_RE.finditer(text):
+        word = m.group(1).lower()
+        before = text[max(0, m.start() - 30):m.start()].lower()
+        if word.rstrip("s") == "glioma" and any(w in before for w in GLIOMA_SUBTYPE_WORDS):
+            key = f"subtype:{before.strip()[-20:]}"
+            if key not in seen:
+                parts.append(_review("diagnosis", f"glioma subtype {(before.split() or [''])[-1]!r} glioma "
+                                     "is not checked automatically"))
+                seen.add(key)
+            continue
+        if word not in seen:
+            seen.add(word)
+            parts.append(_entity(facts, word, policy))
+    return _any_of(*parts) if parts else None
+
+
+def _histology(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
+    """'Histologically confirmed <entity>': the diagnosis part only.
+
+    Markers, grade and recurrence in the same bullet are checked by the
+    concept rules in `evaluate`, so none of them can pass on the diagnosis.
+    """
+    found = _entities(m.string, facts, policy)
+    return found if found is not None else _review(NO_RULE_FIELD, "histology not recognized")
 
 
 def _marker_is(facts: Facts, name: str, want: str, policy: Policy) -> Finding:
@@ -331,7 +386,7 @@ def _marker_is(facts: Facts, name: str, want: str, policy: Policy) -> Finding:
 def _grade_in(facts: Facts, lo: int, hi: int, policy: Policy) -> Finding:
     g, why = _grade(facts, policy)
     if g is None:
-        return why
+        return why  # type: ignore[return-value]
     span = f"{lo}" if lo == hi else f"{lo} to {hi}"
     src = "grade" if isinstance(facts.grade, int) else "diagnosis"  # read from the diagnosis text
     if lo <= g <= hi:
@@ -339,19 +394,18 @@ def _grade_in(facts: Facts, lo: int, hi: int, policy: Policy) -> Finding:
     return _no(src, f"WHO grade {g} is outside {span}")
 
 
-def _marker_rule(name: str, want: str) -> RuleFn:
-    return lambda facts, m, policy: _marker_is(facts, name, want, policy)
-
-
-def _age(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
+def _age_in(facts: Facts, lo: float | None, hi: float | None, policy: Policy) -> Finding:
     if facts.age is None:
         return _missing("age", "age", policy)
-    lo = int(m.group("lo"))
-    hi = int(m.group("hi")) if m.groupdict().get("hi") else None
-    if facts.age < lo or (hi is not None and facts.age > hi):
-        span = f"{lo}+" if hi is None else f"{lo} to {hi}"
+    if lo is not None and hi is not None:
+        span = f"{lo:g} to {hi:g}"
+    elif lo is not None:
+        span = f"{lo:g} or older"
+    else:
+        span = f"{hi:g} or younger"
+    if (lo is not None and facts.age < lo) or (hi is not None and facts.age > hi):
         return _no("age", f"age {facts.age} is outside {span}")
-    return _yes("age", f"age {facts.age}")
+    return _yes("age", f"age {facts.age} is within {span}")
 
 
 def _imaging_suspicious_gbm(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
@@ -399,8 +453,25 @@ def _newly_dx(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
     return _not_recurrent(facts, policy)
 
 
+_NEGATED_BEFORE = re.compile(
+    r"\b(?:no|not|without|never|nor|naive|na[iï]ve\s+to|free\s+of|other\s+than|except|excluding|recovered\s+from"
+    r"|toxicit(?:y|ies)\s+(?:of|from)|effects?\s+of|complications?\s+(?:of|from))\b[^.;]{0,40}$",
+    re.IGNORECASE,
+)
+
+
+def _negated(m: re.Match[str]) -> bool:
+    """Negated or side-effect wording just before a match ("no prior radiation",
+    "recovered from the toxic effects of prior surgery")."""
+    return bool(_NEGATED_BEFORE.search(m.string[max(0, m.start() - 60):m.start()]))
+
+
 def _treatment_rule(kinds: set[str], label: str) -> RuleFn:
-    return lambda facts, m, policy: _has_treatment(facts, kinds, label, policy)
+    def rule(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
+        if _negated(m):
+            return _review("prior_treatments", f"negated or side-effect wording around prior {label}")
+        return _has_treatment(facts, kinds, label, policy)
+    return rule
 
 
 def _rt_and_tmz(facts: Facts, m: re.Match[str], policy: Policy) -> Finding:
@@ -539,43 +610,60 @@ def _persistent_or_not_candidate(facts: Facts, m: re.Match[str], policy: Policy)
     return _no("pituitary.surgical_candidate", "surgical candidate with no surgery yet")
 
 
+@dataclass(frozen=True)
+class Rule:
+    """A pattern, the function that checks it, and the concepts it reads.
+
+    `covers` names the `agent.concepts` concepts (plus "entity", the tumor
+    type) the rule really checks. A concept the bullet mentions that no rule
+    covers can never be passed over: see `evaluate`.
+    """
+
+    pattern: re.Pattern[str]
+    fn: RuleFn
+    covers: frozenset[str] = frozenset()
+
+
+def _rule(pattern: str, fn: RuleFn, *covers: str) -> Rule:
+    return Rule(re.compile(pattern, re.IGNORECASE), fn, frozenset(covers))
+
+
 _I = re.IGNORECASE
-RULES: list[tuple[re.Pattern[str], RuleFn]] = [
-    (re.compile(r"imaging suspicious for newly diagnosed glioblastoma", _I), _imaging_suspicious_gbm),
-    (re.compile(r"histologically confirmed", _I), _histology),
-    (re.compile(r"\bage\s+(?P<lo>\d+)\s*(?:to|-|–)\s*(?P<hi>\d+)\s*years", _I), _age),
-    (re.compile(r"\bage\s*(?:≥|>=)?\s*(?P<lo>\d+)\s*(?:years?)?\s*(?:or|and)\s*(?:older|over)", _I), _age),
-    (re.compile(r"newly diagnosed;?\s*no prior radiation or chemotherapy", _I), _newly_dx_no_rt_chemo),
-    (re.compile(r"newly diagnosed,?\s*after surgery or biopsy", _I), _newly_dx_after_surgery),
-    (re.compile(r"^\s*newly diagnosed\s*$", _I), _newly_dx),
-    (re.compile(r"prior radiation and temozolomide", _I), _rt_and_tmz),
-    (re.compile(r"pituitary radiation within the past (?P<n>\d+) years?", _I), _pit_radiation_within),
-    (re.compile(r"prior (?:brain )?surgery|prior resection|surgery or biopsy for this tumor", _I),
-     _treatment_rule({"surgery"}, "surgery or biopsy")),
-    (re.compile(r"prior radiation", _I), _treatment_rule({"radiation"}, "radiation")),
-    (re.compile(r"prior temozolomide", _I), _treatment_rule({"temozolomide"}, "temozolomide")),
-    (re.compile(r"prior bevacizumab", _I), _treatment_rule({"bevacizumab"}, "bevacizumab")),
-    (re.compile(r"idh inhibitor", _I), _treatment_rule({"idh_inhibitor"}, "IDH inhibitor")),
-    (re.compile(r"checkpoint inhibitor", _I), _treatment_rule({"checkpoint_inhibitor"}, "checkpoint inhibitor")),
-    (re.compile(r"gross total or subtotal resection", _I), _resection_extent),
-    (re.compile(r"first or second recurrence", _I), _first_or_second),
-    (re.compile(r"more than (?P<n>\d+|one|two|three|four) prior recurrences?", _I), _more_than_recurrences),
-    (re.compile(r"recurrent glioma", _I), _recurrent_glioma),
-    (re.compile(r"tumou?r mutational burden|\btmb\b", _I), _tmb),
-    (re.compile(r"participation is fully remote|remote participation", _I), _device),
-    (re.compile(r"unable to use a phone or tablet", _I), _unable_device),
-    (re.compile(r"neurofibromatosis type 2|\bnf2\b", _I),
-     lambda f, m, p: _comorbidity(f, ("neurofibromatosis type 2", "nf2"), "neurofibromatosis type 2", p)),
-    (re.compile(r"autoimmune disease", _I),
-     lambda f, m, p: _comorbidity(f, AUTOIMMUNE_TERMS, "active autoimmune disease", p, category=True)),
-    (re.compile(r"(?P<h>acth|prolactin|growth hormone)[- ]secreting pituitary", _I), _secreting),
-    (re.compile(r"persistent disease after surgery,? or not a surgical candidate", _I),
-     _persistent_or_not_candidate),
-    (re.compile(r"mgmt promoter unmethylated", _I), _marker_rule("mgmt", "unmethylated")),
-    (re.compile(r"mgmt promoter methylated", _I), _marker_rule("mgmt", "methylated")),
-    (re.compile(r"1p/19q[- ]?codelet(?:ion|ed)", _I), _marker_rule("codeletion_1p19q", "codeleted")),
-    (re.compile(r"idh[- ]?mutant", _I), _marker_rule("idh", "mutant")),
-    (re.compile(r"idh[- ]?wild[- ]?type", _I), _marker_rule("idh", "wildtype")),
+RULES: list[Rule] = [
+    _rule(r"imaging suspicious for newly diagnosed glioblastoma", _imaging_suspicious_gbm,
+          "entity", "newly_diagnosed"),
+    _rule(r"(?:histologically|histopathologically|pathologically) confirmed", _histology, "entity"),
+    _rule(r"newly diagnosed;?\s*no prior radiation or chemotherapy", _newly_dx_no_rt_chemo, "newly_diagnosed"),
+    _rule(r"newly diagnosed,?\s*after surgery or biopsy", _newly_dx_after_surgery, "newly_diagnosed"),
+    _rule(r"^\s*newly diagnosed\s*$", _newly_dx, "newly_diagnosed"),
+    _rule(r"prior radiation and temozolomide", _rt_and_tmz),
+    _rule(r"pituitary radiation within the past (?P<n>\d+) years?", _pit_radiation_within),
+    _rule(r"prior (?:brain )?(?:surgery|resection)(?: or biopsy)?(?: for this tumou?r)?"
+          r"|surgery or biopsy for this tumou?r",
+          _treatment_rule({"surgery"}, "surgery or biopsy")),
+    _rule(r"prior radiation(?: therapy)?(?: to the (?:brain|head|tumou?r|meningioma))?",
+          _treatment_rule({"radiation"}, "radiation")),
+    _rule(r"prior temozolomide", _treatment_rule({"temozolomide"}, "temozolomide")),
+    _rule(r"prior bevacizumab", _treatment_rule({"bevacizumab"}, "bevacizumab")),
+    _rule(r"(?:prior (?:treatment|therapy) with (?:an? )?)?idh inhibitors?",
+          _treatment_rule({"idh_inhibitor"}, "IDH inhibitor"), "idh"),
+    _rule(r"(?:prior (?:immune )?)?checkpoint inhibitors?",
+          _treatment_rule({"checkpoint_inhibitor"}, "checkpoint inhibitor")),
+    _rule(r"gross total or subtotal resection", _resection_extent),
+    _rule(r"first or second recurrence", _first_or_second, "recurrent"),
+    _rule(r"more than (?P<n>\d+|one|two|three|four) prior recurrences?", _more_than_recurrences, "recurrent"),
+    _rule(r"recurrent glioma", _recurrent_glioma, "recurrent", "entity"),
+    _rule(r"tumou?r mutational burden(?: \(tmb\))?(?: of \d+(?:\.\d+)? mutations?/mb or (?:higher|more|greater))?"
+          r"(?: by a clia[- ]certified assay)?|\btmb\b", _tmb),
+    _rule(r"participation is fully remote(?: from home)?|remote participation", _device),
+    _rule(r"unable to use a phone or tablet(?: for study visits)?", _unable_device),
+    _rule(r"neurofibromatosis type 2|\bnf2\b",
+          lambda f, m, p: _comorbidity(f, ("neurofibromatosis type 2", "nf2"), "neurofibromatosis type 2", p)),
+    _rule(r"(?:active )?autoimmune disease",
+          lambda f, m, p: _comorbidity(f, AUTOIMMUNE_TERMS, "active autoimmune disease", p, category=True)),
+    _rule(r"(?P<h>acth|prolactin|growth hormone)[- ]secreting pituitary(?: adenoma)?(?: confirmed by hormone testing)?",
+          _secreting),
+    _rule(r"persistent disease after surgery,? or not a surgical candidate", _persistent_or_not_candidate),
 ]
 
 
@@ -646,16 +734,356 @@ def _pre_surgery_phrase(criterion: Criterion, policy: Policy) -> str | None:
     return next((p for p in policy.pre_surgery_detection.inclusion_phrases if p.lower() in low), None)
 
 
+# ---------------------------------------------------------------------------
+# Concept rules: requirements `agent.concepts` reads from any wording
+# ---------------------------------------------------------------------------
+
+# The Facts field each concept is checked against. h3k27m and braf have no
+# Facts field, so a bullet naming them is never passed (rule 3).
+CONCEPT_FIELD: dict[str, str] = {
+    "idh": "idh", "codeletion_1p19q": "codeletion_1p19q", "mgmt": "mgmt", "grade": "grade",
+    "age_range": "age", "pediatric": "age", "recurrent": "recurrent", "newly_diagnosed": "recurrent",
+    "sex": "sex", "h3k27m": "h3k27m", "braf": "braf",
+}
+CONCEPT_LABEL: dict[str, str] = MARKER_LABELS | {
+    "age_range": "an age range", "pediatric": "pediatric patients", "recurrent": "recurrent or progressive disease",
+    "newly_diagnosed": "newly diagnosed disease", "sex": "sex", "h3k27m": "H3 K27M status", "braf": "BRAF status",
+}
+
+# Wording that states no requirement for a concept: "IDH-mutant or
+# IDH-wildtype", "regardless of IDH status", "glioma of any grade".
+_NO_REQUIREMENT: dict[str, re.Pattern[str]] = {
+    "idh": re.compile(
+        r"(?:regardless|irrespective|independent)\s+of\s+(?:the\s+)?(?:tumou?r'?s?\s+)?idh"
+        r"|\bidh[- ]?mut\w*\s+(?:or|and/or)\s+idh[- ]?wild[- ]?type\b"
+        r"|\bidh[- ]?wild[- ]?type\s+(?:or|and/or)\s+idh[- ]?mut",
+        _I),
+    "grade": re.compile(r"\bany\s+(?:who\s+)?grade\b"
+                        r"|(?:regardless|irrespective)\s+of\s+(?:the\s+)?(?:who\s+)?grade", _I),
+    "codeletion_1p19q": re.compile(r"(?:regardless|irrespective)\s+of\s+(?:the\s+)?1p", _I),
+    "mgmt": re.compile(r"(?:regardless|irrespective)\s+of\s+(?:the\s+)?mgmt", _I),
+}
+_GRADE_NUMBER = re.compile(r"\bgrade\s*(?:[1-4]|iv|iii|ii|i)\b|\bwho\s+(?:[1-4]|iv|iii|ii)\b", _I)
+_GRADE_WORD = re.compile(r"\bgrade\b", _I)
+_HIGH_GRADE = re.compile(r"\bhigh[\s-]*grade\b", _I)
+_LOW_GRADE = re.compile(r"\blow[\s-]*grade\b", _I)
+_ADULT_WORDS = re.compile(r"\badults?\b|\bolder\b|\bover\b", _I)
+_NEGATED_CONCEPT = re.compile(r"\b(?:no|not|without|non|absence\s+of|free\s+of|never|prior\s+to)\b[\s\w-]{0,25}$", _I)
+_EITHER_WAY = re.compile(r"\bwith\s+or\s+without\b|\bor\s+not\b|\bwhether\b", _I)
+
+
+def _span_at(text: str, span: str) -> tuple[int, int] | None:
+    i = text.find(span)
+    return (i, i + len(span)) if i >= 0 else None
+
+
+def _negated_span(text: str, span: str) -> bool:
+    at = _span_at(text, span)
+    return at is not None and bool(_NEGATED_CONCEPT.search(text[max(0, at[0] - 40):at[0]]))
+
+
+def _range(value: str) -> tuple[float | None, float | None]:
+    lo, _, hi = value.partition("-")
+    return (float(lo) if lo else None, float(hi) if hi else None)
+
+
+def _word_grade(text: str) -> tuple[int, int] | None:
+    """'High-grade glioma' with no numeric grade: WHO 3 to 4 (low-grade: 1 to 2)."""
+    if _GRADE_NUMBER.search(text):
+        return None
+    high, low = len(_HIGH_GRADE.findall(text)), len(_LOW_GRADE.findall(text))
+    if high + low != len(_GRADE_WORD.findall(text)) or (high and low):
+        return None  # a bare "grade" somewhere, or both words
+    return (3, 4) if high else (1, 2) if low else None
+
+
+ConceptCall = Finding | bool | None  # a Finding; True = covered, no requirement; None = not read
+
+_R132H = re.compile(r"r\s*132\s*h", re.IGNORECASE)
+
+
+def _idh_r132h(facts: Facts, want: str, policy: Policy) -> Finding:
+    """A criterion about the IDH1 R132H variant only (the antibody test).
+
+    IDH-wildtype implies R132H-wildtype, and rules out R132H-positive. An
+    IDH-mutant patient may carry another IDH1/IDH2 variant, so for them the
+    criterion is unknown unless the variant is recorded (it is not in Facts).
+    """
+    value, why = _marker(facts, "idh", policy)
+    if why:
+        return why
+    if value == "wildtype":
+        if want == "wildtype":
+            return _yes("idh", "IDH status: wildtype, so IDH1 R132H-wildtype")
+        return _no("idh", "IDH status is wildtype, criterion needs IDH1 R132H-positive")
+    return _review("idh", "IDH status is mutant, but the criterion is about the IDH1 R132H variant only; "
+                   "the doctor must check which IDH variant the pathology found")
+
+
+def _concept_rule(hit: ConceptHit, hits: dict[str, ConceptHit], text: str, kind: CriterionType,
+                  facts: Facts, policy: Policy) -> ConceptCall:
+    """Check one concept the bullet mentions against Facts, if its value is readable."""
+    name = hit.name
+    if name in _NO_REQUIREMENT and _NO_REQUIREMENT[name].search(text):
+        return True
+    if name == "idh" and hit.value and _R132H.search(text):
+        return _idh_r132h(facts, hit.value, policy)
+    if name in ("idh", "codeletion_1p19q", "mgmt"):
+        return _marker_is(facts, name, hit.value, policy) if hit.value else None
+    if name == "grade":
+        if hit.value:
+            lo, hi = _range(hit.value)
+            return _grade_in(facts, int(lo or 1), int(hi or 4), policy)
+        word = _word_grade(text)
+        return _grade_in(facts, *word, policy) if word else None
+    if name == "age_range":
+        return _age_in(facts, *_range(hit.value), policy) if hit.value else None
+    if name == "pediatric":
+        age = hits.get("age_range")
+        if age is not None:
+            # "Pediatric patients (8-17 years of age)": the age range decides.
+            hi = _range(age.value)[1] if age.value else None
+            return True if hi is not None and hi < 18 else None
+        if kind != "inclusion" or _ADULT_WORDS.search(text):
+            return None
+        if facts.age is None:
+            return _missing("age", "age", policy)
+        if facts.age >= 18:
+            return _no("age", f"criterion is for pediatric patients ({hit.span!r}); patient is age {facts.age}")
+        return None  # a child: what else the bullet asks is for the doctor
+    if name in ("recurrent", "newly_diagnosed"):
+        if {"recurrent", "newly_diagnosed"} <= set(hits) or _EITHER_WAY.search(text) or _negated_span(text, hit.span):
+            return None
+        if name == "newly_diagnosed":
+            return _not_recurrent(facts, policy)
+        if facts.recurrent is None:
+            return _missing("recurrent", "recurrence status", policy)
+        if facts.recurrent:
+            return _yes("recurrent", f"recurrent tumor (criterion: {hit.span!r})")
+        return _no("recurrent", f"tumor is newly diagnosed, not recurrent (criterion: {hit.span!r})")
+    if name == "sex":
+        if hit.value is None:
+            return None  # "male or female", "any gender"
+        if facts.sex is None:
+            return _missing("sex", "sex", policy)
+        if facts.sex == hit.value:
+            return _yes("sex", f"sex {facts.sex} (criterion: {hit.span!r})")
+        return _no("sex", f"sex {facts.sex}; criterion names {hit.value} ({hit.span!r})")
+    return None  # h3k27m, braf: no Facts field
+
+
+def _unread(hit: ConceptHit, facts: Facts, policy: Policy) -> Finding:
+    """Why a mentioned concept that no rule checked leaves the bullet unknown."""
+    name, label = hit.name, CONCEPT_LABEL[hit.name]
+    if name in ("h3k27m", "braf"):
+        return Finding(None, name, policy.eligibility.missing_field_reason_template.format(field=label))
+    why: Finding | None = None
+    if name in ("idh", "codeletion_1p19q", "mgmt"):
+        why = _marker(facts, name, policy)[1]
+    elif name == "grade":
+        why = _grade(facts, policy)[1]
+    elif name in ("age_range", "pediatric") and facts.age is None:
+        why = _missing("age", "age", policy)
+    elif name in ("recurrent", "newly_diagnosed") and facts.recurrent is None:
+        why = _missing("recurrent", "recurrence status", policy)
+    if why is not None:
+        return why
+    return Finding(None, f"{NO_RULE_FIELD}:{name}",
+                   f"doctor review: mentions {label} ({hit.span!r}); no rule checked it")
+
+
+def _guard(unread: list[ConceptHit], facts: Facts, policy: Policy, checked: Finding | None) -> Finding:
+    """Unknown for a bullet with a concept no rule read. Pending reasons first."""
+    found = [_unread(h, facts, policy) for h in unread]
+    primary = next((f for f in found if f.pending), None) or next(
+        (f for f in found if not f.reason.startswith("doctor review")), found[0])
+    reason = primary.reason
+    others = [CONCEPT_LABEL[h.name] for h, f in zip(unread, found) if f is not primary]
+    if others:
+        reason += f"; also mentions {', '.join(dict.fromkeys(others))}"
+    if checked is not None:
+        reason += f" (checked: {checked.reason})"
+    field = primary.field
+    if field.startswith(NO_RULE_FIELD) and len(unread) > 1:
+        field = f"{NO_RULE_FIELD}:{','.join(h.name for h in unread)}"
+    return Finding(None, field, reason, primary.pending)
+
+
+# ---------------------------------------------------------------------------
+# Combining every rule that read part of a bullet
+# ---------------------------------------------------------------------------
+
+_OR_WORD = re.compile(r"\bor\b|\beither\b", _I)
+# Separators that may join the items of an exclusion list (see `evaluate`).
+_LIST_SEP = re.compile(r"[,;/]|\band\b", _I)
+
+# Words a bullet can hold that change nothing about what it asks: grammar,
+# and the framing around the parts the rules read ("Histologically confirmed
+# ... CNS WHO grade"). Any other word left over after every rule, tumor type
+# and concept span is removed means the bullet was not fully read, so it
+# cannot pass (see `evaluate`). Kept short on purpose: when in doubt a word
+# is content, and the bullet goes to the doctor.
+FILLER_WORDS = frozenset("""
+    a an the and or of with to in for by at on as be is are must have has had who which that this
+    patient patients participant participants subject subjects
+    histologically histopathologically pathologically confirmed documented diagnosis diagnosed
+    cns who tumor tumour tumors tumours years year age aged old
+    mutant mutated mutation wildtype wild type promoter status
+    enroll enrolled enrollment
+""".split())
+_WORD = re.compile(r"[a-z0-9]+", _I)
+# A not_met decided only by a tumor type or concept rule (no pattern rule read
+# the failing phrase) needs the bullet nearly fully read: at most this many
+# content words outside the read spans.
+NOT_MET_MAX_UNREAD_WORDS = 6
+# A marker's form after the marker token: "IDH-mutant", "MGMT promoter unmethylated".
+_FORM_TAIL = re.compile(
+    r"[\s-]*(?:\d\b)?[\s-]*(?:promoter\s+)?(?:gene\s+)?"
+    r"(?:mutant|mutated|mutation|wild[\s-]*type|co[\s-]*deleted|co[\s-]*deletion|intact|methylated|unmethylated)\b", _I)
+
+
+def _joined(fs: list[Finding]) -> Finding:
+    """All parts agree: cite every field used (rule 4)."""
+    if len(fs) == 1:
+        return fs[0]
+    fields = list(dict.fromkeys(f.field for f in fs))
+    reason = "; ".join(dict.fromkeys(f.reason for f in fs))
+    return Finding(fs[0].holds, fs[0].field, f"{reason} (fields: {', '.join(fields)})")
+
+
+def _first_unknown(fs: list[Finding]) -> Finding:
+    return next((f for f in fs if f.pending), fs[0])
+
+
+def _combine(parts: list[Finding], either_or: bool, unread: bool) -> Finding:
+    """Whether the bullet's condition holds, from every rule that read part of it.
+
+    The parts are read as AND: a failing part decides, then unknown parts
+    (pending first), else every part holds. The exception is an "or" left
+    outside the spans the rules read: the bullet may be "A or B", where a
+    failing part decides nothing. If anything else in the bullet holds or is
+    unknown, the answer is then unknown. This is the same for inclusions and
+    exclusions: AND/OR confusion can turn a not_met into a met either way.
+    For exclusions, `evaluate` also treats list separators as a possible
+    either/or, since a list there excludes on any one item.
+    """
+    yes = [p for p in parts if p.holds is True]
+    no = [p for p in parts if p.holds is False]
+    unk = [p for p in parts if p.holds is None]
+    if no:
+        if either_or and (yes or unk or unread):
+            if any(p.pending for p in unk):
+                return _first_unknown(unk)
+            return _review(no[0].field, f"parts of this criterion disagree and it may be an either/or "
+                           f"({no[0].reason})")
+        return no[0] if len(no) == 1 or yes or unk else _joined(no)
+    return _first_unknown(unk) if unk else _joined(yes)
+
+
+def _passes(f: Finding, kind: CriterionType) -> bool:
+    """Would this finding make the row `met`?"""
+    return f.holds is (True if kind == "inclusion" else False)
+
+
+def _leftover(text: str, read: list[tuple[int, int]]) -> tuple[str, list[str]]:
+    """(text outside the read spans, its content words)."""
+    rest = "".join(" " if any(a <= i < b for a, b in read) else ch for i, ch in enumerate(text))
+    return rest, [w for w in _WORD.findall(rest.lower()) if w not in FILLER_WORDS]
+
+
 def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
-    """Whether the criterion's condition holds for the patient."""
+    """Whether the criterion's condition holds for the patient.
+
+    1. Every rule whose pattern matches runs (a match inside an earlier
+       rule's match is skipped), plus the pre-surgery phrase from policy.yaml.
+    2. Tumor types the bullet names are checked against the diagnosis, and
+       every concept from `agent.concepts` that no rule covered and whose
+       value is readable is checked against Facts.
+    3. The parts are combined by `_combine`.
+    4. Coverage guard: a concept the bullet mentions that nothing checked
+       turns a would-be `met` into `unknown` naming it.
+    5. Full-read guard: a would-be `met` also needs every content word of
+       the bullet inside a span some rule read; otherwise `unknown`.
+
+    Guards 4 and 5 only stop passes. A `not_met` from a failing part stands:
+    it can only make the shortlist more conservative.
+    """
+    text = criterion.text
+    hits = {h.name: h for h in detect(text)}
+    parts: list[Finding] = []
+    covered: set[str] = set()
+    read: list[tuple[int, int]] = []
+
     phrase = _pre_surgery_phrase(criterion, policy)
     if phrase is not None:
-        return _before_surgery(facts, phrase, policy)
-    for pat, fn in RULES:
-        m = pat.search(criterion.text)
-        if m:
-            return fn(facts, m, policy)
-    return Finding(None, NO_RULE_FIELD, NO_RULE_REASON)
+        parts.append(_before_surgery(facts, phrase, policy))
+        i = text.lower().find(phrase.lower())
+        read.append((i, i + len(phrase)))
+    for rule in RULES:
+        m = rule.pattern.search(text)
+        if m is None or any(a <= m.start() and m.end() <= b for a, b in read):
+            continue
+        parts.append(rule.fn(facts, m, policy))
+        covered |= rule.covers
+        read.append(m.span())
+    specific = list(parts)  # parts from a pattern rule or the policy phrase
+    if "entity" not in covered:
+        found = _entities(text, facts, policy)
+        if found is not None:
+            parts.append(found)
+            covered.add("entity")
+    read += [m.span() for m in _ENTITY_LIST.finditer(text)]
+    for name, hit in hits.items():
+        if name not in covered:
+            call = _concept_rule(hit, hits, text, criterion.type, facts, policy)
+            if call is None:
+                continue
+            covered.add(name)
+            if isinstance(call, Finding):
+                parts.append(call)
+            if name in _NO_REQUIREMENT:
+                read += [m.span() for m in _NO_REQUIREMENT[name].finditer(text)]
+            if name == "idh" and isinstance(call, Finding):
+                read += [m.span() for m in _R132H.finditer(text)]  # read by _idh_r132h
+        if (at := _span_at(text, hit.span)) is not None:
+            tail = _FORM_TAIL.match(text, at[1]) if name in MARKER_LABELS else None
+            read.append((at[0], tail.end() if tail else at[1]))
+
+    unread = [h for n, h in hits.items() if n not in covered]
+    if not parts:
+        return _guard(unread, facts, policy, None) if unread else Finding(None, NO_RULE_FIELD, NO_RULE_REASON)
+    rest, words = _leftover(text, read)
+    either_or = bool(_OR_WORD.search(rest))
+    if criterion.type == "exclusion":
+        # An exclusion list ("prior bevacizumab, checkpoint inhibitors") excludes
+        # on any one item. A pattern rule that finds its own clause applies
+        # decides: the exclusion applies, whatever the other items say.
+        applies = next((p for p in specific if p.holds is True), None)
+        if applies is not None:
+            return applies
+        # A comma, semicolon, slash or "and" between the read parts may join
+        # list items, not qualifiers, so parts that disagree cannot pass.
+        either_or = either_or or bool(_LIST_SEP.search(rest))
+    out = _combine(parts, either_or, bool(unread or words))
+    if out.holds is None:
+        return out
+    if not _passes(out, criterion.type):
+        # A not_met. A pattern rule that read the deciding phrase may decide
+        # it; a tumor type or concept found anywhere in a long bullet may be
+        # context ("history of malignancy other than glioma"), not the ask.
+        # An exclusion that applies only through such parts needs a full read:
+        # the tumor type in "proton therapy for glioma" is a qualifier.
+        limit = NOT_MET_MAX_UNREAD_WORDS if criterion.type == "inclusion" else 0
+        if any(p.holds is out.holds for p in specific) or len(words) <= limit:
+            return out
+        return _review(out.field, f"{out.reason}, but the criterion has wording no rule read: "
+                       f"{' '.join(dict.fromkeys(words))[:80]!r}")
+    if unread:
+        return _guard(unread, facts, policy, out)
+    if words:
+        shown = " ".join(dict.fromkeys(words))
+        return _review(NO_RULE_FIELD, f"wording no rule read: {shown[:80]!r} (checked: {out.reason})")
+    return out
 
 
 def to_row(trial_id: str, criterion: Criterion, f: Finding) -> EligibilityResult:
