@@ -149,6 +149,13 @@ BAD = [
     ("results_pituitary_meds.json", _set("idh", "wildtype"), "must be 'unknown'"),
     # pre-op
     ("preop_screen.json", _set("tests_needed.0.decides_trials", 9), "decides_trials"),
+    ("preop_screen.json", _set("tests_needed.1.mentions_trials", 0), "mentions_trials"),
+    ("preop_screen.json", _set("tests_needed.1.mention_trial_ids", ["NCT99000001"]), "not both"),
+    ("preop_screen.json", _set("tests_needed.0.evidence.0.requires", None), "mention_trial_ids"),
+    ("preop_screen.json", _set("tests_needed.2.evidence", [{"trial_id": "NCT99000007", "criterion_text": "x"}]),
+     "mention_trial_ids"),
+    ("preop_screen.json", lambda d: d["tests_needed"][0]["evidence"].pop(), "cited criterion"),
+    ("preop_screen.json", _set("tests_needed.0.field", "tmb"), "field"),
     # mutation
     ("mutation_input.json", _set("snvs.0.context", "AAG"), "middle base"),
     ("mutation_input.json", _set("snvs.0.alt", "C"), "must differ"),

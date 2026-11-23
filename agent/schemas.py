@@ -547,19 +547,56 @@ class EligibilityResult(Schema):
 # ---------------------------------------------------------------------------
 
 
+TestField = Literal["idh", "codeletion_1p19q", "mgmt", "grade", "h3k27m", "braf"]
+
+
+class TestEvidence(Schema):
+    """One inclusion criterion that cites the test (rule 4)."""
+
+    __test__ = False  # not a pytest class
+
+    trial_id: TrialId
+    # Normalized requirement read from the criterion ("mutant", "wildtype",
+    # "codeleted", "unmethylated", grade "3-4", ...). None = the criterion
+    # mentions the test but no requirement could be read: "check criteria".
+    requires: NonEmptyStr | None = None
+    criterion_text: NonEmptyStr
+
+
 class TestNeeded(Schema):
     __test__ = False  # not a pytest class
 
-    field: Literal["idh", "codeletion_1p19q", "mgmt", "grade"]
+    field: TestField
     label: NonEmptyStr
     current_value: NonEmptyStr
+    # Trials whose inclusion criteria state a readable requirement for this test.
     decides_trials: Annotated[int, Field(ge=0)]
     trial_ids: list[TrialId]
+    # Trials that mention the test with no readable requirement. Never counted
+    # as deciding (rule 3); the doctor checks the criterion.
+    mentions_trials: Annotated[int, Field(ge=0)] = 0
+    mention_trial_ids: list[TrialId] = Field(default_factory=list)
+    evidence: list[TestEvidence] = Field(default_factory=list)
 
     @model_validator(mode="after")
     def _count_matches(self) -> TestNeeded:
-        if self.decides_trials != len(set(self.trial_ids)):
+        deciding, mentioning = set(self.trial_ids), set(self.mention_trial_ids)
+        if self.decides_trials != len(deciding):
             raise ValueError("decides_trials must equal the number of unique trial_ids")
+        if self.mentions_trials != len(mentioning):
+            raise ValueError("mentions_trials must equal the number of unique mention_trial_ids")
+        if deciding & mentioning:
+            raise ValueError("a trial either decides on this test or only mentions it, not both")
+        for e in self.evidence:
+            if e.requires is not None and e.trial_id not in deciding:
+                raise ValueError(f"evidence with a requirement must cite a trial in trial_ids: {e.trial_id}")
+            if e.requires is None and e.trial_id not in mentioning:
+                raise ValueError(f"evidence without a requirement must cite a trial in mention_trial_ids: {e.trial_id}")
+        if self.evidence:
+            cited = {e.trial_id for e in self.evidence}
+            missing = (deciding | mentioning) - cited
+            if missing:
+                raise ValueError(f"every listed trial needs a cited criterion: {sorted(missing)}")
         return self
 
 

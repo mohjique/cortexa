@@ -161,12 +161,22 @@ export interface EligibilityResult {
   reason: string;
 }
 
+export interface TestEvidence {
+  trial_id: string;
+  /** Normalized requirement ("mutant", "4-4" for grade); null = mentioned, not readable. */
+  requires?: string | null;
+  criterion_text: string;
+}
+
 export interface TestNeeded {
-  field: "idh" | "codeletion_1p19q" | "mgmt" | "grade";
+  field: "idh" | "codeletion_1p19q" | "mgmt" | "grade" | "h3k27m" | "braf";
   label: string;
   current_value: string;
   decides_trials: number;
   trial_ids: string[];
+  mentions_trials?: number;
+  mention_trial_ids?: string[];
+  evidence?: TestEvidence[];
 }
 
 export interface PreSurgeryTrial {

@@ -149,15 +149,28 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
   "trials_considered": 7,
   "tests_needed": [
     {
-      "field": "idh",
+      "field": "idh | codeletion_1p19q | mgmt | grade | h3k27m | braf",
       "label": "IDH mutation status",
       "current_value": "pending",
-      "decides_trials": 3,
-      "trial_ids": ["NCT99000001", "NCT99000004", "NCT99000007"]
+      "decides_trials": 4,
+      "trial_ids": ["NCT99000001", "NCT99000002", "NCT99000004", "NCT99000007"],
+      "mentions_trials": 0,
+      "mention_trial_ids": [],
+      "evidence": [
+        {"trial_id": "NCT99000001", "requires": "mutant", "criterion_text": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3"},
+        {"trial_id": "NCT99000002", "requires": "wildtype", "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype"}
+      ]
     },
-    {"field": "codeletion_1p19q", "label": "1p/19q codeletion", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000007"]},
-    {"field": "mgmt", "label": "MGMT promoter methylation", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000004"]},
-    {"field": "grade", "label": "WHO grade", "current_value": "pending", "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"]}
+    {
+      "field": "grade", "label": "WHO grade", "current_value": "pending",
+      "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"],
+      "mentions_trials": 1, "mention_trial_ids": ["NCT99000008"],
+      "evidence": [
+        {"trial_id": "NCT99000001", "requires": "2-3", "criterion_text": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3"},
+        {"trial_id": "NCT99000004", "requires": "4-4", "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4"},
+        {"trial_id": "NCT99000008", "requires": null, "criterion_text": "Recurrent glioma of any grade"}
+      ]
+    }
   ],
   "pre_surgery_trials": [
     {
@@ -175,7 +188,15 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 }
 ```
 
-`decides_trials` counts trials where the result changes the criterion between `met` and `not_met`.
+`tests_needed` is built deterministically from the INCLUSION criteria of every trial that passes the glioma filter (`pre_surgery_detection.condition_keywords`), read with `agent.concepts.detect`, the same detectors the eligibility checker uses. Exclusion bullets are not read for it.
+
+- `decides_trials` / `trial_ids`: trials whose criterion states a readable requirement for the test, so the result changes the criterion between `met` and `not_met`.
+- `mentions_trials` / `mention_trial_ids`: trials that mention the test but state no readable requirement ("IDH status will be collected", "glioma of any grade", "H3 K27M-mutant"; H3 K27M and BRAF have no value reader yet). Never counted as deciding; the UI shows them as "check criteria". A trial is in one list or the other, never both.
+- `evidence`: one entry per trial and requirement, with the inclusion criterion that cites it (rule 4). `requires` is the normalized requirement: IDH `mutant | wildtype`, 1p/19q `codeleted | intact`, MGMT `methylated | unmethylated`, grade `lo-hi` (`"4-4"` = grade 4), or `null` for a mention. A trial with cohorts can list more than one requirement.
+- `current_value` is `pending` at pre-op (no pathology yet).
+- Tests are ordered by `decides_trials`, then `mentions_trials`, descending. A test no glioma trial mentions is left out.
+- `mentions_trials`, `mention_trial_ids` and `evidence` are optional (default `0`, `[]`, `[]`). When `evidence` is present, every listed trial must have an entry.
+- Counts per test are audited as `tool_call:preop_tests_needed` (`{"glioma_trials": n, "tests": {field: {"decides", "mentions", "requires": {value: n}}}}`).
 
 After the screen, the case waits at `preop_screen` (`waiting_on: doctor`) for the `preop_review` gate. Every `pre_surgery_trials` entry must be acknowledged before the case moves to `awaiting_pathology`. The gate copies each choice onto the trial as `doctor_action` and `doctor_reason` (`pending` until then).
 
