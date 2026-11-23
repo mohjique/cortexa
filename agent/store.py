@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import re
 import threading
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -174,10 +175,13 @@ class CaseStore:
 
 
 _default = CaseStore(DATA_DIR / "cases")
+# Set by agent.workspace.Workspace.active() for one API request (issue 48).
+scoped_store: ContextVar[CaseStore | None] = ContextVar("cortexa_case_store", default=None)
 
 
 def get_store() -> CaseStore:
-    return _default
+    """The current workspace's store during a request, else the process-wide one."""
+    return scoped_store.get() or _default
 
 
 def set_store(store: CaseStore) -> None:

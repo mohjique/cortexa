@@ -1,6 +1,7 @@
 // Thin client for agent/api.py. Every write goes through the backend, which
 // enforces the gates, policy and audit log. The UI never decides a stage change.
 import type { AuditEntry, CaseRecord, CaseState, DecisionRecord, GateDecision } from "./types";
+import { WORKSPACE_HEADER, workspaceId } from "./workspace";
 
 // Production: VITE_API_URL points at the deployed FastAPI server.
 // Local dev: unset, so requests go to /api and Vite proxies them to :8000.
@@ -34,7 +35,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${API_BASE}${path}`, {
       ...init,
-      headers: { Accept: "application/json", ...(init?.headers ?? {}) },
+      // Every call carries this browser's workspace (workspace.ts); case routes 400 without it.
+      headers: { Accept: "application/json", [WORKSPACE_HEADER]: workspaceId(), ...(init?.headers ?? {}) },
     });
   } catch {
     throw new ApiError(0, `Can't reach the Cortexa backend at ${API_BASE}.`);
@@ -83,11 +85,20 @@ export const api = {
       body: JSON.stringify({ doctor_id: doctorId, reason: reason?.trim() ? reason.trim() : null }),
     }),
 
+  /** Delete this browser's cases and audit log and start a fresh demo workspace. */
+  resetWorkspace: () =>
+    request<{ status: string; removed_cases: number }>("/workspace/reset", { method: "POST" }),
+
+  // The two case image URLs go in <img src>, which can't send a header, so they
+  // carry the workspace as ?ws= instead. Only these two routes accept it.
+
   /** Grad-CAM overlay PNG. 404 when there is none (e.g. the stub classifier). */
-  heatmapUrl: (caseId: string) => `${API_BASE}/cases/${encodeURIComponent(caseId)}/heatmap`,
+  heatmapUrl: (caseId: string) =>
+    `${API_BASE}/cases/${encodeURIComponent(caseId)}/heatmap?ws=${encodeURIComponent(workspaceId())}`,
 
   /** The case's MRI as uploaded (PNG). 404 when it wasn't kept. */
-  scanUrl: (caseId: string) => `${API_BASE}/cases/${encodeURIComponent(caseId)}/image`,
+  scanUrl: (caseId: string) =>
+    `${API_BASE}/cases/${encodeURIComponent(caseId)}/image?ws=${encodeURIComponent(workspaceId())}`,
 
   /** The committed demo MRIs: case IDs only, no label or model call. */
   listDemoScans: () => request<{ case_id: string }[]>("/demo-scans"),
@@ -97,7 +108,10 @@ export const api = {
   createCaseFromDemo: async (caseId: string): Promise<CaseState> => {
     let res: Response;
     try {
-      res = await fetch(`${API_BASE}/demo-scans/${encodeURIComponent(caseId)}`);
+      // The demo gallery is shared and needs no workspace; the header is sent anyway, like every call.
+      res = await fetch(`${API_BASE}/demo-scans/${encodeURIComponent(caseId)}`, {
+        headers: { [WORKSPACE_HEADER]: workspaceId() },
+      });
     } catch {
       throw new ApiError(0, `Can't reach the Cortexa backend at ${API_BASE}.`);
     }

@@ -10,6 +10,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
+from agent.tests.conftest import WS_HEADERS
 from agent import api
 from agent.tests.test_upload import png
 
@@ -22,9 +23,8 @@ def client(case_store, tmp_path, monkeypatch):
     from classifier.stub import StubClassifier
 
     monkeypatch.setattr(api, "HEATMAP_DIR", tmp_path / "heatmaps")
-    monkeypatch.setattr(api, "SCAN_DIR", tmp_path / "scans")
     api.set_classifier(StubClassifier())
-    with TestClient(api.app) as c:
+    with TestClient(api.app, headers=WS_HEADERS) as c:
         yield c
     api.set_classifier(None)
 

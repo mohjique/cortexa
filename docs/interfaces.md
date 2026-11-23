@@ -4,6 +4,24 @@ Draft. Agree on these at kickoff, then change them only after telling the team.
 
 All examples use synthetic data. Trial IDs `NCT990000xx` are fake (see `agent/demo_cache/`).
 
+## Workspaces (every case route)
+
+The public demo gives each browser its own workspace (issue 48), so one visitor can't see or change another visitor's cases.
+
+- The frontend makes a random ID on first load (`crypto.randomUUID`), keeps it in `localStorage` under `cortexa.workspace_id` (in memory for the tab if storage is blocked), and sends it on **every** call as the header `X-Cortexa-Workspace: <id>`. See `frontend/src/workspace.ts`.
+- The ID must match `^[A-Za-z0-9_-]{8,64}$` (no dots or slashes, so no path traversal). It is lower-cased. Missing or invalid on a case route: **400**.
+- `GET /cases/{case_id}/image` and `GET /cases/{case_id}/heatmap` also accept it as `?ws=<id>`, because an `<img src>` can't send a header. The header wins if both are sent. No other route reads `?ws=`.
+- `GET /cases` lists only the caller's workspace. Every `/cases/{case_id}/...` route, and `POST /cases`, resolves the case only in the caller's workspace. A case that exists only in another workspace returns **404**, the same as a case that doesn't exist (never 403, which would leak that it exists).
+- Case IDs repeat across workspaces: each browser can have its own `demo-012`.
+- Each workspace has its own audit log. `GET /cases/{case_id}/audit` reads it, and every entry from a request (agent tool calls, stage changes, doctor decisions) lands only in that workspace's log. The first request from a new ID writes `workspace_created` (actor `system`).
+- A new workspace starts the way the app always has: no cases, and the shared demo gallery (`GET /demo-scans`). The backend does not pre-create demo cases.
+- `POST /workspace/reset` (header required, no body) deletes the caller's cases, audit log, stored scans and heatmaps, starts a fresh workspace, and returns `{"status": "reset", "removed_cases": 2}`. The fresh log's first entry is `workspace_reset` with `{"removed_cases": n}` (rule 7). Other workspaces are untouched. The UI has a **Reset demo** button in the header, behind a confirm dialog.
+- Global routes need no workspace: `GET /health`, `GET /demo-scans`, `GET /demo-scans/{case_id}`.
+- Housekeeping: when a new workspace starts, workspaces unused for more than `CORTEXA_WORKSPACE_TTL_HOURS` (default 24) are deleted, then the least recently used ones until at most `CORTEXA_MAX_WORKSPACES` (default 200) remain. A visitor whose workspace was evicted just gets a fresh, empty one.
+- CORS allows the `X-Cortexa-Workspace` request header (with `Accept` and `Content-Type`).
+
+**This is isolation, not authentication.** Anyone who holds a workspace ID can open that workspace, and the `?ws=` form can appear in server access logs. It is acceptable only because every case is synthetic (rule 9). The doctor ID is attribution on decisions, not scoping.
+
 ## Case state
 
 The agent owns this. The frontend reads it to know which screen to show.
@@ -45,13 +63,13 @@ The case moves forward only after the gate for its stage has a recorded doctor d
 
 ### Upload endpoint
 
-`POST /cases?case_id=<id>&filename=<name>` with the raw image bytes as the request body, for example `fetch(url, {method: "POST", body: file})`. Both query parameters are optional; without `case_id` the API makes `case-<8 hex>`. The API classifies the image, creates the case and moves it to `confirm_bucket`. It returns the case state (201), or 422 for an unreadable image (no case is created) and 409 if the case exists. The image is kept so the doctor can read it: the API decodes it and stores its own PNG re-encoding (never the uploaded bytes) under the data folder. An upload PIL can't decode (possible with the stub) is not kept; the case works without it.
+`POST /cases?case_id=<id>&filename=<name>` with the raw image bytes as the request body, for example `fetch(url, {method: "POST", body: file})`. Both query parameters are optional; without `case_id` the API makes `case-<8 hex>`. The API classifies the image, creates the case and moves it to `confirm_bucket`. It returns the case state (201), or 422 for an unreadable image (no case is created) and 409 if the case exists. The image is kept so the doctor can read it: the API decodes it and stores its own PNG re-encoding (never the uploaded bytes) under the workspace's folder. An upload PIL can't decode (possible with the stub) is not kept; the case works without it.
 
-`GET /cases/{case_id}/image` returns the case's MRI as that PNG (404 if it was not kept).
+`GET /cases/{case_id}/image` returns the case's MRI as that PNG (404 if it was not kept). It accepts the workspace as `?ws=` (see Workspaces).
 
 `GET /demo-scans` lists the committed demo MRIs as `[{"case_id": "demo-001"}, ...]`: case IDs only, never a label or the model's call, so the gallery can't hand the doctor an answer. `GET /demo-scans/{case_id}` returns one, unchanged. The UI opens a demo scan as a case by uploading those bytes with `POST /cases`, so it goes through the same classifier and gates as any upload.
 
-`GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub).
+`GET /cases/{case_id}/heatmap` returns the Grad-CAM overlay PNG (404 if there is none, for example from the stub). It accepts the workspace as `?ws=` (see Workspaces).
 
 `flagged_uncertain` in the stored output is the agent's value: the classifier's flag, or confidence below `classifier.min_confidence_for_auto_suggest`. There is no model-disagreement flag, because MedGemma does not vote. The agent never clears a flag the classifier set.
 
@@ -387,4 +405,6 @@ A near miss fails exactly one criterion, or has no failures but waits on a `pend
 {"ts": "2026-11-21T14:03:12Z", "case_id": "demo-001", "actor": "agent | doctor | system", "action": "trial_search", "detail": {}}
 ```
 
-`system` is for events no agent or doctor caused, such as startup and policy reloads. `case_id` is `null` for those.
+`system` is for events no agent or doctor caused, such as startup, policy reloads, `workspace_created` and `workspace_reset`. `case_id` is `null` for those.
+
+During an API request, entries go to the caller's workspace log, `<CORTEXA_DATA_DIR>/workspaces/<id>/audit.jsonl`. Entries from outside a request (startup, scripts) go to `<CORTEXA_DATA_DIR>/audit.jsonl`.

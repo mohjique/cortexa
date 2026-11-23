@@ -31,7 +31,7 @@ curl https://<hf-user>-cortexa-api.hf.space/health
 # {"status":"ok","classifier":"ResNetClassifier"}
 ```
 
-The Space must be **public**: a browser cannot call a private Space without a Hugging Face token. It holds synthetic data only and has no login.
+The Space must be **public**: a browser cannot call a private Space without a Hugging Face token. It holds synthetic data only and has no login. Each browser gets its own workspace (a random ID it keeps in localStorage), so visitors don't see each other's cases. That is isolation, not authentication: anyone with a workspace ID can open it.
 
 ## 2. Frontend (Vercel)
 
@@ -48,13 +48,16 @@ VITE_API_URL=https://<hf-user>-cortexa-api.hf.space
 | Variable | Value | Why |
 |---|---|---|
 | `CORTEXA_CLASSIFIER` | `real` | Loads `model.pt` at startup. A missing or broken model stops the Space instead of silently serving the stub. |
-| `CORTEXA_DATA_DIR` | `/tmp/cortexa-data` | Cases, audit log and heatmaps. **Cleared on every restart.** |
+| `CORTEXA_DATA_DIR` | `/tmp/cortexa-data` | One folder per browser workspace (`workspaces/<id>/`: cases, audit log, scans, heatmaps). **Cleared on every restart.** |
+| `CORTEXA_WORKSPACE_TTL_HOURS` | `24` (code default) | Workspaces unused this long are deleted when a new one starts. |
+| `CORTEXA_MAX_WORKSPACES` | `200` (code default) | Cap on workspaces, least recently used deleted first, so visitors can't fill the disk. |
 | `CORTEXA_TRIAL_SOURCE` | `demo` | Trials, geocoding and drive times come from `agent/demo_cache/`. No outside calls, no API keys. |
 
 ## Before judging
 
 - Free Spaces sleep after a period without traffic. Open `/health` a few minutes before the demo so the model is loaded.
 - A restart clears all cases. Upload the demo cases again after any restart or redeploy.
+- Cases are per browser. Open the demo cases in the browser you will present from. **Reset demo** in the header clears only that browser's cases.
 - Redeploying after a `policy.yaml` commit rebuilds the Space. Allow a few minutes.
 
 ## Test the image locally

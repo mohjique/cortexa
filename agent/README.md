@@ -7,6 +7,17 @@
 - Append-only audit log.
 - Cache API responses for the demo.
 
+## Workspaces (issue 48)
+
+`agent/workspace.py`. Each browser sends a random `X-Cortexa-Workspace` ID (`?ws=` on the two case image routes). Its cases, audit log, scans and heatmaps live in `<CORTEXA_DATA_DIR>/workspaces/<id>/`. `Workspace.active()` sets two context variables, so `store.get_store()` and `audit.audit()` reach the request's workspace and the workflow, pre-op, matching and eligibility code needs no change. Any background work added later must run in a copied context (`contextvars.copy_context()`) to keep its workspace. Another workspace's case is a 404. API details: `docs/interfaces.md`, "Workspaces".
+
+| Variable | Default | What |
+|---|---|---|
+| `CORTEXA_WORKSPACE_TTL_HOURS` | `24` | A workspace unused this long is deleted when a new workspace starts. |
+| `CORTEXA_MAX_WORKSPACES` | `200` | At most this many workspaces; the least recently used go first. |
+
+Isolation, not authentication: anyone holding a workspace ID can open it. Acceptable only because the data is synthetic (rule 9).
+
 ## Trial search (F7)
 
 - `agent/trials.py`: `search_trials(condition, case_id)` → merged `TrialRecord` list from ClinicalTrials.gov (primary) and NCI (fills gaps, `source: ctgov+nci`). Statuses from `trial_search.statuses` are filtered client-side too, so a policy edit changes results even on cached data. Closed sites are dropped. No distance cutoff: the search is nationwide, and distance only sorts and labels trials.

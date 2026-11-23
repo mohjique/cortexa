@@ -1,8 +1,9 @@
 """Append-only audit log (safety rule 7).
 
 Every agent action, tool call and doctor approval goes through `audit()`.
-One JSON line per entry in `<data dir>/audit.jsonl`. Nothing here edits or
-deletes lines.
+One JSON line per entry in `<data dir>/audit.jsonl`, or, during an API
+request, in that request's workspace log (`agent.workspace`). Nothing here
+edits or deletes lines.
 """
 
 from __future__ import annotations
@@ -14,6 +15,7 @@ import os
 import threading
 import time
 from collections.abc import Callable
+from contextvars import ContextVar
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal, TypeVar
@@ -86,10 +88,13 @@ class AuditLog:
 
 
 _default = AuditLog(DATA_DIR / "audit.jsonl")
+# Set by agent.workspace.Workspace.active() for one API request (issue 48).
+scoped_log: ContextVar[AuditLog | None] = ContextVar("cortexa_audit_log", default=None)
 
 
 def get_audit_log() -> AuditLog:
-    return _default
+    """The current workspace's log during a request, else the process-wide one."""
+    return scoped_log.get() or _default
 
 
 def set_audit_log(log: AuditLog) -> None:
@@ -104,7 +109,7 @@ def audit(
     detail: dict[str, Any] | None = None,
     case_id: str | None = None,
 ) -> AuditEntry:
-    return _default.append(actor, action, detail, case_id)
+    return get_audit_log().append(actor, action, detail, case_id)
 
 
 def audited(action: str) -> Callable[[F], F]:

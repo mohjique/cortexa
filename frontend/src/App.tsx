@@ -1,6 +1,7 @@
 import { NavLink, Navigate, Route, Routes } from "react-router-dom";
 import logo from "./assets/logo.png";
-import { API_BASE } from "./api";
+import { useState } from "react";
+import { API_BASE, api } from "./api";
 import { DoctorContext, useDoctorIdState } from "./hooks";
 import Board from "./components/Board";
 import CaseView from "./components/CaseView";
@@ -59,6 +60,7 @@ export default function App() {
           />
         </label>
         <TourButton />
+        <ResetButton />
       </header>
       </div>
       {misconfigured && (
@@ -83,6 +85,31 @@ export default function App() {
       <Welcome />
       </TutorialProvider>
     </DoctorContext.Provider>
+  );
+}
+
+/** Clear this browser's demo workspace (its cases and audit log only) and start fresh. */
+function ResetButton() {
+  const [busy, setBusy] = useState(false);
+  const reset = async () => {
+    const ok = window.confirm(
+      "Reset the demo? This deletes every case and audit entry in this browser's workspace and starts fresh. " +
+        "Other visitors' workspaces are not affected.",
+    );
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await api.resetWorkspace();
+      window.location.assign(import.meta.env.BASE_URL || "/"); // reload: drop every cached case view
+    } catch (e) {
+      window.alert(`Could not reset the demo: ${(e as Error).message}`);
+      setBusy(false);
+    }
+  };
+  return (
+    <button className="btn ghost small" onClick={reset} disabled={busy} title="Delete this browser's demo cases and start fresh">
+      Reset demo
+    </button>
   );
 }
 
