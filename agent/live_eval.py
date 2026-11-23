@@ -21,6 +21,8 @@ A **false not_met** is a checker `not_met` where the label is `met` or
 **Guard unknowns** are rows the not-met guard turned `unknown`; those labeled
 `not_met` are its cost (correct failures sent to doctor review).
 
+    python -m agent.live_eval --parses F   # with LLM parses from F (issue 56)
+
 Bullets are checked one at a time with `evaluate()`, offline. This is an
 evaluation, not an agent action, so nothing is written to the audit log.
 """
@@ -35,7 +37,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from agent.eligibility import NOT_MET_DOUBT_MARKER, Facts, evaluate, split_criteria, to_row
+from agent.criteria_parse import PARSED_PREFIX, ParseSource, dict_source, evaluate_with_parse
+from agent.eligibility import NOT_MET_DOUBT_MARKER, Facts, split_criteria, to_row
 from agent.policy import Policy, get_policy
 from agent.schemas import DoctorResults
 
@@ -91,23 +94,28 @@ def labels_for(labels: Mapping[str, Any], profile: str) -> dict[Key, str]:
     }
 
 
-def check_fixture(fixture: Mapping[str, Any], facts: Facts, policy: Policy | None = None) -> list[LiveRow]:
-    """The checker's call on every bullet of one fixture, in split order."""
+def check_fixture(fixture: Mapping[str, Any], facts: Facts, policy: Policy | None = None,
+                  parses: ParseSource | None = None) -> list[LiveRow]:
+    """The checker's call on every bullet of one fixture, in split order.
+
+    `parses` (issue 56): refine each bullet with its LLM parse, as `check_trial` does.
+    """
     policy = policy or get_policy()
     tid = fixture["trial_id"]
     rows = []
     for i, c in enumerate(split_criteria(fixture["criteria_text"])):
-        r = to_row(tid, c, evaluate(c, facts, policy))
+        r = to_row(tid, c, evaluate_with_parse(c, facts, policy, parses))
         rows.append(LiveRow(tid, i, c.type, c.text, r.status, r.evidence_field, r.reason))
     return rows
 
 
 def run_profile(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None,
-                labels: Mapping[str, Any] | None = None, policy: Policy | None = None) -> list[LiveRow]:
+                labels: Mapping[str, Any] | None = None, policy: Policy | None = None,
+                parses: ParseSource | None = None) -> list[LiveRow]:
     fixtures = fixtures if fixtures is not None else load_fixtures()
     labels = labels if labels is not None else load_labels()
     facts = profile_facts(labels, profile)
-    return [row for tid in sorted(labels["trials"]) for row in check_fixture(fixtures[tid], facts, policy)]
+    return [row for tid in sorted(labels["trials"]) for row in check_fixture(fixtures[tid], facts, policy, parses)]
 
 
 def _check_alignment(rows: Iterable[LiveRow], texts: Mapping[Key, str] | None) -> None:
@@ -178,12 +186,16 @@ class ProfileReport:
     false_not_met: int = 0
     guard_unknown: int = 0  # rows the not-met guard turned unknown
     guard_unknown_labeled_not_met: int = 0  # of those, labeled not_met
+    label_met: int = 0          # bullets labeled met
+    label_met_as_met: int = 0   # ... that the checker calls met (recall, issue 56)
+    decided_by_parse: int = 0   # rows whose call came from an LLM parse
 
 
 def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None,
-           labels: Mapping[str, Any] | None = None) -> tuple[ProfileReport, list[WrongCall]]:
+           labels: Mapping[str, Any] | None = None,
+           parses: ParseSource | None = None) -> tuple[ProfileReport, list[WrongCall]]:
     labels = labels if labels is not None else load_labels()
-    rows = run_profile(profile, fixtures, labels)
+    rows = run_profile(profile, fixtures, labels, parses=parses)
     gold = labels_for(labels, profile)
     texts = {(tid, b["index"]): b["text"] for tid, bs in labels["trials"].items() for b in bs}
     _check_alignment(rows, texts)
@@ -207,6 +219,9 @@ def report(profile: str, fixtures: Mapping[str, Mapping[str, Any]] | None = None
         false_not_met=len(false_not_met(rows, gold)),
         guard_unknown=guarded,
         guard_unknown_labeled_not_met=guarded_not_met,
+        label_met=sum(v == "met" for v in gold.values()),
+        label_met_as_met=confusion.get("met", {}).get("met", 0),
+        decided_by_parse=sum(r.reason.startswith(PARSED_PREFIX) for r in rows if r.key in gold),
     )
     return rep, fm
 
@@ -215,9 +230,14 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="Eligibility checker vs hand labels on live criteria text")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("-v", "--verbose", action="store_true", help="list every false met")
+    ap.add_argument("--parses", type=Path, metavar="FILE",
+                    help="JSON {criterion_key: raw LLM parse} to refine the checker with (issue 56)")
     args = ap.parse_args(argv)
     fixtures, labels = load_fixtures(), load_labels()
-    results = [report(p, fixtures, labels) for p in labels["profiles"]]
+    parses = None
+    if args.parses is not None:
+        parses = dict_source(json.loads(args.parses.read_text(encoding="utf-8")))
+    results = [report(p, fixtures, labels, parses) for p in labels["profiles"]]
     if args.json:
         out = [asdict(rep) | {"false_mets": [asdict(f.row) | {"label": f.label} for f in fm]}
                for rep, fm in results]
@@ -231,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
               f"   false not_met: {rep.false_not_met}"
               f"   agreement: {rep.agree}/{rep.bullets} = {rep.agreement_rate:.1%}")
         print("label -> checker:", rep.confusion)
+        print(f"recall: {rep.label_met_as_met}/{rep.label_met} label-met bullets called met"
+              f"   decided by parse: {rep.decided_by_parse}")
         print(f"not-met guard turned unknown: {rep.guard_unknown} "
               f"(labeled not_met: {rep.guard_unknown_labeled_not_met})")
         if args.verbose:

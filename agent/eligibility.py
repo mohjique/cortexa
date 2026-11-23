@@ -62,6 +62,8 @@ NO_RULE_FIELD = "doctor_review"
 NO_RULE_REASON = "no automatic rule for this criterion; doctor must review"
 
 CaseStage = Literal["preop", "post_pathology"]
+# agent.criteria_parse.ParseSource: a bullet in, its raw LLM parse (or None) out.
+ParseSourceLike = Callable[["Criterion"], object]
 CriterionType = Literal["inclusion", "exclusion"]
 
 
@@ -1277,10 +1279,21 @@ def check_trial(
     *,
     policy: Policy | None = None,
     case_id: str | None = None,
+    parses: ParseSourceLike | None = None,
 ) -> list[EligibilityResult]:
-    """One row per criterion of `trial`. Audited (rule 7)."""
+    """One row per criterion of `trial`. Audited (rule 7).
+
+    `parses` (issue 56) refines each bullet with an LLM parse, checked and
+    evaluated in code by `agent.criteria_parse`. None (the default) is the
+    regex checker alone, exactly as before.
+    """
     policy = policy or get_policy()
-    rows = [to_row(trial.trial_id, c, evaluate(c, facts, policy)) for c in split_criteria(trial.criteria_text)]
+    criteria = split_criteria(trial.criteria_text)
+    if parses is None:
+        rows = [to_row(trial.trial_id, c, evaluate(c, facts, policy)) for c in criteria]
+    else:
+        from agent.criteria_parse import evaluate_with_parse  # imports this module
+        rows = [to_row(trial.trial_id, c, evaluate_with_parse(c, facts, policy, parses)) for c in criteria]
     if not rows:
         rows = [EligibilityResult(
             trial_id=trial.trial_id,
@@ -1302,7 +1315,8 @@ def check_trial(
         "agent",
         "eligibility_checked",
         {"trial_id": trial.trial_id, "stage": facts.stage, **s.model_dump(),
-         "pending": sum(is_pending(r) for r in rows)},
+         "pending": sum(is_pending(r) for r in rows),
+         **({} if parses is None else {"decided_by_parse": sum(r.reason.startswith("parsed: ") for r in rows)})},
         case_id=case_id,
     )
     return rows
