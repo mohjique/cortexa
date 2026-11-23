@@ -16,6 +16,11 @@ export default function App() {
   return (
     <DoctorContext.Provider value={doctorId}>
       <TutorialProvider>
+      <div className="app-top">
+      <div className="notice" role="note">
+        <strong>Research and demo use only.</strong> Synthetic data, not a medical device. Model output is suspected,
+        never a diagnosis; a doctor approves every step.
+      </div>
       <header>
         <div className="logo">
           <img src={logo} alt="Cortexa brain mark" />
@@ -26,7 +31,6 @@ export default function App() {
             <div className="tagline">AGENTIC CARE MANAGEMENT</div>
           </div>
         </div>
-        <span className="tag">Synthetic demo data · not for clinical use</span>
         <nav className="tabs">
           <NavLink to="/" end>
             Care board
@@ -56,6 +60,7 @@ export default function App() {
         </label>
         <TourButton />
       </header>
+      </div>
       {misconfigured && (
         <div className="banner err">
           VITE_API_URL is not set for this deployment, so the app is calling <code>{API_BASE}</code>. Set it in the

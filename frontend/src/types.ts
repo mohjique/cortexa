@@ -82,6 +82,8 @@ export interface PriorTreatment {
 
 export type Grade = 1 | 2 | 3 | 4 | "pending" | "unknown";
 
+export type Sex = "female" | "male";
+
 export interface DoctorResults {
   case_id: string;
   confirmed_bucket: Bucket;
@@ -97,6 +99,8 @@ export interface DoctorResults {
   comorbidities?: string[] | null;
   can_use_phone_or_tablet?: boolean | null;
   age: number;
+  /** Matches agent/schemas.py DoctorResults.sex. null/absent = not recorded. */
+  sex?: Sex | null;
   zip: string;
   broad_sequencing_available: boolean;
   sequencing?: "exome" | "genome" | "panel" | "none" | null;

@@ -93,6 +93,43 @@ def test_parse_age(text, years):
     assert trials.parse_age_years(text) == years
 
 
+@pytest.mark.parametrize(
+    "value, want",
+    [("ALL", "ALL"), ("FEMALE", "FEMALE"), ("MALE", "MALE"), ("BOTH", "ALL"), ("female", "FEMALE"),
+     (None, None), ("", None), ("OTHER", None), (1, None)],
+)
+def test_parse_sex(value, want):
+    assert trials.parse_sex(value) == want
+
+
+def test_ctgov_sex_eligibility_parsed():
+    fetched = http_cache.Fetched({}, True, http_cache.demo_manifest_time(), "demo_cache")
+    study = demo_studies()["studies"][0]
+    assert trials.normalize_ctgov(study, fetched, policy.get_policy()).sex_eligibility == "ALL"
+    study["protocolSection"]["eligibilityModule"]["sex"] = "FEMALE"
+    assert trials.normalize_ctgov(study, fetched, policy.get_policy()).sex_eligibility == "FEMALE"
+    del study["protocolSection"]["eligibilityModule"]["sex"]
+    assert trials.normalize_ctgov(study, fetched, policy.get_policy()).sex_eligibility is None  # never guessed
+
+
+def test_nci_sex_eligibility_parsed_and_merged():
+    fetched = http_cache.Fetched({}, True, http_cache.demo_manifest_time(), "demo_cache")
+    nci = http_cache.load_demo("nci/trials_brain_tumor.json")["data"][0]
+    assert trials.normalize_nci(nci, fetched, policy.get_policy()).sex_eligibility == "ALL"  # BOTH
+    nci["eligibility"]["structured"]["sex"] = "MALE"
+    n = trials.normalize_nci(nci, fetched, policy.get_policy())
+    assert n.sex_eligibility == "MALE"
+    study = next(s for s in demo_studies()["studies"]
+                 if s["protocolSection"]["identificationModule"]["nctId"] == n.trial_id)
+    del study["protocolSection"]["eligibilityModule"]["sex"]
+    c = trials.normalize_ctgov(study, fetched, policy.get_policy())
+    assert trials.merge([c], [n])[0].sex_eligibility == "MALE"  # NCI fills an empty ctgov value
+
+
+def test_demo_trials_accept_all_sexes():
+    assert {t.sex_eligibility for t in trials.search_trials()} == {"ALL"}
+
+
 def test_closed_site_is_not_kept():
     study = demo_studies()["studies"][1]  # Houston + Dallas
     study["protocolSection"]["contactsLocationsModule"]["locations"][0]["status"] = "COMPLETED"

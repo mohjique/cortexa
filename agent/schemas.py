@@ -239,6 +239,8 @@ class DoctorResults(Schema):
     comorbidities: list[NonEmptyStr] | None = None
     can_use_phone_or_tablet: bool | None = None
     age: Annotated[int, Field(ge=0, le=120)]
+    # None = not recorded: a trial's registry sex limit is then unknown, never guessed (rule 3).
+    sex: Literal["female", "male"] | None = None
     zip: Zip
     broad_sequencing_available: bool
     sequencing: Literal["exome", "genome", "panel", "none"] | None = None
@@ -477,6 +479,9 @@ class TrialRecord(Schema):
     criteria_text: str
     min_age_years: Annotated[float, Field(ge=0)] | None = None
     max_age_years: Annotated[float, Field(ge=0)] | None = None
+    # Registry sex eligibility (ClinicalTrials.gov eligibilityModule.sex, NCI
+    # eligibility.structured.sex). None = the registry gave no value.
+    sex_eligibility: Literal["ALL", "FEMALE", "MALE"] | None = None
     remote_participation: bool
     sites: list[TrialSite] = Field(default_factory=list)
     fetched_at: Timestamp

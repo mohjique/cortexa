@@ -50,6 +50,7 @@ def facts_for(patient: dict[str, Any], mode: Mode) -> Facts:
             stage="preop",
             bucket=bucket,
             age=patient.get("age"),
+            sex=patient.get("sex"),
             recurrent=patient.get("recurrent"),
             recurrence_number=patient.get("recurrence_number"),
             prior_treatments=tuple(PriorTreatment(**t) for t in patient.get("prior_treatments", [])),

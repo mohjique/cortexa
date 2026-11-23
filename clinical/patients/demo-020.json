@@ -86,6 +86,7 @@
       "mgmt": "unknown",
       "recurrent": false,
       "age": 51,
+      "sex": "male",
       "zip": "77840",
       "pituitary": {
         "treatment_path": "surgery",
