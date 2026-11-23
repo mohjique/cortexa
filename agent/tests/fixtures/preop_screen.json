@@ -1,12 +1,25 @@
 {
   "case_id": "demo-001",
   "screen_id": "preop-0123456789ab",
-  "trials_considered": 7,
+  "trials_considered": 9,
   "tests_needed": [
-    {"field": "idh", "label": "IDH mutation status", "current_value": "pending", "decides_trials": 3, "trial_ids": ["NCT99000001", "NCT99000004", "NCT99000007"]},
-    {"field": "codeletion_1p19q", "label": "1p/19q codeletion", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000007"]},
-    {"field": "mgmt", "label": "MGMT promoter methylation", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000004"]},
-    {"field": "grade", "label": "WHO grade", "current_value": "pending", "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"]}
+    {"field": "idh", "label": "IDH mutation status", "current_value": "pending", "decides_trials": 4, "trial_ids": ["NCT99000001", "NCT99000002", "NCT99000004", "NCT99000007"], "mentions_trials": 0, "mention_trial_ids": [], "evidence": [
+        {"trial_id": "NCT99000001", "requires": "mutant", "criterion_text": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3"},
+        {"trial_id": "NCT99000002", "requires": "wildtype", "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype"},
+        {"trial_id": "NCT99000004", "requires": "wildtype", "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4"},
+        {"trial_id": "NCT99000007", "requires": "mutant", "criterion_text": "Histologically confirmed oligodendroglioma, IDH-mutant and 1p/19q-codeleted"}
+    ]},
+    {"field": "grade", "label": "WHO grade", "current_value": "pending", "decides_trials": 2, "trial_ids": ["NCT99000001", "NCT99000004"], "mentions_trials": 1, "mention_trial_ids": ["NCT99000008"], "evidence": [
+        {"trial_id": "NCT99000001", "requires": "2-3", "criterion_text": "Histologically confirmed astrocytoma, IDH-mutant, CNS WHO grade 2 or 3"},
+        {"trial_id": "NCT99000004", "requires": "4-4", "criterion_text": "Histologically confirmed glioblastoma, IDH-wildtype, CNS WHO grade 4"},
+        {"trial_id": "NCT99000008", "requires": null, "criterion_text": "Recurrent glioma of any grade"}
+    ]},
+    {"field": "codeletion_1p19q", "label": "1p/19q codeletion", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000007"], "mentions_trials": 0, "mention_trial_ids": [], "evidence": [
+        {"trial_id": "NCT99000007", "requires": "codeleted", "criterion_text": "Histologically confirmed oligodendroglioma, IDH-mutant and 1p/19q-codeleted"}
+    ]},
+    {"field": "mgmt", "label": "MGMT promoter methylation", "current_value": "pending", "decides_trials": 1, "trial_ids": ["NCT99000004"], "mentions_trials": 0, "mention_trial_ids": [], "evidence": [
+        {"trial_id": "NCT99000004", "requires": "unmethylated", "criterion_text": "MGMT promoter unmethylated"}
+    ]}
   ],
   "pre_surgery_trials": [
     {
@@ -14,7 +27,12 @@
       "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
       "recruitment_status": "NOT_YET_RECRUITING",
       "criterion_text": "Must enroll before planned surgical resection",
-      "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110}
+      "nearest_site": {
+        "city": "Austin",
+        "state": "TX",
+        "distance_miles": 86.7,
+        "drive_minutes": 110
+      }
     }
   ],
   "label": "Suspected glioma. Biopsy results pending."
