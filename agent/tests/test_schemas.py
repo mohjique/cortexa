@@ -138,6 +138,8 @@ BAD = [
     ("results_glioma.json", _set("grade", "probably 4"), "grade"),
     ("results_glioma.json", _set("recurrence_number", 0), "1 or more"),
     ("results_glioma.json", _set("tmb_clia", -1), "greater than or equal"),
+    ("results_glioma.json", _set("sex", "unknown"), "sex"),
+    ("trial_record.json", _set("sex_eligibility", "BOTH"), "sex_eligibility"),
     ("results_glioma.json", _set("prior_treatments", ["surgery"]), "prior_treatments"),
     ("results_glioma.json", _set("prior_treatments.1.extent", "subtotal"), "extent is only allowed for surgery"),
     ("results_glioma.json", _set("prior_treatments.0.cycles", 3), "cycles is only allowed for temozolomide"),

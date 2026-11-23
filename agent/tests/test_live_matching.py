@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from agent import geo, http_cache, matching, policy
-from agent.eligibility import Facts, check_trial
+from agent.eligibility import Facts, check_trial, structured_sex_row
 from agent.schemas import Origin, Shortlist, ShortlistTrial, TrialRecord, TrialSite
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -71,6 +71,53 @@ def test_no_registry_age_row_when_text_already_decides_age():
 def test_no_registry_age_row_without_limits():
     rows = check_trial(trial(min_age_years=None, max_age_years=None, criteria_text=""), facts())
     assert all(r.evidence_field != "age" for r in rows)
+
+
+# --- registry sex eligibility (issue 48) ------------------------------------------
+
+
+@pytest.mark.parametrize("limit,sex,want", [
+    ("FEMALE", "female", "met"),
+    ("FEMALE", "male", "not_met"),
+    ("FEMALE", None, "unknown"),  # not recorded: never guessed (rule 3)
+    ("MALE", "male", "met"),
+    ("MALE", "female", "not_met"),
+])
+def test_registry_sex_limit_becomes_a_row(limit, sex, want):
+    f = Facts(stage="post_pathology", bucket="glioma", age=63, sex=sex)
+    row = structured_sex_row(trial(sex_eligibility=limit), f, policy.get_policy())
+    assert row is not None and row.status == want
+    assert row.criterion_type == "inclusion"
+    assert row.evidence_field == "sex"  # rule 4: cites the patient field
+    assert row.criterion_text == f"Sex: {limit.lower()} only (trial registry sex eligibility)"
+    if sex is None:
+        assert row.reason == "not recorded: sex; doctor must enter it"
+
+
+@pytest.mark.parametrize("limit", ["ALL", None])
+def test_no_sex_row_when_trial_accepts_all(limit):
+    f = Facts(stage="post_pathology", bucket="glioma", age=63, sex="male")
+    assert structured_sex_row(trial(sex_eligibility=limit), f, policy.get_policy()) is None
+    rows = check_trial(trial(sex_eligibility=limit, criteria_text=""), f)
+    assert all(r.evidence_field != "sex" for r in rows)
+
+
+def test_sex_row_in_check_trial_is_audited(audit_log):
+    f = Facts(stage="post_pathology", bucket="glioma", age=63, sex="male")
+    rows = check_trial(trial(sex_eligibility="FEMALE", criteria_text=""), f, case_id="sex-1")
+    (row,) = [r for r in rows if r.evidence_field == "sex"]
+    assert row.status == "not_met"
+    entry = [e for e in audit_log.read() if e.action == "eligibility_checked"][-1]
+    assert entry.case_id == "sex-1" and entry.detail["not_met"] >= 1
+
+
+def test_sex_flows_from_doctor_results():
+    from agent.schemas import DoctorResults
+    base = json.loads((FIXTURES / "results_glioma.json").read_text(encoding="utf-8"))
+    assert Facts.from_results(DoctorResults.model_validate(base)).sex == "male"
+    assert Facts.from_results(DoctorResults.model_validate(base | {"sex": None})).sex is None
+    del base["sex"]
+    assert Facts.from_results(DoctorResults.model_validate(base)).sex is None  # optional, not recorded
 
 
 # --- fix 2: needs_review when no clinical criterion was confirmed ----------------

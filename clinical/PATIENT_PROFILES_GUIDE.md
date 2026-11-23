@@ -26,7 +26,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 | `image_file` | filename | Held-out test-set image |
 | `kaggle_label` | `glioma`, `meningioma`, `pituitary`, `no_tumor` | True image label |
 | `age` ★ | integer, 18+ | One trial caps age at 75 |
-| `sex` | `female`, `male` | |
+| `sex` | `female`, `male` | Synthetic. Copy it into `doctor_decisions.enter_results.sex` too (that is what the doctor records). Checked only against a trial's registry sex eligibility (ClinicalTrials.gov `eligibilityModule.sex`); every synthetic trial accepts `ALL`, so it adds no row today. Omitted or `null` in `enter_results` means not recorded: a single-sex trial is then `unknown`, never guessed |
 | `zip` ★ | one of the cached ZIPs above | Drives distance to trial sites |
 | `max_travel_miles` | integer | Patient's travel limit |
 
@@ -89,7 +89,7 @@ Read first: `docs/decision-tree.md` (the app logic) and the trials table in `age
 
 | Field | Notes |
 |---|---|
-| `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `preop_review` (every glioma case) `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "..."}]}` with one entry per `expected_preop_flags` trial (empty list if none). The screen has no surgical history, so it flags NCT99000003 for every suspected glioma; cases with prior surgery decline it as `not_pursuing` with a reason (required for `not_pursuing`). Leave out `screen_id`: it is a hash of the live screen, and the replay test fills it in. `surgery_or_meds` `{"choice": "surgery"}` |
+| `doctor_decisions` | Scripted gate decisions, keys matching `docs/interfaces.md`: `confirm_bucket` `{"bucket": "...", "overrode_model": false}`, `watch_or_treat` `{"choice": "watch", "rescan_in_months": 6}`, `preop_review` (every glioma case) `{"tests_reviewed": true, "pre_surgery_trials": [{"trial_id": "NCT99000003", "action": "pursue_before_surgery", "reason": "..."}]}` with one entry per `expected_preop_flags` trial (empty list if none). The screen has no surgical history, so it flags NCT99000003 for every suspected glioma; cases with prior surgery decline it as `not_pursuing` with a reason (required for `not_pursuing`). Leave out `screen_id`: it is a hash of the live screen, and the replay test fills it in. `surgery_or_meds` `{"choice": "surgery"}`. `enter_results` is the doctor-entered results object from `docs/interfaces.md` (including `age`, `sex`, `zip`) |
 | `expected_path` | Branches this case should follow, e.g. `["glioma", "preop_screen", "awaiting_pathology", "enter_results", "matching", "review_shortlist"]` (use the `stage` names from `docs/interfaces.md`) |
 | `expected_trials` | Trial IDs you expect in the shortlist's **eligible** group (eligible on what we know; any unknowns are routine screening-visit items). There is no distance cutoff, so include every eligible trial however far away; the app sorts them nearest first |
 | `expected_needs_test` | Trials you expect in the **needs a test** group, each mapped to the key fields left unknown, e.g. `{"NCT99000009": ["tmb_clia"]}`. Key fields are `trial_search.key_unknown_fields` in `policies/policy.yaml`. `{}` if none |

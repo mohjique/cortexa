@@ -8,6 +8,7 @@
   "criteria_text": "Inclusion Criteria: ...",
   "min_age_years": 18,
   "max_age_years": null,
+  "sex_eligibility": "ALL",
   "remote_participation": false,
   "sites": [
     {"facility": "Synthetic Neuro-Oncology Center A", "city": "Houston", "state": "TX", "zip": "77030", "lat": 29.7079, "lon": -95.4012}

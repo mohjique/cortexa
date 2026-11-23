@@ -104,6 +104,7 @@ One record per gate. Each one is also written to the audit log.
   "comorbidities": ["hypertension"],
   "can_use_phone_or_tablet": true,
   "age": 54,
+  "sex": "female | male | null",
   "zip": "77840",
   "broad_sequencing_available": false,
   "sequencing": "exome | genome | panel | none | null",
@@ -119,7 +120,8 @@ Field names follow `clinical/PATIENT_PROFILES_GUIDE.md`:
 - `tmb_clia`: tumor mutational burden (mut/Mb) from a CLIA-certified lab test, or `null`. Never filled from the mutation check.
 - `recurrence_number`: 0 when `recurrent` is false, 1 or more when true.
 - `prior_treatments[].type`: `surgery`, `radiation`, `temozolomide`, `bevacizumab`, `idh_inhibitor`, `checkpoint_inhibitor`, `pituitary_radiation`, `other`. Optional `detail` and `weeks_ago`. `extent` (`gross_total`, `subtotal`, `biopsy_only`) only for surgery; `cycles` only for temozolomide.
-- `comorbidities`, `can_use_phone_or_tablet`, `tmb_clia` and `recurrence_number` are optional. `null` means not recorded, and the checker marks dependent criteria `unknown`. An empty `comorbidities` list means "none".
+- `sex`: `female`, `male`, or `null` (not recorded). Used only against a trial's registry sex eligibility; when it is `null` and a trial enrolls one sex, that row is `unknown`, never guessed.
+- `sex`, `comorbidities`, `can_use_phone_or_tablet`, `tmb_clia` and `recurrence_number` are optional. `null` means not recorded, and the checker marks dependent criteria `unknown`. An empty `comorbidities` list means "none".
 
 For pituitary cases, `pituitary` holds hormone and imaging results. For a medication-only case, the doctor enters these directly with no pathology. Glioma marker fields are then `unknown`.
 
@@ -254,6 +256,7 @@ If it did not run: `{"case_id": "...", "ran": false, "skip_reason": "no_broad_se
   "criteria_text": "Inclusion Criteria: ...",
   "min_age_years": 18,
   "max_age_years": null,
+  "sex_eligibility": "ALL | FEMALE | MALE | null",
   "remote_participation": false,
   "sites": [
     {"facility": "Synthetic Neuro-Oncology Center A", "city": "Houston", "state": "TX", "zip": "77030", "lat": 29.7079, "lon": -95.4012}
@@ -292,11 +295,13 @@ Each trial is in one of three groups, the way coordinators sort a prescreen:
 |---|---|---|
 | `eligible` | Eligible on what we know. At least one clinical criterion is `met`; any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
 | `needs_test` | At least one `unknown` on a key field listed in `trial_search.key_unknown_fields` in `policy.yaml` (today `idh`, `codeletion_1p19q`, `mgmt`, `tmb_clia`). | The key fields left unknown, in policy order, e.g. `["tmb_clia"]`. Each has an `unknown` row in `eligibility` whose `reason` says which test decides it. |
-| `needs_review` | Nothing ruled it out, but no clinical inclusion criterion was confirmed automatically: the only `met` rows are demographics (age) or exclusions that do not apply. Common for live trials whose free-text criteria the rule library does not cover. The doctor must read the criteria. | `[]` |
+| `needs_review` | Nothing ruled it out, but no clinical inclusion criterion was confirmed automatically: the only `met` rows are demographics (age, sex) or exclusions that do not apply. Common for live trials whose free-text criteria the rule library does not cover. The doctor must read the criteria. | `[]` |
 
 A `needs_test` or `needs_review` trial is not a match yet. Show each group under its own heading, for example "Needs a test: CLIA TMB result" or "Needs doctor review of the criteria". Near misses are unchanged and only appear in the no-match plan.
 
 **Registry age limits.** When no criteria bullet decides age, the checker adds one inclusion row from the trial's structured age limits (ClinicalTrials.gov `minimumAge`/`maximumAge`, NCI `min/max_age_in_years`), with `criterion_text` like `"Age 18 years or older (trial registry age limits)"` and `evidence_field: "age"`.
+
+**Registry sex eligibility.** `sex_eligibility` comes from ClinicalTrials.gov `eligibilityModule.sex` (`ALL`, `FEMALE`, `MALE`) or NCI `eligibility.structured.sex` (`BOTH` is stored as `ALL`); a missing or unrecognized value is `null`. When a trial enrolls one sex only, the checker adds one inclusion row with `criterion_text` like `"Sex: female only (trial registry sex eligibility)"` and `evidence_field: "sex"`: `met` or `not_met` from the doctor-entered `sex`, or `unknown` ("not recorded: sex; doctor must enter it") when it is `null`. `ALL` or `null` adds no row. A trial that fails only on sex is not a near miss.
 
 There is no distance cutoff: every eligible trial is listed, however far away. `trials` lists the `eligible` group first, then `needs_test`, then `needs_review`. Within each group, trials are sorted by `nearest_site.distance_miles`, nearest first, and trials with no `nearest_site` come last. `nearest_site` is `null` for remote-only trials and for trials whose registry lists no site coordinates; those trials are kept, never dropped. The schema rejects a shortlist in any other order. `drive_minutes` comes from one batched OSRM `table` request for the whole shortlist.
 

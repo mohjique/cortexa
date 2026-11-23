@@ -187,6 +187,7 @@
       "mgmt": "methylated",
       "recurrent": true,
       "age": 65,
+      "sex": "female",
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [

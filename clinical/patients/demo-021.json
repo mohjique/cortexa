@@ -87,6 +87,7 @@
       "mgmt": "unknown",
       "recurrent": false,
       "age": 46,
+      "sex": "female",
       "zip": "77840",
       "pituitary": {
         "treatment_path": "surgery",

@@ -80,6 +80,7 @@
       "mgmt": "methylated",
       "recurrent": false,
       "age": 63,
+      "sex": "male",
       "zip": "77840",
       "pituitary": null,
       "prior_treatments": [

@@ -73,6 +73,7 @@
       "mgmt": "unknown",
       "recurrent": false,
       "age": 55,
+      "sex": "male",
       "zip": "78229",
       "pituitary": null,
       "prior_treatments": [
