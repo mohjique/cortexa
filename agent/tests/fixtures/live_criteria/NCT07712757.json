@@ -1,0 +1,17 @@
+{
+  "trial_id": "NCT07712757",
+  "title": "Safety and Efficacy Study of Safusidenib in Participants With Grade 2 IDH1-Mutant Glioma",
+  "conditions": [
+    "Grade 2 Glioma (Astrocytoma or Oligodendroglioma) With an IDH1 Mutation",
+    "Astrocytoma IDH Mutant Grade 2",
+    "Oligodendroglioma",
+    "Oligodendroglioma IDH-mutant and 1p/19q-codeleted",
+    "IDH-mutant Gliomas"
+  ],
+  "criteria_text": "Key Inclusion Criteria:\n\n* Expected survival of ≥12 months.\n* At least 1 prior surgery for glioma (biopsy, sub-total resection, or gross total resection), with the most recent surgery having occurred at least 90 days (or at least 28 days if biopsy only and postoperative changes have resolved per BICR) and no longer than 5 years before the date of randomization\n* Have not had any other prior anticancer therapy, including chemotherapy and radiotherapy; and are not in need of immediate chemotherapy or radiotherapy in the opinion of the Investigator.\n* Histologically confirmed Grade 2, IDH1-mutant oligodendroglioma or astrocytoma according to World Health Organization Central Nervous System 2021 classification criteria per Investigator assessment.\n* IDH1 mutation (R132H/C/G/S/L), identified by polymerase chain reaction, next-generation sequencing (NGS), or immunohistochemistry; and confirmed 1p19q codeletion status by fluorescence in situ hybridization, NGS, or array comparative genomic hybridization.\n* Residual or recurrent, measurable, non-enhancing disease, as confirmed by BICR per RANO 2.0, assessed at Screening.\n* Adequate hematologic and organ functions\n\nKey Exclusion Criteria:\n\n* Any prior anticancer therapy other than surgery (biopsy, sub-total, or gross total resection) for treatment of glioma, including chemotherapy, investigational therapies, prior therapies targeting IDH1 or IDH2, anti-angiogenic therapies, tumor-treating fields, or radiotherapy.\n* High-risk features as assessed by the Investigator, including brainstem or spinal cord involvement either as primary location or by significant tumor extension, clinically relevant functional or neurocognitive deficits due to the tumor (deficits resulting from surgery are allowed), or uncontrolled seizures (defined as persistent seizures interfering with ability to comply with protocol requirements).\n* Evidence of leptomeningeal disease.\n* Use of therapeutic doses of steroids for signs/symptoms of glioma. Participants taking physiologic doses (defined as equivalent of \\<1.5 mg of dexamethasone equivalent) for medical conditions not related to glioma will be permitted.",
+  "minimum_age": "18 Years",
+  "maximum_age": null,
+  "sex": "ALL",
+  "overall_status": "NOT_YET_RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

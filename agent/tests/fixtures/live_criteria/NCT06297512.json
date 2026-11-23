@@ -1,0 +1,13 @@
+{
+  "trial_id": "NCT06297512",
+  "title": "Evaluate the Role of Anthracycline After Radio Therapy in Patients With Glioblastoma (pGBM).",
+  "conditions": [
+    "Glioblastoma"
+  ],
+  "criteria_text": "Inclusion Criteria:\n\n* Patients with histological-molecular diagnosis according to WHO 2016 classification: IDH-wildtype glioblastoma (9440/3), giant cell glioblastoma (9441/3), gliosarcoma (9442/3), epithelioid glioblastoma (9440/3), IDH-mutated glioblastoma (9445/3), glioblastoma NOS (9440/3), diffuse astrocytoma (9400/3), diffuse midline glioma H3 K27M mutated, including multifocal, metastatic or gliomatosis cerebri pictures of first diagnosis Not previously treated (with chemo and radiotherapy) or treated only surgically (total, near partial, partial, biopsy).\n* Males and females between the ages of 3 and 30 years old\n* Life expectancy ≥ 12 months\n* karnofsky/Lansky ≥ 80 %\n* Adequate hematologic function: Absolute leukocyte count ≥ 2.0 x 109/l, Hemoglobin ≥ 10 g/dl, Platelet count ≥ 50 x 109/l\n* Adequate liver function: Total bilirubin ≤ 2.5 x ULN, ALT/AST ≤ 5.0 x ULN\n* Adequate renal function:Serum creatinine ≤ 1.5 x ULN\n* Written informed consent from the patient, parents or legal guardians\n* Patient's willingness during treatment and ability to comply with the protocol\n\nExclusion Criteria:\n\n* Evidence of any other serious disease or condition that is a contraindication to study therapy (e.g. severe mental retardation, severe cerebral palsy, severe syndromes congenital syndromes, heart disease)\n* Performance of a course of 1st-line chemotherapy at the same time as study initiation\n* Concurrent participation in other research projects\n* Pregnancy or lactation status\n* Use of inappropriate contraceptive methods",
+  "minimum_age": "3 Years",
+  "maximum_age": "30 Years",
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}

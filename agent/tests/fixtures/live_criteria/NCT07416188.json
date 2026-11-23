@@ -1,0 +1,27 @@
+{
+  "trial_id": "NCT07416188",
+  "title": "Novel Indenoisoquinolone CMYC/TOPOISOMERASE 1 Inhibitor (LMP744) in Recurrent Glioblastoma",
+  "conditions": [
+    "Recurrent Glioblastoma",
+    "Glioblastoma IDH (Isocitrate Dehydrogenase) Wildtype",
+    "Relapsed Cancer",
+    "Recurrent Tumor",
+    "Glioblastoma Multiforme",
+    "Recurring Glioblastoma",
+    "Brain and Central Nervous System Tumors",
+    "Glioma",
+    "Glioblastomas",
+    "Grade IV Astrocytoma",
+    "GBM",
+    "Recurrent Glioma (Glioblastoma Multiforme)",
+    "High Grade Glioma",
+    "Glioma, Malignant",
+    "Brain Cancer"
+  ],
+  "criteria_text": "* INCLUSION CRITERIA:\n\nParticipant must meet all the following inclusion criteria to be deemed eligible for this study:\n\n* Participants \\>= 18 years of age\n* Tissue-based diagnosis of recurrent glioblastoma, IDH-wildtype by a neuropathologist\n* Karnofsky Performance Status (KPS) \\>60\n* Willing to use effective birth control method\n\n  --The effects of LMP744 on developing human fetuses are unknown. Therefore, females of childbearing potential and their male partners must be willing to use an effective method of contraception during the clinical study (hormonal, barrier, surgical, or abstinence) before study enrollment and for 6 months after the last dose of the study drug. If the female becomes pregnant or suspects she is pregnant while participating in this study, she must inform her treating physician immediately.\n* Agreeable to undergo surgical intervention for brain biopsy and/or resection.\n\n  * Initial diagnostic biopsy under 03-N-0164 will be performed to confirm recurrent disease and obtain pre-treatment tissue.\n  * The surgical intervention may include stereotactic/needle biopsy, open biopsy, and/or resection, as determined by neurosurgical assessment. Only participants for whom gross total resection of tumor is not expected to be achievable will be included in the study.\n* Willing and able to appoint a durable power of attorney\n* Able to provide informed consent or have a legally authorized representative (LAR) to provide consent, if incapacitated.\n\nEXCLUSION CRITERIA:\n\nAn individual who meets any of the following criteria will be excluded from participation in this study:\n\n* Pregnant and/or nursing females\n\n  --As LMP744 is a novel agent with the potential for teratogenic or abortifacient effects, pregnant and/or nursing females will be excluded from receiving drug\n* Significant medical co-morbidities that would compromise the participant s ability to tolerate LMP744 and which cannot reasonably be controlled (per the investigator s judgment, such as poorly controlled chronic kidney disease and/or poorly controlled congestive heart failure)\n* Social situations that would limit compliance with study requirements, such as chronic homelessness\n* Prior chemotherapy or biologic therapy completed within 4 weeks (6 weeks for nitrosoureas and mitomycin C) or a duration of 5 half-lives (whichever is shorter)\n* Additional malignancy diagnosed or requiring active treatment within 1 year of screening\n* Unable to undergo an MRI scan of the brain\n* Active autoimmune disease that requires systemic treatment within 2 years of screening\n* Cardiac disease\n\n  * \\>=2 MIs\n  * \\>=2 coronary revascularization procedures\n  * Cardiac Troponin T or I \\>= 2x the institutional upper limit of normal at screening\n  * Ejection fraction \\<45% on screening echocardiogram\n* Chronic hypokalemia (K\\<2.5 mmol/L)\n* Human Immunodeficiency Virus (HIV)\n\n  * Known history of HIV\n  * Positive HIV 1/2 at screening.\n* Active Hepatitis B or Hepatitis C infection at screening\n* Active infection requiring systemic antibacterial, antiviral or antifungal therapy \\<7 days prior to initiation of study drug\n* Recipient of autologous or allogeneic T cells\n* Solid organ or tissue transplant recipients",
+  "minimum_age": "18 Years",
+  "maximum_age": "99 Years",
+  "sex": "ALL",
+  "overall_status": "RECRUITING",
+  "fetched_at": "2026-11-23T00:33:03Z"
+}
