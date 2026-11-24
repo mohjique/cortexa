@@ -18,10 +18,10 @@ const PAD = 6; // space between the element and the spotlight edge
 const GAP = 12; // space between the spotlight and the caption
 const PHONE = 600;
 
-function pathFor(step: TourStep, caseId: string | null, current: string): string {
+function pathFor(step: TourStep, caseId: string, current: string): string {
   if (step.route === "board") return "/";
   if (step.route === "new") return "/new";
-  if (step.route === "case" && caseId) return `/cases/${encodeURIComponent(caseId)}`;
+  if (step.route === "case") return `/cases/${encodeURIComponent(caseId)}`;
   return current;
 }
 
@@ -59,10 +59,6 @@ export default function Tour() {
       if (cur.dir === -1 && cur.index > 0) cur.back();
       else cur.next();
     };
-    if (step.route === "case" && !t.caseId) {
-      skip(); // no cases yet: nothing to point at
-      return;
-    }
     // Skip soon once the page (and the case record) has loaded without the
     // target; wait longer while it is still loading.
     const GRACE = 1500;

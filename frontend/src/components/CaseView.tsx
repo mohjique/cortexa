@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { usePoll } from "../hooks";
+import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "../tutorial/exampleCase";
+import { useTutorial } from "../tutorial/TutorialContext";
 import { BUCKET_LABEL, STAGE_LABEL, nodeById, routeFor, waitingOn } from "../pathway";
 import type { CaseRecord, Gate, MutationCheckOutput, Stage } from "../types";
 import Tree from "./Tree";
@@ -44,6 +46,7 @@ function gateFor(record: CaseRecord): Gate | undefined {
 export default function CaseView() {
   const { caseId } = useParams();
   const nav = useNavigate();
+  const tour = useTutorial();
   const list = usePoll(() => api.listCases(), [], 15000);
 
   // /cases with no id: open the most recently updated case.
@@ -75,6 +78,9 @@ export default function CaseView() {
   const shownTab = tabs.some(([k]) => k === tab) ? tab : "pathway";
 
   const route = useMemo(() => (record ? routeFor(record) : null), [record]);
+
+  // The tour's example case exists only while the tour runs; ending the tour on it goes back to the board.
+  if (caseId === TOUR_CASE_ID && !tour.active) return <Navigate to="/" replace />;
 
   return (
     <>
@@ -157,14 +163,22 @@ function Detail({
   const who = waitingOn(s.stage, s.waiting_on);
   const c = record.classifier;
   const overrode = s.confirmed_bucket && s.suspected_bucket && s.confirmed_bucket !== s.suspected_bucket;
+  const example = s.case_id === TOUR_CASE_ID;
 
   return (
     <>
-      <h2>{s.case_id}</h2>
-      <div className="sub">
-        Synthetic case · opened {new Date(record.created_at).toLocaleDateString()} · updated{" "}
-        {new Date(s.updated_at).toLocaleTimeString()}
-      </div>
+      <h2>{example ? `Example case · ${TOUR_SOURCE_PATIENT}` : s.case_id}</h2>
+      {example ? (
+        <div className="sub">
+          <span className="chip warn">Tour example</span> Synthetic patient {TOUR_SOURCE_PATIENT}, shown only during the
+          tour. Not saved, not in your workspace, and it can't be changed.
+        </div>
+      ) : (
+        <div className="sub">
+          Synthetic case · opened {new Date(record.created_at).toLocaleDateString()} · updated{" "}
+          {new Date(s.updated_at).toLocaleTimeString()}
+        </div>
+      )}
       <div className="chips">
         {who !== "none" && <WaitChip who={who} label={`Waiting on ${who}`} />}
         {c?.flagged_uncertain && <span className="chip danger">Low confidence: look harder</span>}

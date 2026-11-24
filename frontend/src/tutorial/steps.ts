@@ -12,7 +12,7 @@ export type CaseTab = "pathway" | "trials" | "audit";
 
 export interface TourStep {
   id: string;
-  /** Page to show. "case" is the demo case picked when the tour starts. */
+  /** Page to show. "case" is the built-in example case (exampleCase.ts), never a visitor's case. */
   route: TourRoute;
   /** Matches an element's data-tour attribute. */
   target: string;
@@ -53,7 +53,7 @@ export const STEPS: TourStep[] = [
     tab: "pathway",
     target: "pathway-tree",
     title: "Pathway",
-    body: "Where this case sits in the decision tree. Done steps are lit, the current step glows, and dashed boxes show where the case can go next.",
+    body: "This is an example case from synthetic patient demo-016, a recurrent glioma, shown only during the tour. The tree shows where the case sits: done steps are lit, the current step glows, and dashed boxes show where the case can go next.",
   },
   {
     id: "suspected",
@@ -69,7 +69,7 @@ export const STEPS: TourStep[] = [
     tab: "pathway",
     target: "gate",
     title: "Doctor action needed",
-    body: "Nothing moves forward without a recorded doctor action: confirm the bucket, enter results, or review the shortlist. The tour never presses anything here.",
+    body: "Nothing moves forward without a recorded doctor action: confirm the bucket, enter results, or review the shortlist. The tour never presses anything here, and the example case can't be changed.",
   },
   {
     id: "trial-map",
