@@ -730,11 +730,16 @@ def split_criteria(text: str) -> list[Criterion]:
 
 
 def _pre_surgery_phrase(criterion: Criterion, policy: Policy) -> str | None:
-    """An inclusion phrase from policy.yaml that means 'enroll before surgery'."""
+    """An inclusion phrase from policy.yaml that means 'enroll before surgery'.
+
+    Whole words only, and only in a bullet about enrolling or study treatment
+    (`inclusion_context_words`): "Preoperatively, the lesion must be >= 1 cm"
+    is not a pre-surgery requirement, and reading it as one would hide the
+    trial after pathology.
+    """
     if criterion.type != "inclusion":
         return None
-    low = criterion.text.lower()
-    return next((p for p in policy.pre_surgery_detection.inclusion_phrases if p.lower() in low), None)
+    return policy.pre_surgery_detection.inclusion_phrase_in(criterion.text)
 
 
 # ---------------------------------------------------------------------------

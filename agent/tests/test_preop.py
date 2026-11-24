@@ -56,6 +56,20 @@ def test_criteria_match_wins_over_title_hint():
     assert flag.trial_id == "NCT99000003" and flag.matched_on == "criteria"
 
 
+def test_measurement_timing_is_not_a_pre_surgery_flag():
+    """Live NCT05084430 wording: 'Preoperatively' times a measurement, not enrollment."""
+    t = trial(criteria_text="Inclusion Criteria:\n"
+              "* Preoperatively, the lesion must be ≥1.0 cm in diameter as determined by MRI.\n"
+              "* Preoperative MRI must show a contrast-enhancing lesion\n"
+              "Exclusion Criteria:\n* Pregnancy")
+    assert pre_surgery_criterion(t, get_policy()) is None
+
+
+def test_exclusion_phrase_matches_whole_words_only():
+    t = trial(criteria_text="Inclusion Criteria:\n* Adults\nExclusion Criteria:\n* Prior resectionist consult")
+    assert pre_surgery_criterion(t, get_policy()) is None
+
+
 def test_mid_sentence_exclusion_mention_does_not_split_inclusion():
     t = trial(
         criteria_text="Inclusion Criteria:\n* Meets none of the exclusion criteria below\n"

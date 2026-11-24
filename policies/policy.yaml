@@ -38,7 +38,7 @@ mutation_check:
   never_route_to_immunotherapy_on_mutation_count: true
 
 # Pre-op screen (glioma): flag trials that need enrollment before surgery.
-# Phrases match case-insensitive, inside the named criteria list only.
+# Phrases match case-insensitive and as whole words, inside the named criteria list only.
 # "prior resection" in an INCLUSION list means a recurrent-tumor trial, so it
 # is not listed there. Add phrases here; no code change needed.
 pre_surgery_detection:
@@ -53,6 +53,29 @@ pre_surgery_detection:
     - "presurgical"
     - "window of opportunity"
     - "neoadjuvant"
+  # An inclusion phrase above counts only when the same criterion also uses one
+  # of these word starts ("enrol" matches "enrolled", "enrollment"). Phrases
+  # match whole words. "Preoperatively, the lesion must be >= 1.0 cm" times a
+  # measurement, not enrollment, so it is not a pre-surgery requirement.
+  inclusion_context_words:
+    - "enrol"
+    - "registration"
+    - "register"
+    - "randomiz"
+    - "randomis"
+    - "receive"
+    - "study drug"
+    - "study treatment"
+    - "study therapy"
+    - "treatment"
+    - "therapy"
+    - "dose"
+    - "dosing"
+    - "administ"
+    - "window"
+    - "neoadjuvant"
+    - "intervention"
+    - "investigational"
   exclusion_phrases:
     - "prior brain surgery"
     - "prior resection"

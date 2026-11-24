@@ -166,6 +166,43 @@ def test_before_surgery_phrase_comes_from_policy(trials, policy_with):
     assert row.status == "unknown" and row.evidence_field == el.NO_RULE_FIELD
 
 
+# Live ClinicalTrials.gov text (NCT05084430). "preoperative" used to match inside
+# "Preoperatively" and fail every post-pathology patient, hiding the trial.
+LESION_SIZE = "Preoperatively, the lesion must be ≥1.0 cm in diameter as determined by MRI."
+
+
+@pytest.mark.parametrize("text", [
+    LESION_SIZE,
+    "Preoperative MRI must show a contrast-enhancing lesion",  # whole word, but times a scan, not enrollment
+    "Pre-operative KPS of 70 or higher",
+])
+def test_pre_surgery_phrase_about_a_measurement_does_not_fail_after_surgery(text):
+    c = el.Criterion("inclusion", text)
+    pol = policy.get_policy()
+    assert el._pre_surgery_phrase(c, pol) is None
+    row = el.to_row("NCT05084430", c, el.evaluate(c, el.Facts.from_results(results()), pol))
+    assert row.status != "not_met", row.reason
+
+
+@pytest.mark.parametrize("text, phrase", [
+    (BEFORE, "before planned surgical resection"),
+    ("Patients must receive the study drug preoperatively", None),  # "preoperatively" is not the phrase
+    ("Patients will receive preoperative study treatment for 7 days", "preoperative"),
+    ("Enrollment must occur prior to surgery", "prior to surgery"),
+    ("Candidates for neoadjuvant therapy", "neoadjuvant"),
+])
+def test_pre_surgery_phrase_needs_whole_words_and_enrollment_wording(text, phrase):
+    assert el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy()) == phrase
+
+
+def test_pre_surgery_context_words_come_from_policy(policy_with):
+    """Rule 8: removing a context word changes behavior without code."""
+    text = "Enrollment must occur prior to surgery"
+    assert el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy()) == "prior to surgery"
+    policy_with(lambda t: t.replace('    - "enrol"\n', ""))
+    assert el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy()) is None
+
+
 # --- other rules ----------------------------------------------------------------
 
 

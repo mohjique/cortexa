@@ -37,6 +37,7 @@ Tests are ordered by trials decided, then trials mentioning, descending.
 from __future__ import annotations
 
 import re
+from collections.abc import Callable
 
 from agent import geo
 from agent.audit import audit
@@ -65,11 +66,10 @@ def _split_criteria(text: str) -> tuple[str, str]:
     return parts[0], parts[1] if len(parts) > 1 else ""
 
 
-def _matching_line(section: str, phrases: list[str]) -> str | None:
-    """The first criterion line containing any (lowercased) phrase, cleaned up for display."""
+def _matching_line(section: str, matches: Callable[[str], str | None]) -> str | None:
+    """The first criterion line `matches` accepts, cleaned up for display."""
     for line in section.splitlines():
-        low = line.lower()
-        if any(p in low for p in phrases):
+        if matches(line):
             cleaned = line.strip().lstrip("*-• ").strip()
             if cleaned:
                 return cleaned
@@ -77,11 +77,15 @@ def _matching_line(section: str, phrases: list[str]) -> str | None:
 
 
 def pre_surgery_criterion(trial: TrialRecord, policy: Policy) -> str | None:
-    """The criterion text that marks this trial as enroll-before-surgery, or None."""
+    """The criterion text that marks this trial as enroll-before-surgery, or None.
+
+    Same matching as the eligibility checker: whole-word phrases, and an
+    inclusion phrase only in a line about enrolling or study treatment.
+    """
     rules = policy.pre_surgery_detection
     inclusion, exclusion = _split_criteria(trial.criteria_text)
-    return _matching_line(inclusion, rules.inclusion_phrases) or _matching_line(
-        exclusion, rules.exclusion_phrases
+    return _matching_line(inclusion, rules.inclusion_phrase_in) or _matching_line(
+        exclusion, rules.exclusion_phrase_in
     )
 
 
