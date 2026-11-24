@@ -140,6 +140,9 @@ header .tabs a:hover{color:var(--mint)}
 .center .ctabs button.on{background:var(--panel2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line2)}
 .center .cbody{flex:1;overflow:auto;padding:12px}
 .center .canvas{border:0;background:transparent;height:100%}
+/* Tab labels stay on one line; on narrow screens the tab row scrolls sideways, never the page. */
+.center .ctabs{overflow-x:auto;scrollbar-width:thin}
+.center .ctabs button{flex:none;white-space:nowrap}
 /* First case tab = what to do now; the dot marks a doctor action. */
 .center .ctabs button.act::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--tangerine);margin-right:6px;vertical-align:1px;box-shadow:0 0 6px rgba(242,137,75,.6)}
 .next-step{max-width:640px}
