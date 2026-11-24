@@ -56,6 +56,14 @@ export const STEPS: TourStep[] = [
     body: "This is an example case from synthetic patient demo-016, a recurrent glioma, shown only during the tour. The tree shows where the case sits: done steps are lit, the current step glows, and dashed boxes show where the case can go next.",
   },
   {
+    id: "progress",
+    route: "case",
+    tab: "pathway",
+    target: "progress",
+    title: "Progress bar",
+    body: "The short version of the tree, always above the tabs: done steps are filled, the current step is outlined, and dashed steps are still to come.",
+  },
+  {
     id: "suspected",
     route: "case",
     tab: "pathway",
@@ -66,10 +74,10 @@ export const STEPS: TourStep[] = [
   {
     id: "gate",
     route: "case",
-    tab: "pathway",
+    tab: "trials",
     target: "gate",
     title: "Doctor action needed",
-    body: "Nothing moves forward without a recorded doctor action: confirm the bucket, enter results, or review the shortlist. The tour never presses anything here, and the example case can't be changed.",
+    body: "The first tab is always what to do now, and a case opens on it. A dot means it needs a doctor: confirm the bucket, enter results, or, as here, review the shortlist. Nothing moves forward without a recorded doctor action. The tour never presses anything, and the example case can't be changed.",
   },
   {
     id: "trial-map",

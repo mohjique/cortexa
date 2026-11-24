@@ -71,6 +71,10 @@ export default function Tour() {
     const tick = () => {
       if (done) return;
       setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }));
+      // The notice + header bar is sticky. Scroll targets out from under it,
+      // and never spotlight the part of a target it covers.
+      const bar = Math.round(document.querySelector(".app-top")?.getBoundingClientRect().bottom ?? 0);
+      document.documentElement.style.scrollPaddingTop = `${bar + PAD + 4}px`;
       const want = pathFor(step, tRef.current.caseId, window.location.pathname);
       const onPage = window.location.pathname === want;
       let tabReady = true;
@@ -87,12 +91,13 @@ export default function Tour() {
       if (el && r && r.width > 0 && r.height > 0) {
         if (!shown) {
           shown = true;
-          el.scrollIntoView({ block: r.height > window.innerHeight * 0.7 ? "start" : "center" });
+          el.scrollIntoView({ block: r.height > (window.innerHeight - bar) * 0.7 ? "start" : "center" });
           r = el.getBoundingClientRect();
         }
         lastSeen = Date.now();
         readyAt = null;
-        const b = { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height) };
+        const top = el.closest(".app-top") ? r.top : Math.max(r.top, bar);
+        const b = { top: Math.round(top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.bottom - top) };
         setHole((h) => (sameBox(h, b) ? h : b));
       } else {
         if (shown) {
@@ -113,6 +118,7 @@ export default function Tour() {
     window.addEventListener("resize", tick);
     return () => {
       done = true;
+      document.documentElement.style.scrollPaddingTop = "";
       window.clearInterval(iv);
       window.removeEventListener("scroll", tick, true);
       window.removeEventListener("resize", tick);
@@ -173,25 +179,35 @@ export default function Tour() {
   if (!step) return null;
 
   // Spotlight rectangle, clamped to the viewport.
-  const s = hole && {
+  let s = hole && {
     top: Math.max(0, hole.top - PAD),
     left: Math.max(0, hole.left - PAD),
     right: Math.min(vp.w, hole.left + hole.width + PAD),
     bottom: Math.min(vp.h, hole.top + hole.height + PAD),
   };
 
-  // Caption position: below, else above, else docked to the bottom. Phones always dock.
+  // Caption position: below, else above, else beside. If none fits (a target
+  // taller than the screen, like the tree or the audit log), the spotlight is
+  // cut short so the caption fits below it. The caption never covers the spotlight.
+  const MIN_HOLE = 120;
   let capStyle: CSSProperties;
   if (!s) {
     capStyle = { top: Math.max(16, (vp.h - cap.h) / 2), left: Math.max(16, (vp.w - cap.w) / 2) };
   } else if (vp.w < PHONE) {
-    const roomBelow = vp.h - s.bottom;
-    capStyle = roomBelow >= cap.h + 32 || s.top < cap.h + 32 ? { bottom: 16, left: 16, right: 16 } : { top: 16, left: 16, right: 16 };
+    const need = cap.h + 32;
+    if (vp.h - s.bottom < need && s.top < need) s = { ...s, bottom: Math.max(s.top + MIN_HOLE, vp.h - need) };
+    capStyle = vp.h - s.bottom >= need || s.top < need ? { bottom: 16, left: 16, right: 16 } : { top: 16, left: 16, right: 16 };
   } else {
     const left = Math.min(Math.max(16, s.left), vp.w - cap.w - 16);
+    const sideTop = Math.min(Math.max(16, s.top), vp.h - cap.h - 16);
     if (s.bottom + GAP + cap.h <= vp.h - 16) capStyle = { top: s.bottom + GAP, left };
     else if (s.top - GAP - cap.h >= 16) capStyle = { top: s.top - GAP - cap.h, left };
-    else capStyle = { bottom: 16, left: Math.max(16, vp.w - cap.w - 24) };
+    else if (s.right + GAP + cap.w <= vp.w - 16) capStyle = { top: sideTop, left: s.right + GAP };
+    else if (s.left - GAP - cap.w >= 16) capStyle = { top: sideTop, left: s.left - GAP - cap.w };
+    else {
+      s = { ...s, bottom: Math.max(s.top + MIN_HOLE, vp.h - 16 - cap.h - GAP) };
+      capStyle = { top: Math.min(s.bottom + GAP, vp.h - cap.h - 16), left };
+    }
   }
 
   const last = t.index === t.total - 1;
