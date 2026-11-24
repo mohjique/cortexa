@@ -1,8 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CaseRecord, EligibilityResult, NoMatchPlan, PreOpScreen, ShortlistTrial, TestNeeded } from "../types";
 import { RecruitChip, StatusPill, fmtTime, siteText } from "./common";
 import { useSubmit } from "./GateForms";
-import TrialMap from "./TrialMap";
+import TrialMap, { hasMapSite, trialNumbers, type TrialMapHandle } from "./TrialMap";
 import { MutationBox } from "./CaseView";
 
 function CriteriaTable({ rows }: { rows: EligibilityResult[] }) {
@@ -58,6 +58,35 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
   const eligible = sl.trials.filter((t) => (t.group ?? "eligible") === "eligible");
   const needsTest = sl.trials.filter((t) => t.group === "needs_test");
   const needsReview = sl.trials.filter((t) => t.group === "needs_review");
+  // Map and cards share these numbers (card order).
+  const nums = trialNumbers(sl.trials);
+  const mapRef = useRef<TrialMapHandle>(null);
+  // Clicking a map marker scrolls to that trial's card, focuses it and briefly highlights it.
+  const [flashId, setFlashId] = useState<string | null>(null);
+  const flashTimer = useRef<number>();
+  useEffect(() => () => window.clearTimeout(flashTimer.current), []);
+  const jumpTo = (id: string) => {
+    const card = document.getElementById(`trial-${id}`);
+    card?.scrollIntoView({ behavior: "smooth", block: "start" });
+    card?.focus({ preventScroll: true });
+    window.clearTimeout(flashTimer.current);
+    setFlashId(null); // restart the animation if the same card is clicked again
+    requestAnimationFrame(() => setFlashId(id));
+    flashTimer.current = window.setTimeout(() => setFlashId(null), 1500);
+  };
+
+  const card = (t: ShortlistTrial) => (
+    <TrialCard
+      key={t.trial_id}
+      t={t}
+      n={nums.get(t.trial_id)!}
+      flash={flashId === t.trial_id}
+      onShowOnMap={hasMapSite(t) ? () => mapRef.current?.showTrial(t.trial_id) : undefined}
+      canReview={canReview}
+      choice={get(t.trial_id)}
+      onChange={(c) => setC(t.trial_id, c)}
+    />
+  );
 
   return (
     <div>
@@ -68,13 +97,12 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
         drive times are estimates.
       </div>
       <div style={{ height: 12 }} />
-      <TrialMap shortlist={sl} />
+      <TrialMap ref={mapRef} shortlist={sl} onSelectTrial={jumpTo} />
       {mutation && <MutationBox m={mutation} />}
       <div style={{ height: 10 }} />
+      <div id="trial-list" tabIndex={-1} className="trial-list" aria-label="Trial list">
       {eligible.length > 0 && <h4 style={{ margin: "14px 0 6px" }}>Eligible on what we know ({eligible.length})</h4>}
-      {eligible.map((t) => (
-        <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
-      ))}
+      {eligible.map(card)}
       {needsTest.length > 0 && (
         <>
           <h4 style={{ margin: "14px 0 6px" }}>Needs a test before it can match ({needsTest.length})</h4>
@@ -83,9 +111,7 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
           </div>
         </>
       )}
-      {needsTest.map((t) => (
-        <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
-      ))}
+      {needsTest.map(card)}
       {needsReview.length > 0 && (
         <>
           <h4 style={{ margin: "14px 0 6px" }}>Needs doctor review of the criteria ({needsReview.length})</h4>
@@ -94,9 +120,8 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
           </div>
         </>
       )}
-      {needsReview.map((t) => (
-        <TrialCard key={t.trial_id} t={t} canReview={canReview} choice={get(t.trial_id)} onChange={(c) => setC(t.trial_id, c)} />
-      ))}
+      {needsReview.map(card)}
+      </div>
       {canReview && (
         <form
           onSubmit={(e) => {
@@ -130,11 +155,36 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
   );
 }
 
-function TrialCard({ t, canReview, choice, onChange }: { t: ShortlistTrial; canReview: boolean; choice: Choice; onChange: (c: Partial<Choice>) => void }) {
+function TrialCard({
+  t,
+  n,
+  flash,
+  onShowOnMap,
+  canReview,
+  choice,
+  onChange,
+}: {
+  t: ShortlistTrial;
+  n: number;
+  flash: boolean;
+  onShowOnMap?: () => void;
+  canReview: boolean;
+  choice: Choice;
+  onChange: (c: Partial<Choice>) => void;
+}) {
   const decided = canReview ? choice.keep : t.doctor_decision === "pending" ? null : t.doctor_decision === "keep";
   return (
-    <div data-tour="trial-card" className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}`}>
+    <div
+      id={`trial-${t.trial_id}`}
+      tabIndex={-1}
+      aria-label={`Trial ${n}, ${t.trial_id}`}
+      data-tour="trial-card"
+      className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}${flash ? " flash" : ""}`}
+    >
       <div className="thead">
+        <span className="pin-num" title={`Map marker ${n}`}>
+          {n}
+        </span>
         <b>{t.trial_id}</b>
         <RecruitChip status={t.recruitment_status} label={t.status_label} />
         {t.remote_participation && <span className="chip doc">Remote participation</span>}
@@ -143,6 +193,11 @@ function TrialCard({ t, canReview, choice, onChange }: { t: ShortlistTrial; canR
         )}
         {!canReview && t.doctor_decision !== "pending" && (
           <span className={`chip ${t.doctor_decision === "keep" ? "doc" : ""}`}>Doctor: {t.doctor_decision}</span>
+        )}
+        {onShowOnMap && (
+          <button type="button" className="linkbtn show-on-map" onClick={onShowOnMap}>
+            Show on map
+          </button>
         )}
       </div>
       <div className="ttitle">{t.title}</div>
