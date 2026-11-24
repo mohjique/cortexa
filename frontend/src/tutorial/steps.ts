@@ -85,7 +85,7 @@ export const STEPS: TourStep[] = [
     tab: "trials",
     target: "trial-card",
     title: "Eligibility with evidence",
-    body: "Each rule is marked met, not met or unknown, with the patient field and the criterion text it used. Unknown is never guessed. Recruiting and not-yet-recruiting trials are labeled. The doctor keeps or rejects every trial.",
+    body: "Each rule is marked met, not met or unknown, with the patient field and the criterion text it used. Unknown is never guessed. An unknown doesn't remove a trial; it shows what the doctor still needs to confirm. Recruiting and not-yet-recruiting trials are labeled. The doctor keeps or rejects every trial.",
   },
   {
     id: "audit",
