@@ -431,9 +431,8 @@ def _before_surgery(facts: Facts, match: PhraseMatch, policy: Policy) -> Finding
 
     Never `not_met`. A phrase cannot tell "enroll before surgery" from "MRI
     before surgery" or from a re-resection trial, and a not_met would hide the
-    trial on a guess (rule 3). After surgery the doctor decides; a trial the
-    doctor declined at `preop_review` is hidden by `agent.matching`, which
-    cites that decision.
+    trial on a guess (rule 3). After surgery the doctor decides, with the
+    pre-op answer in view (`agent.matching.preop_review_row`).
     """
     what = "may need enrollment before surgery" if match.enrollment else "is timed before surgery"
     if facts.stage == "post_pathology":

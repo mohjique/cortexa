@@ -74,6 +74,8 @@ def test_locked_safety_settings_cannot_be_loosened(change, match):
         ({"pre_surgery_detection.exclusion_phrases": [""]}, "exclusion_phrases"),
         # Rule 8: no hidden default list in code; policy.yaml is the only source.
         ({"pre_surgery_detection.inclusion_context_words": ...}, "inclusion_context_words"),
+        ({"pre_surgery_detection.inclusion_context_window_words": ...}, "inclusion_context_window_words"),
+        ({"pre_surgery_detection.inclusion_context_window_words": 0}, "inclusion_context_window_words"),
     ],
 )
 def test_bad_edits_rejected(change, match):

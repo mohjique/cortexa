@@ -43,7 +43,8 @@ mutation_check:
 # "prior resections"), inside the named criteria list only. Matching leans
 # toward flagging: a missed flag closes the enrollment window at surgery, a
 # false one costs the doctor one answer at the pre-op review. After surgery a
-# matched bullet is "unknown" for the doctor, never "not_met".
+# matched bullet, and the doctor's pre-op answer, are "unknown" for the
+# doctor, never "not_met".
 # "prior resection" in an INCLUSION list means a recurrent-tumor trial, so it
 # is not listed there. Add phrases here; no code change needed.
 pre_surgery_detection:
@@ -65,10 +66,13 @@ pre_surgery_detection:
     - "window of opportunity"
     - "neoadjuvant"
   # Enrollment or study-treatment wording. An inclusion phrase with one of
-  # these within 8 words is a firm flag. Without one it is still flagged, as
-  # "Possible: check criteria": "Preoperatively, the lesion must be >= 1 cm"
-  # may time a measurement, or the trial may dose before surgery. These match
-  # inside a word too ("therap" matches "radiotherapy", "enrol" "enrollment").
+  # these within inclusion_context_window_words words on either side (the
+  # phrase itself is not searched) is a firm flag. Without one it is still
+  # flagged, as "Possible: check criteria": "Preoperatively, the lesion must
+  # be >= 1 cm" may time a measurement, or the trial may dose before surgery.
+  # Each matches at the start of a word ("enrol" matches "enrollment", "treat"
+  # matches "treated" but not "untreated"), so list compounds on their own.
+  inclusion_context_window_words: 8
   inclusion_context_words:
     - "enrol"
     - "includ"
@@ -81,6 +85,11 @@ pre_surgery_detection:
     - "study therapy"
     - "treat"
     - "therap"
+    - "radiotherap"
+    - "chemotherap"
+    - "chemoradiotherap"
+    - "chemoradiation"
+    - "immunotherap"
     - "dose"
     - "dosing"
     - "administ"

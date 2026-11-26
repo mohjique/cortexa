@@ -7,22 +7,25 @@ bullet the checker treats as pre-surgery, and the reverse (`agent.preop`,
 
 Matching leans toward flagging. A missed flag means the doctor is never told
 about a trial that needs enrollment before surgery, and that window closes at
-surgery. A false flag costs the doctor one answer at the `preop_review` gate,
-and after pathology the checker only ever makes a pre-surgery bullet
-`unknown`, never `not_met`, so a false flag cannot hide a trial.
+surgery. A false flag costs the doctor one answer at the `preop_review` gate.
+After pathology neither the bullet nor the doctor's pre-op answer is ever
+`not_met` (`agent.eligibility._before_surgery`, `agent.matching`), so a false
+flag cannot hide a trial.
 
 - A phrase matches whole words plus a common suffix: "preoperative" matches
   "preoperatively", "prior resection" matches "prior resections", "prior
   brain surgery" matches "prior brain surgeries", but "prior resection" does
   not match "prior resectionist".
 - An inclusion phrase with enrollment or study-treatment wording
-  (`inclusion_context_words`) within `CONTEXT_WINDOW_WORDS` words is firm
-  (`enrollment=True`). Without it the match still counts, as possible:
+  (`inclusion_context_words`) within `inclusion_context_window_words` words
+  on either side is firm (`enrollment=True`). The phrase itself is not
+  searched, so "before planned surgical resection" is not its own context
+  ("planned"), nor is "neoadjuvant". Without it the match still counts, as possible:
   "Preoperatively, the lesion must be >= 1 cm" may time a measurement, or it
   may be a window-of-opportunity trial that doses before surgery. Only the
   doctor can tell.
-- Context words match anywhere inside a word ("therap" in "radiotherapy",
-  "treat" in "treated"), since the window already keeps them local.
+- Context words match at the start of a word ("treat" matches "treated",
+  not "untreated"). Compounds are listed in policy.yaml ("radiotherap").
 """
 
 from __future__ import annotations
@@ -32,9 +35,6 @@ from dataclasses import dataclass
 from functools import lru_cache
 
 from agent.policy import PreSurgeryPolicy
-
-# How many words either side of a phrase are searched for enrollment wording.
-CONTEXT_WINDOW_WORDS = 8
 
 # Suffixes a phrase may take and still match: -ly, -s, -es.
 _SUFFIX = r"(?:ly|e?s)?"
@@ -65,7 +65,7 @@ def _phrase_pattern(phrases: tuple[str, ...]) -> re.Pattern[str]:
 
 @lru_cache(maxsize=64)
 def _context_pattern(words: tuple[str, ...]) -> re.Pattern[str]:
-    return re.compile("|".join(re.escape(w) for w in words), re.IGNORECASE)
+    return re.compile(r"(?<!\w)(?:" + "|".join(re.escape(w) for w in words) + ")", re.IGNORECASE)
 
 
 def _first(text: str, phrases: list[str]) -> tuple[str, int, int] | None:
@@ -77,14 +77,14 @@ def _first(text: str, phrases: list[str]) -> tuple[str, int, int] | None:
     return phrases[i], m.start(), m.end()
 
 
-def _window(text: str, start: int, end: int) -> str:
-    """The phrase plus `CONTEXT_WINDOW_WORDS` words on each side."""
+def _around(text: str, start: int, end: int, n: int) -> tuple[str, str]:
+    """(up to `n` words before the phrase, up to `n` words after), phrase left out."""
     words = list(_WORD.finditer(text))
     before = [w for w in words if w.end() <= start]
     after = [w for w in words if w.start() >= end]
-    lo = before[-CONTEXT_WINDOW_WORDS].start() if len(before) >= CONTEXT_WINDOW_WORDS else 0
-    hi = after[CONTEXT_WINDOW_WORDS - 1].end() if len(after) >= CONTEXT_WINDOW_WORDS else len(text)
-    return text[lo:hi]
+    lo = before[-n].start() if len(before) >= n else 0
+    hi = after[n - 1].end() if len(after) >= n else len(text)
+    return text[lo:start], text[end:hi]
 
 
 def inclusion_match(text: str, rules: PreSurgeryPolicy) -> PhraseMatch | None:
@@ -94,7 +94,8 @@ def inclusion_match(text: str, rules: PreSurgeryPolicy) -> PhraseMatch | None:
         return None
     phrase, start, end = hit
     context = _context_pattern(tuple(rules.inclusion_context_words))
-    near = context.search(_window(text, start, end)) is not None
+    sides = _around(text, start, end, rules.inclusion_context_window_words)
+    near = any(context.search(side) for side in sides)
     return PhraseMatch(phrase, start, end, enrollment=near)
 
 

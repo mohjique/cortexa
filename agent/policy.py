@@ -104,10 +104,12 @@ class PreSurgeryPolicy(Schema):
     inclusion_phrases: PhraseList
     exclusion_phrases: PhraseList
     # Enrollment or study-treatment wording. An inclusion phrase with one of
-    # these nearby is a firm flag; without one it is still flagged, as
-    # "possible" (matched_on: phrase_only). Required, so policy.yaml is the
-    # only list (rule 8). Matching lives in agent/presurgery.py.
+    # these within `inclusion_context_window_words` words is a firm flag;
+    # without one it is still flagged, as "possible" (matched_on: phrase_only).
+    # Required, so policy.yaml is the only source (rule 8). Matching lives in
+    # agent/presurgery.py.
     inclusion_context_words: PhraseList
+    inclusion_context_window_words: Annotated[int, Field(ge=1)]
     title_hints: list[Phrase] = []
     # A trial is screened only if its conditions or title name one of these.
     condition_keywords: PhraseList = ["glioma", "glioblastoma", "astrocytoma", "oligodendroglioma"]

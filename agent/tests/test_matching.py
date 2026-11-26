@@ -217,26 +217,26 @@ def test_near_miss_fails_one_rule():
     assert "NCT99000008" not in ids and "NCT99000009" not in ids
 
 
-def preop_with(trial_id: str, action: str, reason: str | None = None) -> PreOpScreen:
+def preop_with(trial_id: str, action: str, reason: str | None = None, matched_on: str = "criteria") -> PreOpScreen:
     return PreOpScreen(
         case_id="t", trials_considered=1, tests_needed=[], label="Suspected glioma. Biopsy results pending.",
         pre_surgery_trials=[PreSurgeryTrial(
             trial_id=trial_id, title="[SYNTHETIC] window trial", recruitment_status="RECRUITING",
-            criterion_text="Must enroll before planned surgical resection",
+            criterion_text="Must enroll before planned surgical resection", matched_on=matched_on,
             doctor_action=action, doctor_reason=reason)],
     )
 
 
-def test_trial_declined_at_preop_review_is_not_met_citing_the_doctor():
-    row = matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "not_pursuing", "Already had surgery"))
-    assert row is not None and row.status == "not_met" and row.evidence_field == "preop_review"
+@pytest.mark.parametrize("matched_on", ["criteria", "phrase_only", "title_hint"])
+@pytest.mark.parametrize("action, reason", [("not_pursuing", "Already had surgery"), ("pursue_before_surgery", None)])
+def test_preop_answer_is_unknown_never_not_met(action, reason, matched_on):
+    """The pre-op answer was about enrolling before surgery, before pathology: it never rules a trial out."""
+    row = matching.preop_review_row("NCT99000004", preop_with("NCT99000004", action, reason, matched_on))
+    assert row is not None and row.status == "unknown" and row.evidence_field == "preop_review"
     assert row.criterion_text == "Must enroll before planned surgical resection"  # rule 4
-    assert "Already had surgery" in row.reason
-
-
-def test_trial_pursued_at_preop_review_is_unknown_for_the_doctor():
-    row = matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "pursue_before_surgery"))
-    assert row is not None and row.status == "unknown"
+    if reason:
+        assert reason in row.reason
+    assert ("possible match only" in row.reason) == (matched_on != "criteria")
 
 
 def test_no_preop_answer_adds_no_row():
@@ -245,21 +245,29 @@ def test_no_preop_answer_adds_no_row():
     assert matching.preop_review_row("NCT99000001", preop_with("NCT99000004", "not_pursuing", "x")) is None
 
 
-def test_declined_trial_is_hidden_and_not_a_near_miss(audit_log):
-    """demo-012: NCT99000004 fails only on MGMT. Declined at pre-op, it also fails on
-    the doctor's answer, and a doctor-declined trial is never a near miss."""
+def test_trial_declined_before_surgery_is_still_shortlisted_with_the_answer(audit_log):
+    """Review finding: a declined possible flag (NCT05084430 wording) must not hide a trial
+    the patient can join after surgery."""
+    shortlisted = match("demo-016")
+    assert isinstance(shortlisted, Shortlist)
+    tid = shortlisted.trials[0].trial_id
+    rec = record("demo-016").model_copy(
+        update={"preop": preop_with(tid, "not_pursuing", "not a window trial", matched_on="phrase_only")})
+    out = matching.match_case(rec, policy.get_policy())
+    assert isinstance(out, Shortlist)
+    [t] = [t for t in out.trials if t.trial_id == tid]
+    [row] = [r for r in t.eligibility if r.evidence_field == "preop_review"]
+    assert row.status == "unknown" and "not a window trial" in row.reason
+    [entry] = [e for e in audit_log.read() if e.action == "preop_review_applied"]
+    assert entry.detail == {"trials": [tid]}
+
+
+def test_declined_trial_failing_one_rule_is_still_a_near_miss():
+    """demo-012: NCT99000004 fails only on MGMT; the pre-op answer does not change that."""
     rec = record("demo-012").model_copy(update={"preop": preop_with("NCT99000004", "not_pursuing", "x")})
     out = matching.match_case(rec, policy.get_policy())
     assert isinstance(out, NoMatchPlan)
-    assert "NCT99000004" not in {m.trial_id for m in out.near_misses}
-    [entry] = [e for e in audit_log.read() if e.action == "preop_review_applied"]
-    assert entry.detail == {"trials": {"NCT99000004": "not_met"}}
-
-
-def test_declined_only_on_preop_review_is_not_a_near_miss():
-    rows = [matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "not_pursuing", "x"))]
-    t = next(t for t in matching.search_trials() if t.trial_id == "NCT99000004")
-    assert matching._near_miss(matching.Checked(t, rows, None, False)) is None
+    assert {m.trial_id: m for m in out.near_misses}["NCT99000004"].near_miss_type == "fails_one_rule"
 
 
 def test_near_miss_pending_result():

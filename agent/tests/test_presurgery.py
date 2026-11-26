@@ -13,11 +13,43 @@ def rules():
 
 
 def test_context_word_must_be_near_the_phrase():
-    far = " ".join(["word"] * (presurgery.CONTEXT_WINDOW_WORDS + 2))
+    far = " ".join(["word"] * (rules().inclusion_context_window_words + 2))
     m = presurgery.inclusion_match(f"Preoperative MRI {far} no prior radiation therapy", rules())
     assert m is not None and not m.enrollment  # possible, not firm
     m = presurgery.inclusion_match("Preoperative study treatment for 7 days", rules())
     assert m is not None and m.enrollment
+
+
+@pytest.mark.parametrize("text", [
+    "Before planned surgical resection, MRI within 14 days",  # "planned" is inside the phrase
+    "Window of opportunity cohort: MRI within 14 days",  # "window" is inside the phrase
+    "Neoadjuvant MRI within 14 days",  # the phrase is a context word too
+    "Pre-operative imaging must show a lesion; untreated patients",  # "treat" only inside "untreated"
+    "Preoperative pretreatment labs",
+])
+def test_phrase_is_not_its_own_context_and_words_match_at_word_start(text):
+    m = presurgery.inclusion_match(text, rules())
+    assert m is not None and not m.enrollment
+
+
+@pytest.mark.parametrize("text", [
+    "Patients must be planned for preoperative chemoradiotherapy",
+    "Treated preoperatively with radiotherapy",
+    "Neoadjuvant immunotherapy for 2 weeks",
+])
+def test_listed_compounds_still_count_as_enrollment_wording(text):
+    m = presurgery.inclusion_match(text, rules())
+    assert m is not None and m.enrollment
+
+
+def test_window_size_comes_from_policy():
+    """Rule 8: staff can widen or narrow the window in policy.yaml."""
+    from agent import policy as pol
+    text = "Preoperative MRI one two three four five study treatment"  # 5 words between
+    assert presurgery.inclusion_match(text, rules()).enrollment
+    narrow = pol.POLICY_PATH.read_text(encoding="utf-8").replace(
+        "inclusion_context_window_words: 8", "inclusion_context_window_words: 3")
+    assert presurgery.inclusion_match(text, pol.parse_policy(narrow).pre_surgery_detection).enrollment is False
 
 
 @pytest.mark.parametrize("text, phrase", [

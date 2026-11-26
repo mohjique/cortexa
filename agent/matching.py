@@ -25,11 +25,12 @@ If nothing passes, it builds the no-match plan from
 the care team (rule 5: never the patient) and a tumor board log entry.
 
 A glioma trial the doctor answered at the `preop_review` gate gets one more
-row citing that answer (`preop_review_row`). "not_pursuing" is `not_met`, so
-the trial stays off the shortlist: it is a recorded doctor decision, not a
-guess (rules 2 and 3). "pursue_before_surgery" is `unknown`, so the doctor
-confirms enrollment. Without that row, a pre-surgery bullet is only ever
-`unknown` after surgery (`agent.eligibility._before_surgery`).
+row citing that answer (`preop_review_row`). It is always `unknown`, never
+`not_met`: the pre-op answer was given before pathology, about enrolling
+before surgery, so it cannot rule the trial out afterwards (rule 3). The row
+puts the earlier answer and reason in front of the doctor, who decides with
+the pathology in hand. A trial that truly needed an untouched tumor is ruled
+out by its own criteria ("Prior brain surgery or biopsy"), with evidence.
 
 The mutation check is not read here. The workflow attaches it to each
 shortlist trial as context only (rule 10).
@@ -76,12 +77,11 @@ CONDITION_FOR_BUCKET = {
 PREOP_REVIEW_FIELD = "preop_review"
 
 # A trial that fails only on one of these is for a different tumor or
-# disease stage (new vs recurrent, another hormone), or the doctor declined it
-# at the pre-op review, or it enrolls only the other sex. None can change, so
-# it is not a near miss. The alert still catches new trials.
+# disease stage (new vs recurrent, another hormone), or enrolls only the other
+# sex. None can change, so it is not a near miss. The alert still catches new
+# trials.
 NOT_NEAR_MISS_FIELDS = frozenset(
-    {"confirmed_bucket", "diagnosis", "stage", "recurrent", "pituitary.secreting_hormone", "sex",
-     PREOP_REVIEW_FIELD}
+    {"confirmed_bucket", "diagnosis", "stage", "recurrent", "pituitary.secreting_hormone", "sex"}
 )
 
 
@@ -183,16 +183,22 @@ def _alert(rec: CaseRecord, now: datetime) -> TrialAlert:
 
 
 def preop_review_row(trial_id: str, preop: PreOpScreen | None) -> EligibilityResult | None:
-    """The row citing the doctor's preop_review answer for this trial, or None."""
+    """The `unknown` row citing the doctor's preop_review answer for this trial, or None.
+
+    Never `not_met`, whatever the answer or the kind of flag: the doctor
+    decides again after pathology, with this answer in view.
+    """
     flag = next((t for t in preop.pre_surgery_trials if t.trial_id == trial_id), None) if preop else None
     if flag is None or flag.doctor_action == "pending":
         return None
+    possible = " (flagged as a possible match only)" if flag.matched_on != "criteria" else ""
     if flag.doctor_action == "not_pursuing":
-        status, reason = "not_met", f"doctor chose not to pursue this trial at the pre-op review: {flag.doctor_reason}"
+        reason = (f"doctor review: doctor declined this trial before surgery at the pre-op review{possible}: "
+                  f"{flag.doctor_reason}; confirm whether that still applies after surgery")
     else:
-        status, reason = "unknown", ("doctor review: doctor chose to pursue this trial before surgery at the "
-                                     "pre-op review; confirm whether the patient enrolled")
-    return EligibilityResult(trial_id=trial_id, criterion_text=flag.criterion_text, status=status,
+        reason = (f"doctor review: doctor chose to pursue this trial before surgery at the pre-op "
+                  f"review{possible}; confirm whether the patient enrolled")
+    return EligibilityResult(trial_id=trial_id, criterion_text=flag.criterion_text, status="unknown",
                              evidence_field=PREOP_REVIEW_FIELD, reason=reason)
 
 
@@ -233,8 +239,8 @@ def match_case(rec: CaseRecord, policy: Policy) -> Shortlist | NoMatchPlan:
     condition = CONDITION_FOR_BUCKET.get(r.confirmed_bucket, "brain tumor")
     trials = search_trials(condition=condition, case_id=case_id)  # nationwide
     checked = check_all(trials, Facts.from_results(r), origin, policy, case_id, rec.preop)
-    applied = {c.trial.trial_id: row.status for c in checked for row in c.rows
-               if row.evidence_field == PREOP_REVIEW_FIELD}
+    applied = sorted(c.trial.trial_id for c in checked for row in c.rows
+                     if row.evidence_field == PREOP_REVIEW_FIELD)
     if applied:
         audit("agent", "preop_review_applied", {"trials": applied}, case_id=case_id)
 

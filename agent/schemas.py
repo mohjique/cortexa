@@ -327,7 +327,8 @@ class PreSurgeryTrialAck(Schema):
 
     @model_validator(mode="after")
     def _reason_when_declined(self) -> PreSurgeryTrialAck:
-        # Declining closes the window for good, so the tumor board must see why.
+        # Declining closes the pre-surgery window, so the tumor board must see why. The
+        # reason is shown again when the trial comes back for review after pathology.
         if self.action == "not_pursuing" and self.reason is None:
             raise ValueError("reason is required when action is not_pursuing")
         return self
