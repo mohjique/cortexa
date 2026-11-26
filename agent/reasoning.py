@@ -80,7 +80,7 @@ def reasoning_prompt(bucket: str, confidence: float, flagged: bool) -> str:
         "In 3 to 5 short sentences: first, describe the visible features in the image that are "
         "consistent with the suspected call. Then explain what the next steps of this pathway will "
         "answer for the team. Do not add steps that are not listed, and do not name any other "
-        "tumor type."
+        f"tumor type. Whenever you name the tumor, call it 'the suspected {BUCKET_TEXT[bucket]}'."
     )
 
 
@@ -98,6 +98,16 @@ _FORBIDDEN = re.compile(
 # "a glioma, whether or not ..." are flat claims and must stay rejected.
 _REASONING_HEDGE = re.compile(
     r"\b(could be|may be|might be|likely|suggest\w*|will determine)\b",
+    re.IGNORECASE,
+)
+
+# A property of a named tumor type ("the specific type of glioma", "the grade
+# of the meningioma") takes the type as settled, so a reasoning hedge in the
+# same sentence does not cover it. "Will determine whether this is a glioma"
+# or "the grade of the suspected glioma" leave the type open and still pass.
+_PRESUMED_TYPE = re.compile(
+    r"\b(?:type|subtype|kind|grade|nature|characteristics|features|properties)s?\s+of\s+"
+    r"(?:the\s+|this\s+|that\s+|its\s+)?" + _TUMOR.pattern.removeprefix(r"\b"),
     re.IGNORECASE,
 )
 
@@ -166,6 +176,10 @@ def check_reasoning(text: str, bucket: str | None = None) -> str | None:
     if _FORBIDDEN.search(t):
         return "forbidden wording (diagnoses, recommends, directs or refers)"
     for sentence in re.split(r"(?<=[.!?])\s+", t):
-        if _TUMOR.search(sentence) and not (_HEDGE.search(sentence) or _REASONING_HEDGE.search(sentence)):
+        if not _TUMOR.search(sentence) or _HEDGE.search(sentence):
+            continue
+        if _PRESUMED_TYPE.search(sentence):
+            return "takes the tumor type as settled"
+        if not _REASONING_HEDGE.search(sentence):
             return "unhedged tumor type"
     return check_alignment(t, bucket) if bucket else None

@@ -203,7 +203,9 @@ def test_prompt_carries_the_resnet_call_and_its_pathway(bucket):
 @pytest.mark.parametrize("text", [
     "The image shows a lesion in the brain, which could be a glioma.",
     "The image does not show any features that would strongly suggest a meningioma.",
-    "The next steps will determine the specific type of glioma and its grade.",
+    "The next steps will determine the specific type of the suspected glioma and its grade.",
+    "Pathology will determine whether this is a glioma.",
+    "The next steps will determine the grade and molecular markers of the suspected meningioma.",
 ])
 def test_hedged_reasoning_passes(text):
     assert check_reasoning(text) is None
@@ -217,6 +219,12 @@ def test_hedged_reasoning_passes(text):
     "Imaging determines the lesion is a glioblastoma.",
     "Pathology determining the tumor is a meningioma.",
     "This is a glioma, whether or not surgery is done.",
+    # "will determine" does not hedge a sentence that takes the type as settled.
+    "The next steps will determine the specific type of glioma and its grade.",
+    "The next steps in the pathway will determine the specific type of glioma, its grade, "
+    "and its molecular characteristics (IDH status, 1p/19q codeletion, MGMT methylation).",
+    "Surgery will determine the grade of the meningioma.",
+    "The lesion could be large; pathology will determine the subtype of this glioblastoma.",
 ])
 def test_reasoning_that_claims_a_diagnosis_is_rejected(text):
     assert check_reasoning(text) is not None

@@ -129,8 +129,8 @@
     "case_id": "demo-015",
     "reasoning_bucket": "glioma",
     "resnet_confidence": 0.9997,
-    "reasoning": "The image shows a large, irregular mass in the brain, obscuring the normal brain structures. The mass appears to be causing significant distortion of the surrounding brain tissue. The next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
-    "reasoning_rejected": null,
+    "reasoning": null,
+    "reasoning_rejected": "takes the tumor type as settled",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -138,8 +138,8 @@
     "case_id": "demo-016",
     "reasoning_bucket": "glioma",
     "resnet_confidence": 0.9991,
-    "reasoning": "The image shows a large, irregular lesion in the brain, likely within the brain parenchyma. There are also some surrounding edema. The lesion appears to be causing some distortion of the surrounding brain tissue. The next steps in the pathway will determine the specific type of glioma, its grade, and its molecular characteristics (IDH status, 1p/19q codeletion, MGMT methylation). This information is crucial for determining the best treatment approach.",
-    "reasoning_rejected": null,
+    "reasoning": null,
+    "reasoning_rejected": "takes the tumor type as settled",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
@@ -147,8 +147,8 @@
     "case_id": "demo-017",
     "reasoning_bucket": "glioma",
     "resnet_confidence": 0.9994,
-    "reasoning": "The image shows a large, irregular mass within the brain, likely involving the brain parenchyma. The mass appears to be causing some distortion of the surrounding brain structures. The next steps in the pathway will determine the specific type of glioma, its genetic characteristics (IDH status, 1p/19q codeletion, MGMT methylation), and its grade. This information is crucial for selecting the most appropriate treatment option.",
-    "reasoning_rejected": null,
+    "reasoning": null,
+    "reasoning_rejected": "takes the tumor type as settled",
     "model": "google/medgemma-4b-it",
     "prompt_version": "r1"
   },
