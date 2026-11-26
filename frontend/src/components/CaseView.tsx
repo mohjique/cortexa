@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { usePoll } from "../hooks";
-import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "../tutorial/exampleCase";
+import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "../tutorial/tourCase";
 import { useTutorial } from "../tutorial/TutorialContext";
 import { BUCKET_LABEL, STAGE_LABEL, nodeById, routeFor, waitingOn } from "../pathway";
 import type { CaseRecord, Gate, MutationCheckOutput, Stage } from "../types";
@@ -40,12 +40,13 @@ type Tab = "next" | "pathway" | "results" | "trials" | "audit";
 /**
  * The case's first tab is always what to do now, and it opens by default:
  * the doctor's form, the shortlist to review, the no-match plan, or the
- * agent's status. `act` marks a tab that needs a doctor.
+ * agent's status. `act` marks a tab that needs a doctor, so it is true only
+ * while a doctor gate is open (no_match is a closed case: nothing to approve).
  */
 function actionTab(record: CaseRecord | null | undefined, gate: Gate | undefined): { key: Tab; label: string; act: boolean } {
   if (gate === "enter_results") return { key: "results", label: "Enter results", act: true };
   if (gate === "review_shortlist") return { key: "trials", label: "Review shortlist", act: true };
-  if (record?.state.stage === "no_match") return { key: "trials", label: "No-match plan", act: true };
+  if (record?.state.stage === "no_match") return { key: "trials", label: "No-match plan", act: false };
   if (gate) return { key: "next", label: "Doctor action", act: true };
   return { key: "next", label: "Status", act: false };
 }
@@ -202,7 +203,12 @@ export default function CaseView() {
             {shownTab === "trials" && record && (
               <>
                 {record.shortlist && (
-                  <ShortlistReview record={record} canReview={gate === "review_shortlist"} onDone={refresh} />
+                  // The tour's example keeps its "needs a doctor" dot (the tour points at it) but can't be reviewed.
+                  <ShortlistReview
+                    record={record}
+                    canReview={gate === "review_shortlist" && record.state.case_id !== TOUR_CASE_ID}
+                    onDone={refresh}
+                  />
                 )}
                 {record.no_match && <NoMatch plan={record.no_match} />}
                 {record.preop && <PreOp preop={record.preop} />}

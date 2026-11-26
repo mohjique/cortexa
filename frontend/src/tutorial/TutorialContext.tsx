@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { TOUR_CASE_ID } from "./exampleCase";
+import { TOUR_CASE_ID } from "./tourCase";
 import { STEPS, type TourStep } from "./steps";
 
 // Set once the welcome card is dismissed (tour taken or skipped). If storage
@@ -25,8 +25,8 @@ function writeSeen() {
 // The case steps always open the built-in example case (exampleCase.ts, from
 // synthetic patient demo-016 at the shortlist stage), never one of the
 // visitor's cases. A new workspace has no cases, and a real case may not have
-// reached the stage a step points at, so every visitor sees the same 11 steps.
-// It loads from the bundle, so the tour starts at once even on a cold backend.
+// reached the stage a step points at, so every visitor sees the same steps.
+// It loads from the app's own files, so the tour starts at once even on a cold backend.
 
 interface Tutorial {
   active: boolean;

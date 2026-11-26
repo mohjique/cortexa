@@ -2,7 +2,7 @@
 // enforces the gates, policy and audit log. The UI never decides a stage change.
 import type { AuditEntry, CaseRecord, CaseState, DecisionRecord, GateDecision } from "./types";
 import { WORKSPACE_HEADER, workspaceId } from "./workspace";
-import { EXAMPLE_AUDIT, EXAMPLE_RECORD, TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "./tutorial/exampleCase";
+import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "./tutorial/tourCase";
 
 // Production: VITE_API_URL points at the deployed FastAPI server.
 // Local dev: unset, so requests go to /api and Vite proxies them to :8000.
@@ -57,23 +57,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type Health = { status: string; classifier: string; trial_source?: "demo" | "live" };
 
-// The guided tour's example case (tutorial/exampleCase.ts) is served from the
-// bundle and never reaches the backend: reads return the fixture, and every
-// write for it is refused here, so nothing on it can be approved or changed.
+// The guided tour's example case (tutorial/exampleCase.ts) never reaches the
+// backend: reads return the fixture, and every write for it is refused here,
+// so nothing on it can be approved or changed. The fixture is a separate chunk,
+// loaded only when the tour opens the case. The refusal is a 403, not status 0,
+// so it never reads as "backend offline".
 const isExample = (id: string) => id === TOUR_CASE_ID;
+const example = () => import("./tutorial/exampleCase");
 const refuseExample = () =>
-  Promise.reject(new ApiError(0, "This is the tour's example case. It can't be changed; open a real case instead."));
+  Promise.reject(new ApiError(403, "This is the tour's example case. It can't be changed; open a real case instead."));
 
 export const api = {
   /** Liveness, classifier, and where trials come from (`demo` or `live`). */
   health: () => request<Health>("/health"),
   listCases: () => request<CaseState[]>("/cases"),
   getCase: (id: string) =>
-    isExample(id) ? Promise.resolve(EXAMPLE_RECORD.state as CaseState) : request<CaseState>(`/cases/${encodeURIComponent(id)}`),
+    isExample(id) ? example().then((m) => m.EXAMPLE_RECORD.state as CaseState) : request<CaseState>(`/cases/${encodeURIComponent(id)}`),
   getRecord: (id: string) =>
-    isExample(id) ? Promise.resolve(EXAMPLE_RECORD as CaseRecord) : request<CaseRecord>(`/cases/${encodeURIComponent(id)}/record`),
+    isExample(id) ? example().then((m) => m.EXAMPLE_RECORD as CaseRecord) : request<CaseRecord>(`/cases/${encodeURIComponent(id)}/record`),
   getAudit: (id: string) =>
-    isExample(id) ? Promise.resolve(EXAMPLE_AUDIT as AuditEntry[]) : request<AuditEntry[]>(`/cases/${encodeURIComponent(id)}/audit`),
+    isExample(id) ? example().then((m) => m.EXAMPLE_AUDIT as AuditEntry[]) : request<AuditEntry[]>(`/cases/${encodeURIComponent(id)}/audit`),
   runAgent: (id: string) =>
     isExample(id) ? refuseExample() : request<CaseState>(`/cases/${encodeURIComponent(id)}/run`, { method: "POST" }),
 
