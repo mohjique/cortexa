@@ -1,4 +1,4 @@
-"""Regenerate the guided tour's example case (frontend/src/tutorial/exampleCase.ts).
+"""Regenerate the guided tour's example case (frontend/src/tutorial/exampleCase.ts and tourCase.ts).
 
 Walks a synthetic patient (default DEFAULT_PATIENT) through a running backend
 with its scripted doctor decisions (clinical/patients/<id>.json), stops at
@@ -41,9 +41,14 @@ REPO = Path(__file__).resolve().parents[2]
 OUT = REPO / "frontend" / "src" / "tutorial" / "exampleCase.ts"
 DEFAULT_PATIENT = "demo-016"
 DOCTOR = "dr-example"
+# Mirrors GATE_AT_STAGE in agent/workflow.py, minus review_shortlist (the walk
+# stops there). Any other stage is the end of the case's path.
 GATE = {
     "confirm_bucket": "confirm_bucket",
+    "watch_or_treat": "watch_or_treat",
     "preop_screen": "preop_review",
+    "hormone_labs": "hormone_labs",
+    "surgery_or_meds": "surgery_or_meds",
     "awaiting_pathology": "enter_results",
     "enter_results": "enter_results",
 }
@@ -58,7 +63,7 @@ def main() -> None:
     base = args.base.rstrip("/")
     source = args.patient
     # "~" is outside the backend's case ID pattern (agent/store.py), so no real
-    # case can ever have this ID. The fixture exports it as TOUR_CASE_ID.
+    # case can ever have this ID. tourCase.ts exports it as TOUR_CASE_ID.
     tour_id = f"example~{source}"
     out_path: Path = args.out
     ws = "tourexample" + uuid.uuid4().hex[:12]
@@ -80,30 +85,43 @@ def main() -> None:
 
     patient = json.loads((REPO / "clinical" / "patients" / f"{source}.json").read_text(encoding="utf-8"))
     image = (REPO / "classifier" / "demo_scans" / f"{source}.jpg").read_bytes()
-    call("POST", f"/cases?case_id={source}&filename={source}.jpg", image, "image/jpeg")
 
-    for _ in range(12):
-        rec = call("GET", f"/cases/{source}/record")
-        st = rec["state"]
-        if st["stage"] == "review_shortlist":
-            break
-        if st["waiting_on"] == "agent":
-            call("POST", f"/cases/{source}/run")
-            continue
-        gate = GATE[st["stage"]]
-        decision = dict(patient["doctor_decisions"][gate])
-        if gate == "preop_review":
-            decision["screen_id"] = rec["preop"]["screen_id"]
-        call("POST", f"/cases/{source}/decisions", {
-            "case_id": source, "gate": gate, "decision": decision, "doctor_id": DOCTOR,
-            "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "note": None,
-        })
-    else:
-        sys.exit(f"{source} did not reach review_shortlist")
+    # Leave nothing behind on the backend, however the walk ends.
+    try:
+        call("POST", f"/cases?case_id={source}&filename={source}.jpg", image, "image/jpeg")
+        for _ in range(12):
+            rec = call("GET", f"/cases/{source}/record")
+            st = rec["state"]
+            if st["stage"] == "review_shortlist":
+                break
+            # FINAL_STAGES in agent/workflow.py. Checked before waiting_on: no_match waits on the agent (alerts).
+            if st["stage"] in ("stopped", "rescan", "no_match"):
+                sys.exit(f"{source} ended at {st['stage']}, not review_shortlist: the tour needs a case with a shortlist")
+            if st["waiting_on"] == "agent":
+                call("POST", f"/cases/{source}/run")
+                continue
+            gate = GATE.get(st["stage"])
+            if gate is None:
+                sys.exit(f"{source} stopped at unexpected stage {st['stage']} (waiting on {st['waiting_on']})")
+            if gate not in patient["doctor_decisions"]:
+                sys.exit(f"{source} waits on {gate}, but {source}.json has no scripted {gate} decision")
+            decision = dict(patient["doctor_decisions"][gate])
+            if gate == "preop_review":
+                decision["screen_id"] = rec["preop"]["screen_id"]
+            call("POST", f"/cases/{source}/decisions", {
+                "case_id": source, "gate": gate, "decision": decision, "doctor_id": DOCTOR,
+                "ts": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()), "note": None,
+            })
+        else:
+            sys.exit(f"{source} did not reach review_shortlist")
 
-    record = call("GET", f"/cases/{source}/record")
-    audit = call("GET", f"/cases/{source}/audit")
-    call("POST", "/workspace/reset")  # leave nothing behind on the backend
+        record = call("GET", f"/cases/{source}/record")
+        audit = call("GET", f"/cases/{source}/audit")
+    finally:
+        try:
+            call("POST", "/workspace/reset")
+        except SystemExit as e:
+            print(f"warning: could not reset workspace {ws}: {e}", file=sys.stderr)
 
     # The heatmap is a file path on the backend machine; the tour shows the demo MRI only.
     record["classifier"]["heatmap_path"] = None
@@ -121,19 +139,28 @@ def main() -> None:
         if leak in text:
             sys.exit(f"fixture contains {leak!r}: scrub it before committing")
 
-    out_path.write_text(
-        "// GENERATED by frontend/scripts/make_tour_example.py. Do not edit by hand.\n"
-        f"// Synthetic patient {source}, walked through the real backend with its scripted\n"
-        "// doctor decisions and synthetic demo trials. Shown only during the guided tour,\n"
-        "// never saved and never sent to the backend (see api.ts).\n"
-        'import type { AuditEntry, CaseRecord } from "../types";\n\n'
+    header = "// GENERATED by frontend/scripts/make_tour_example.py. Do not edit by hand.\n"
+    # The IDs live in their own small module so the app can import them
+    # everywhere while the full fixture loads only when the tour opens it.
+    ids_path = out_path.with_name("tourCase.ts")
+    ids_path.write_text(
+        header
+        + "// The guided tour's example case IDs. The record and audit are in exampleCase.ts.\n"
         f"export const TOUR_CASE_ID = {json.dumps(tour_id)};\n"
-        f"export const TOUR_SOURCE_PATIENT = {json.dumps(source)};\n\n"
+        f"export const TOUR_SOURCE_PATIENT = {json.dumps(source)};\n",
+        encoding="utf-8",
+    )
+    out_path.write_text(
+        header
+        + f"// Synthetic patient {source}, walked through the real backend with its scripted\n"
+        "// doctor decisions and synthetic demo trials. Shown only during the guided tour,\n"
+        "// never saved and never sent to the backend (see api.ts, which loads it lazily).\n"
+        'import type { AuditEntry, CaseRecord } from "../types";\n\n'
         f"export const EXAMPLE_RECORD = {json.dumps(record, indent=2)} satisfies CaseRecord;\n\n"
         f"export const EXAMPLE_AUDIT = {json.dumps(audit, indent=2)} satisfies AuditEntry[];\n",
         encoding="utf-8",
     )
-    print(f"wrote {out_path}: stage {record['state']['stage']}, "
+    print(f"wrote {ids_path} and {out_path}: stage {record['state']['stage']}, "
           f"{len(record['shortlist']['trials'])} trials, {len(audit)} audit entries")
 
 
