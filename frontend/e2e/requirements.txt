@@ -1,0 +1,2 @@
+# Browser checks only (frontend/e2e). Not needed by the backend or the deploy.
+playwright==1.65.2
