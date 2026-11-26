@@ -183,7 +183,7 @@ export function PreopReviewForm({ record, onDone }: FormProps) {
         {preop.pre_surgery_trials.length > 0 ? (
           <div style={{ marginTop: 8 }}>
             <div className="muted" style={{ fontSize: 12 }}>
-              Trials that may need enrollment before surgery. Answer each one. A trial marked Possible may only time a test before surgery. Every trial is shown again after pathology, with your answer.
+              Trials that may need enrollment before surgery. Answer each one. A trial marked Possible may only time a test before surgery. Trials still open to the patient after pathology show your answer again.
             </div>
             {preop.pre_surgery_trials.map((t) => {
               const a = get(t.trial_id);
