@@ -8,9 +8,10 @@ glioma shortlist, e.g. demo-016, has both).
 import re
 import sys
 
+from playwright.sync_api import TimeoutError as PwTimeout
 from playwright.sync_api import sync_playwright
 
-from config import APP, OUT, Checks, init_script, launch, pin_in_view
+from config import APP, OUT, Checks, console_errors, init_script, launch, pin_in_view
 
 ACTIVE_ID = "document.activeElement.id"
 IN_LIST = "!!document.activeElement.closest('.site-pop')"
@@ -39,12 +40,17 @@ def run(ws: str, cid: str) -> int:
         pg = b.new_page(viewport={"width": 1400, "height": 900})
         errs: list[str] = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
-        pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+        pg.on("console", console_errors(errs))
         pg.add_init_script(init_script(ws))
         pg.goto(f"{APP}/cases/{cid}")
         # The pin's outer element is 0x0 by design (the pill is centered on the point),
         # so wait for it to be attached, not "visible".
-        pg.wait_for_selector(".trial-pin", state="attached", timeout=90000)
+        try:
+            pg.wait_for_selector(".trial-pin", state="attached", timeout=90000)
+        except PwTimeout:
+            c.ok(f"{cid}: map has pins", False, "(no pins after 90 s: no shortlist, or the case stopped early?)")
+            b.close()
+            return c.failures
         pg.wait_for_timeout(1500)
         pg.locator(".map").scroll_into_view_if_needed()
         pg.wait_for_timeout(500)
@@ -72,7 +78,12 @@ def run(ws: str, cid: str) -> int:
             b.close()
             return c.failures
         shared_pin.locator("span").click()
-        pg.wait_for_selector(".site-pop button")
+        try:
+            pg.wait_for_selector(".site-pop button")
+        except PwTimeout:
+            c.ok("shared pin opens list", False, "(no list after the click)")
+            b.close()
+            return c.failures
         rows = pg.locator(".site-pop button")
         c.ok("shared pin opens list", rows.count() >= 2, f"({rows.count()} rows; {pg.locator('.site-pop-head').inner_text()})")
         pg.locator(".map").screenshot(path=str(OUT / f"extras-{cid}-shared-list.png"))
@@ -94,23 +105,32 @@ def run(ws: str, cid: str) -> int:
         # then a trial at a different shared site (opening it closes this list).
         nums_on = [re.search(r"numbers ([\d, ]+)\.", x["label"] or "") for x in pins if x["group"]]
         groups = [[cards[int(n) - 1]["id"] for n in m.group(1).split(", ")] for m in nums_on if m]
-        here = next(g for g in groups if target in g)
-        show_on_map_keeps_list(pg, c, next(t for t in here if t != target), "(same site, list open)")
+        here = next((g for g in groups if target in g), None)
+        # Trial numbers are read from the shared pins' labels ("... numbers 3, 5. ...").
+        c.ok("shared pin labels list their trial numbers", here is not None, "" if here else "(pinLabel wording changed?)")
         other = next((g for g in groups if target not in g), None)
-        if other:
-            show_on_map_keeps_list(pg, c, other[0], "(other shared site, list open)")
-        else:
-            print("  SKIP show on map (other shared site): the case has one shared site")
+        if here:
+            show_on_map_keeps_list(pg, c, next(t for t in here if t != target), "(same site, list open)")
+            if other:
+                show_on_map_keeps_list(pg, c, other[0], "(other shared site, list open)")
+            else:
+                print("  SKIP show on map (other shared site): the case has one shared site")
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
         c.ok("Escape closes list", pg.locator(".site-pop").count() == 0)
         c.ok("Escape returns focus to pin", pg.evaluate(ON_PIN))
 
-        # Card -> map, single site: tooltip names the trial; Enter on the pin goes back.
+        # Card -> map, single site, with a shared list open: the list closes, the
+        # tooltip names the trial, and Enter on the pin goes back.
         single_ids = [x["id"] for x in cards if any(x["id"] in s["label"] for s in singles)]
         far = single_ids[-1]
+        again = pin_in_view(pg, ".trial-pin.group")
+        if again is not None:
+            again.locator("span").click()
+            pg.wait_for_timeout(700)
         pg.locator(f"#trial-{far} .show-on-map").click()
         pg.wait_for_timeout(900)
+        c.ok("show on map (single) closes an open list", again is not None and pg.locator(".site-pop").count() == 0)
         tip = pg.locator(".leaflet-tooltip").last.inner_text() if pg.locator(".leaflet-tooltip").count() else ""
         c.ok("show on map (single) tooltip names the trial", far in tip, tip.replace("\n", " | "))
         c.ok("focus on the pin", pg.evaluate(ON_PIN))

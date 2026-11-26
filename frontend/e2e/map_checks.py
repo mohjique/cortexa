@@ -21,7 +21,7 @@ import sys
 from playwright.sync_api import Page, sync_playwright
 from playwright.sync_api import TimeoutError as PwTimeout
 
-from config import APP, DOCTOR_ID, OUT, Checks, init_script, launch, pin_in_view
+from config import APP, DOCTOR_ID, OUT, Checks, console_errors, init_script, launch, pin_in_view
 
 # Pin counts, patient offset from map center, tile zoom and the map controls.
 GEOM = """() => {
@@ -188,7 +188,7 @@ def run(ws: str, cases: list[str], phone=False, variant=None, switch=None, revie
         pg = b.new_page(viewport={"width": 390, "height": 844} if phone else {"width": 1400, "height": 900})
         errs: list[str] = []
         pg.on("pageerror", lambda e: errs.append(str(e)))
-        pg.on("console", lambda m: errs.append(m.text) if m.type == "error" else None)
+        pg.on("console", console_errors(errs))
         pg.add_init_script(init_script(ws))
         if variant:
             pg.route("**/cases/*/record", reshaper(variant))

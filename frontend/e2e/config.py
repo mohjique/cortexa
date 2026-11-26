@@ -52,6 +52,20 @@ def pin_in_view(pg, selector: str = ".trial-pin"):
     return pg.locator(selector).nth(idx) if idx >= 0 else None
 
 
+def console_errors(errs: list):
+    """Console handler that records app errors. A map tile that OpenStreetMap
+    throttles or drops logs "Failed to load resource" too; that isn't an app error."""
+
+    def on_console(m) -> None:
+        if m.type != "error":
+            return
+        if "Failed to load resource" in m.text and "tile.openstreetmap.org" in ((m.location or {}).get("url") or ""):
+            return
+        errs.append(m.text)
+
+    return on_console
+
+
 class Checks:
     """Collects PASS/FAIL lines and counts failures."""
 

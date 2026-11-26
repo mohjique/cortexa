@@ -114,6 +114,11 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
   // Icons are memoized: a new icon makes Leaflet reset the pin's classes, which
   // cuts off the "Show on map" pulse.
   const icons = useMemo(() => new Map(groups.map((g) => [g.key, pinIcon(g)])), [groups]);
+  // The "add" event labels a pin once; relabel when what it shows changes
+  // (e.g. a poll brings a new distance for the same trials).
+  useEffect(() => {
+    for (const g of groups) markers.current.get(g.key)?.getElement()?.setAttribute("aria-label", pinLabel(g));
+  }, [groups]);
 
   // Count pins, not trials: trials sharing a site share a pin, and counting
   // trials could open on 2 pins when 9 trials sit at one hospital.
@@ -158,7 +163,10 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
         if (g.trials.length > 1) {
           if (m.isPopupOpen()) focusList(m); // already open: no popupopen event will fire
           else m.openPopup();
-        } else m.openTooltip();
+        } else {
+          map.closePopup(); // another site's list could cover this pin
+          m.openTooltip();
+        }
         if (el) {
           el.classList.remove("pulse");
           void el.offsetWidth; // restart the animation

@@ -177,7 +177,7 @@ function TrialCard({
     <div
       id={`trial-${t.trial_id}`}
       tabIndex={-1}
-      role="region"
+      role="group"
       aria-label={`Trial ${n}, ${t.trial_id}`}
       data-tour="trial-card"
       className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}${flash ? " flash" : ""}`}
