@@ -2,7 +2,7 @@
 // enforces the gates, policy and audit log. The UI never decides a stage change.
 import type { AuditEntry, CaseRecord, CaseState, DecisionRecord, GateDecision } from "./types";
 import { WORKSPACE_HEADER, workspaceId } from "./workspace";
-import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "./tutorial/tourCase";
+import { TOUR_CASE_ID, TOUR_SCAN_URL } from "./tutorial/tourCase";
 
 // Production: VITE_API_URL points at the deployed FastAPI server.
 // Local dev: unset, so requests go to /api and Vite proxies them to :8000.
@@ -115,10 +115,10 @@ export const api = {
   heatmapUrl: (caseId: string) =>
     `${API_BASE}/cases/${encodeURIComponent(caseId)}/heatmap?ws=${encodeURIComponent(workspaceId())}`,
 
-  /** The case's MRI as uploaded (PNG). 404 when it wasn't kept. The example case shows its demo MRI. */
+  /** The case's MRI as uploaded (PNG). 404 when it wasn't kept. The example case shows its demo MRI, bundled with the app. */
   scanUrl: (caseId: string) =>
     isExample(caseId)
-      ? api.demoScanUrl(TOUR_SOURCE_PATIENT)
+      ? TOUR_SCAN_URL
       : `${API_BASE}/cases/${encodeURIComponent(caseId)}/image?ws=${encodeURIComponent(workspaceId())}`,
 
   /** The committed demo MRIs: case IDs only, no label or model call. */

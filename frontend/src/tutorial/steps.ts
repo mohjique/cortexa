@@ -7,6 +7,8 @@
 // (`tab`), which is plain navigation; they never click an approval button,
 // submit a form or create a case.
 
+import { TOUR_SOURCE_PATIENT, TOUR_SOURCE_SUMMARY } from "./tourCase";
+
 export type TourRoute = "board" | "case" | "new" | "current";
 export type CaseTab = "pathway" | "trials" | "audit";
 
@@ -53,7 +55,7 @@ export const STEPS: TourStep[] = [
     tab: "pathway",
     target: "pathway-tree",
     title: "Pathway",
-    body: "This is an example case from synthetic patient demo-016, a recurrent glioma, shown only during the tour. The tree shows where the case sits: done steps are lit, the current step glows, and dashed boxes show where the case can go next.",
+    body: `This is an example case from synthetic patient ${TOUR_SOURCE_PATIENT}, ${TOUR_SOURCE_SUMMARY} (doctor-confirmed), shown only during the tour. The tree shows where the case sits: done steps are lit, the current step glows, and dashed boxes show where the case can go next.`,
   },
   {
     id: "progress",

@@ -45,9 +45,12 @@ export default function Tour() {
   const path = step ? pathFor(step, t.caseId, loc.pathname) : null;
   const blockedNext = step?.waitFor === "doctorId" && !doctorId;
 
-  // Open the step's page.
+  // Open the step's page. Leaving the example case replaces its history entry,
+  // so Back after the tour goes to where the visitor was, never to the example.
+  // (Entering it pushes, so the page the tour started from is kept.)
   useEffect(() => {
-    if (path && path !== loc.pathname) nav(path);
+    if (!path || path === loc.pathname) return;
+    nav(path, { replace: loc.pathname === `/cases/${encodeURIComponent(t.caseId)}` });
   }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find and follow the target until the step changes.

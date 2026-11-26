@@ -12,9 +12,9 @@ export const EXAMPLE_RECORD = {
     "confirmed_bucket": "glioma",
     "treatment_path": null,
     "waiting_on": "doctor",
-    "updated_at": "2026-11-26T19:47:43.733515Z"
+    "updated_at": "2026-11-26T20:45:58.622101Z"
   },
-  "created_at": "2026-11-26T19:47:43.487009Z",
+  "created_at": "2026-11-26T20:45:58.482669Z",
   "classifier": {
     "case_id": "example~demo-016",
     "suspected_bucket": "glioma",
@@ -29,14 +29,14 @@ export const EXAMPLE_RECORD = {
     "flagged_uncertain": false,
     "heatmap_path": null,
     "findings_summary": null,
-    "reasoning": "The image shows a large, irregular lesion in the brain, likely within the brain parenchyma. There are also some surrounding edema. The lesion appears to be causing some distortion of the surrounding brain tissue. The next steps in the pathway will determine the specific type of glioma, its grade, and its molecular characteristics (IDH status, 1p/19q codeletion, MGMT methylation). This information is crucial for determining the best treatment approach.",
+    "reasoning": null,
     "reasoning_withheld": false
   },
   "decisions": [
     {
       "case_id": "example~demo-016",
       "doctor_id": "dr-example",
-      "ts": "2026-11-26T19:47:43Z",
+      "ts": "2026-11-26T20:45:58Z",
       "note": null,
       "gate": "confirm_bucket",
       "decision": {
@@ -47,7 +47,7 @@ export const EXAMPLE_RECORD = {
     {
       "case_id": "example~demo-016",
       "doctor_id": "dr-example",
-      "ts": "2026-11-26T19:47:43Z",
+      "ts": "2026-11-26T20:45:58Z",
       "note": null,
       "gate": "preop_review",
       "decision": {
@@ -65,7 +65,7 @@ export const EXAMPLE_RECORD = {
     {
       "case_id": "example~demo-016",
       "doctor_id": "dr-example",
-      "ts": "2026-11-26T19:47:43Z",
+      "ts": "2026-11-26T20:45:58Z",
       "note": null,
       "gate": "enter_results",
       "decision": {
@@ -595,18 +595,16 @@ export const EXAMPLE_RECORD = {
 
 export const EXAMPLE_AUDIT = [
   {
-    "ts": "2026-11-26T19:47:43.482150Z",
+    "ts": "2026-11-26T20:45:58.477355Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "tool_call:medgemma_cache",
     "detail": {
-      "added": [
-        "reasoning"
-      ]
+      "added": []
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.488652Z",
+    "ts": "2026-11-26T20:45:58.484076Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "case_created",
@@ -615,7 +613,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.493357Z",
+    "ts": "2026-11-26T20:45:58.488855Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "tool_call:classifier",
@@ -625,7 +623,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.503873Z",
+    "ts": "2026-11-26T20:45:58.498354Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "scan_stored",
@@ -634,7 +632,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.507030Z",
+    "ts": "2026-11-26T20:45:58.501157Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "classification_attached",
@@ -646,7 +644,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.509713Z",
+    "ts": "2026-11-26T20:45:58.503484Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
@@ -656,7 +654,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.520935Z",
+    "ts": "2026-11-26T20:45:58.511322Z",
     "case_id": "example~demo-016",
     "actor": "doctor",
     "action": "decision:confirm_bucket",
@@ -670,7 +668,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.525809Z",
+    "ts": "2026-11-26T20:45:58.515033Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
@@ -680,7 +678,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.577221Z",
+    "ts": "2026-11-26T20:45:58.520536Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "trial_search",
@@ -694,11 +692,11 @@ export const EXAMPLE_AUDIT = [
         "type": "list",
         "len": 9
       },
-      "ms": 45.7
+      "ms": 1.7
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.580389Z",
+    "ts": "2026-11-26T20:45:58.523243Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "tool_call:pre_surgery_detection",
@@ -711,7 +709,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.585425Z",
+    "ts": "2026-11-26T20:45:58.527194Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "tool_call:preop_tests_needed",
@@ -752,7 +750,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.588440Z",
+    "ts": "2026-11-26T20:45:58.530043Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_done:preop_screen",
@@ -761,7 +759,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.591222Z",
+    "ts": "2026-11-26T20:45:58.532601Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "waiting_on_doctor",
@@ -771,7 +769,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.603003Z",
+    "ts": "2026-11-26T20:45:58.540988Z",
     "case_id": "example~demo-016",
     "actor": "doctor",
     "action": "decision:preop_review",
@@ -792,7 +790,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.608126Z",
+    "ts": "2026-11-26T20:45:58.544952Z",
     "case_id": "example~demo-016",
     "actor": "doctor",
     "action": "preop_review_recorded",
@@ -805,7 +803,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.610945Z",
+    "ts": "2026-11-26T20:45:58.547883Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
@@ -815,7 +813,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.621486Z",
+    "ts": "2026-11-26T20:45:58.556047Z",
     "case_id": "example~demo-016",
     "actor": "doctor",
     "action": "decision:enter_results",
@@ -868,7 +866,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.626966Z",
+    "ts": "2026-11-26T20:45:58.560446Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
@@ -878,7 +876,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.633045Z",
+    "ts": "2026-11-26T20:45:58.565145Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "tool_call:mutation_check",
@@ -889,7 +887,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.646824Z",
+    "ts": "2026-11-26T20:45:58.568293Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_done:mutation_check",
@@ -899,7 +897,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.649328Z",
+    "ts": "2026-11-26T20:45:58.570741Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
@@ -909,7 +907,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.665670Z",
+    "ts": "2026-11-26T20:45:58.575439Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "geocode_zip",
@@ -924,11 +922,11 @@ export const EXAMPLE_AUDIT = [
         "lat": 30.628,
         "lon": -96.3344
       },
-      "ms": 11.6
+      "ms": 0.2
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.671115Z",
+    "ts": "2026-11-26T20:45:58.579327Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "trial_search",
@@ -942,11 +940,11 @@ export const EXAMPLE_AUDIT = [
         "type": "list",
         "len": 9
       },
-      "ms": 2.5
+      "ms": 1.2
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.675377Z",
+    "ts": "2026-11-26T20:45:58.582982Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -960,7 +958,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.679178Z",
+    "ts": "2026-11-26T20:45:58.586325Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -974,7 +972,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.682832Z",
+    "ts": "2026-11-26T20:45:58.589912Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -988,7 +986,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.686649Z",
+    "ts": "2026-11-26T20:45:58.593103Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1002,7 +1000,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.690337Z",
+    "ts": "2026-11-26T20:45:58.596402Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1016,7 +1014,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.694813Z",
+    "ts": "2026-11-26T20:45:58.599423Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1030,7 +1028,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.698872Z",
+    "ts": "2026-11-26T20:45:58.602290Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1044,7 +1042,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.702394Z",
+    "ts": "2026-11-26T20:45:58.605085Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1058,7 +1056,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.706237Z",
+    "ts": "2026-11-26T20:45:58.608300Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "eligibility_checked",
@@ -1072,7 +1070,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.721390Z",
+    "ts": "2026-11-26T20:45:58.611687Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "drive_time_table",
@@ -1117,11 +1115,11 @@ export const EXAMPLE_AUDIT = [
         175,
         330
       ],
-      "ms": 12.4
+      "ms": 0.6
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.724860Z",
+    "ts": "2026-11-26T20:45:58.614438Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "shortlist_built",
@@ -1139,7 +1137,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.727625Z",
+    "ts": "2026-11-26T20:45:58.616869Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_done:matching",
@@ -1148,7 +1146,7 @@ export const EXAMPLE_AUDIT = [
     }
   },
   {
-    "ts": "2026-11-26T19:47:43.730275Z",
+    "ts": "2026-11-26T20:45:58.619263Z",
     "case_id": "example~demo-016",
     "actor": "agent",
     "action": "stage_changed",
