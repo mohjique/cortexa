@@ -89,15 +89,18 @@ export default function Tour() {
       const el = onPage ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
       let r = el?.getBoundingClientRect();
       if (el && r && r.width > 0 && r.height > 0) {
-        if (!shown) {
+        const inBar = !!el.closest(".app-top");
+        // Scroll it into view when the step opens, and again if the visitor
+        // scrolls it all the way under the sticky bar (nothing left to spotlight).
+        if (!shown || (!inBar && r.bottom <= bar)) {
           shown = true;
           el.scrollIntoView({ block: r.height > (window.innerHeight - bar) * 0.7 ? "start" : "center" });
           r = el.getBoundingClientRect();
         }
         lastSeen = Date.now();
         readyAt = null;
-        const top = el.closest(".app-top") ? r.top : Math.max(r.top, bar);
-        const b = { top: Math.round(top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.bottom - top) };
+        const top = inBar ? r.top : Math.max(r.top, bar);
+        const b = { top: Math.round(top), left: Math.round(r.left), width: Math.round(r.width), height: Math.max(0, Math.round(r.bottom - top)) };
         setHole((h) => (sameBox(h, b) ? h : b));
       } else {
         if (shown) {
@@ -186,27 +189,36 @@ export default function Tour() {
     bottom: Math.min(vp.h, hole.top + hole.height + PAD),
   };
 
-  // Caption position: below, else above, else beside. If none fits (a target
-  // taller than the screen, like the tree or the audit log), the spotlight is
-  // cut short so the caption fits below it. The caption never covers the spotlight.
-  const MIN_HOLE = 120;
+  // Caption position: below, else above, else beside (desktop only). If none
+  // fits (a target taller than the screen, like the tree or the audit log),
+  // the caption takes a band at the bottom or top of the screen and the
+  // spotlight is cut to the rest, so the caption never covers it. Only a screen
+  // too short for the caption alone leaves no spotlight at all.
   let capStyle: CSSProperties;
   if (!s) {
     capStyle = { top: Math.max(16, (vp.h - cap.h) / 2), left: Math.max(16, (vp.w - cap.w) / 2) };
-  } else if (vp.w < PHONE) {
-    const need = cap.h + 32;
-    if (vp.h - s.bottom < need && s.top < need) s = { ...s, bottom: Math.max(s.top + MIN_HOLE, vp.h - need) };
-    capStyle = vp.h - s.bottom >= need || s.top < need ? { bottom: 16, left: 16, right: 16 } : { top: 16, left: 16, right: 16 };
   } else {
+    const phone = vp.w < PHONE;
     const left = Math.min(Math.max(16, s.left), vp.w - cap.w - 16);
     const sideTop = Math.min(Math.max(16, s.top), vp.h - cap.h - 16);
-    if (s.bottom + GAP + cap.h <= vp.h - 16) capStyle = { top: s.bottom + GAP, left };
-    else if (s.top - GAP - cap.h >= 16) capStyle = { top: s.top - GAP - cap.h, left };
-    else if (s.right + GAP + cap.w <= vp.w - 16) capStyle = { top: sideTop, left: s.right + GAP };
-    else if (s.left - GAP - cap.w >= 16) capStyle = { top: sideTop, left: s.left - GAP - cap.w };
+    const band = cap.h + 16 + (phone ? 16 : GAP); // the caption, its margin and the gap to the spotlight
+    const atBottom: CSSProperties = phone ? { bottom: 16, left: 16, right: 16 } : { top: vp.h - 16 - cap.h, left };
+    const atTop: CSSProperties = phone ? { top: 16, left: 16, right: 16 } : { top: 16, left };
+    if (vp.h - s.bottom >= band) capStyle = phone ? atBottom : { top: s.bottom + GAP, left };
+    else if (s.top >= band) capStyle = phone ? atTop : { top: s.top - GAP - cap.h, left };
+    else if (!phone && s.right + GAP + cap.w <= vp.w - 16) capStyle = { top: sideTop, left: s.right + GAP };
+    else if (!phone && s.left - GAP - cap.w >= 16) capStyle = { top: sideTop, left: s.left - GAP - cap.w };
     else {
-      s = { ...s, bottom: Math.max(s.top + MIN_HOLE, vp.h - 16 - cap.h - GAP) };
-      capStyle = { top: Math.min(s.bottom + GAP, vp.h - cap.h - 16), left };
+      // Keep the target's top in view (its heading) unless that leaves a sliver.
+      const keepTop = vp.h - band - s.top;
+      const keepBottom = s.bottom - band;
+      if (keepTop >= 120 || keepTop >= keepBottom) {
+        s = { ...s, bottom: Math.max(s.top, vp.h - band) };
+        capStyle = atBottom;
+      } else {
+        s = { ...s, top: Math.min(s.bottom, band) };
+        capStyle = atTop;
+      }
     }
   }
 
