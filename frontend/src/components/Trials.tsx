@@ -100,7 +100,7 @@ export function ShortlistReview({ record, canReview, onDone }: { record: CaseRec
       <TrialMap ref={mapRef} shortlist={sl} onSelectTrial={jumpTo} />
       {mutation && <MutationBox m={mutation} />}
       <div style={{ height: 10 }} />
-      <div id="trial-list" tabIndex={-1} className="trial-list" aria-label="Trial list">
+      <div id="trial-list" tabIndex={-1} className="trial-list" role="region" aria-label="Trial list">
       {eligible.length > 0 && <h4 style={{ margin: "14px 0 6px" }}>Eligible on what we know ({eligible.length})</h4>}
       {eligible.map(card)}
       {needsTest.length > 0 && (
@@ -177,12 +177,13 @@ function TrialCard({
     <div
       id={`trial-${t.trial_id}`}
       tabIndex={-1}
+      role="region"
       aria-label={`Trial ${n}, ${t.trial_id}`}
       data-tour="trial-card"
       className={`trial ${decided === true ? "kept" : decided === false ? "rejected" : ""}${flash ? " flash" : ""}`}
     >
       <div className="thead">
-        <span className="pin-num" title={`Map marker ${n}`}>
+        <span className="pin-num" title={onShowOnMap ? `Map marker ${n}` : `Trial ${n} (not on the map)`}>
           {n}
         </span>
         <b>{t.trial_id}</b>

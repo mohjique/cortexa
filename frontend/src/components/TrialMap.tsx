@@ -88,6 +88,14 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
   const origin: LatLngTuple = [shortlist.origin.lat, shortlist.origin.lon];
   const nums = useMemo(() => trialNumbers(shortlist.trials), [shortlist.trials]);
   const sites = shortlist.trials.filter(hasMapSite).map((t) => ({ t, pos: [t.nearest_site!.lat!, t.nearest_site!.lon!] as LatLngTuple }));
+  // What the pins show. The record is re-fetched every 8 s as a new object;
+  // keying on this instead of the array keeps the pins unchanged between polls.
+  const pinsSig = JSON.stringify(
+    shortlist.trials.map((t) => {
+      const s = t.nearest_site;
+      return [t.trial_id, t.title, s?.lat, s?.lon, s?.city, s?.state, s?.distance_miles];
+    }),
+  );
 
   // One marker per place. ~11 m rounding merges sites that are the same building.
   const groups = useMemo(() => {
@@ -101,9 +109,10 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
     const out = [...byKey.values()];
     out.forEach((g) => g.trials.sort((a, b) => a.n - b.n));
     return out.sort((a, b) => a.trials[0].n - b.trials[0].n);
-  }, [shortlist.trials, nums]); // sites derives from shortlist.trials
+  }, [pinsSig]); // sites and nums derive from shortlist.trials, which pinsSig covers
   const groupOf = useMemo(() => new Map(groups.flatMap((g) => g.trials.map(({ t }) => [t.trial_id, g] as const))), [groups]);
-  // Icons are memoized: a new icon replaces the marker's element and would drop keyboard focus.
+  // Icons are memoized: a new icon makes Leaflet reset the pin's classes, which
+  // cuts off the "Show on map" pulse.
   const icons = useMemo(() => new Map(groups.map((g) => [g.key, pinIcon(g)])), [groups]);
 
   // Count pins, not trials: trials sharing a site share a pin, and counting
@@ -146,8 +155,10 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
         setFocusId(trialId);
         const el = m.getElement();
         el?.focus({ preventScroll: true }); // also opens the tooltip
-        if (g.trials.length > 1) m.openPopup();
-        else m.openTooltip();
+        if (g.trials.length > 1) {
+          if (m.isPopupOpen()) focusList(m); // already open: no popupopen event will fire
+          else m.openPopup();
+        } else m.openTooltip();
         if (el) {
           el.classList.remove("pulse");
           void el.offsetWidth; // restart the animation
@@ -221,7 +232,9 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
                   },
                   // Move focus into the list so keyboard users can pick a trial.
                   popupopen: (e) => focusList(e.target),
-                  popupclose: () => setFocusId(null),
+                  // Clear the mark only if it belongs to this site: opening another
+                  // site's list closes this one in the same update.
+                  popupclose: () => setFocusId((id) => (id && groupOf.get(id)?.key === g.key ? null : id)),
                 }}
               >
                 <Tooltip>

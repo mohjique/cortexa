@@ -5,29 +5,30 @@ glioma shortlist, e.g. demo-016, has both).
 
     python frontend/e2e/map_extras.py WORKSPACE demo-016
 """
+import re
 import sys
 
-from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import sync_playwright
 
-from config import APP, OUT, Checks, init_script, launch
+from config import APP, OUT, Checks, init_script, launch, pin_in_view
 
 ACTIVE_ID = "document.activeElement.id"
 IN_LIST = "!!document.activeElement.closest('.site-pop')"
 # classList, not className: focus can pass through SVG elements, whose className isn't a string.
 ON_PIN = "!!document.activeElement?.classList?.contains('trial-pin')"
+# The focused row in an open shared-site list is the marked one.
+ON_MARKED_ROW = "!!document.activeElement?.matches?.('.site-pop button.on')"
+MARKED = ".site-pop button.on b"
 
 
-def click_pin_in_view(pg: Page, selector: str) -> None:
-    """Click a pin matching selector that is inside the map; fit all trials first if none is."""
-    find = f"""() => {{ const box = document.querySelector('.map').getBoundingClientRect();
-      return [...document.querySelectorAll('{selector}')].findIndex(e => {{ const r = e.querySelector('span').getBoundingClientRect();
-        return r.width > 0 && r.left > box.left + 40 && r.right < box.right - 40 && r.top > box.top + 60 && r.bottom < box.bottom - 30; }}); }}"""
-    idx = pg.evaluate(find)
-    if idx < 0:
-        pg.get_by_role("button", name="Fit all trials").click()
-        pg.wait_for_timeout(1200)
-        idx = pg.evaluate(find)
-    pg.locator(selector).nth(idx).locator("span").click()
+def show_on_map_keeps_list(pg, c: Checks, tid: str, why: str) -> None:
+    """Show on map while a list is open: the trial's row is marked and focused."""
+    pg.locator(f"#trial-{tid} .show-on-map").click()
+    pg.wait_for_timeout(900)
+    marked = pg.locator(MARKED)
+    c.ok(f"show on map {why}: row marked", marked.count() == 1 and marked.inner_text() == tid,
+         marked.inner_text() if marked.count() == 1 else f"({marked.count()} marked)")
+    c.ok(f"show on map {why}: row focused", pg.evaluate(ON_MARKED_ROW))
 
 
 def run(ws: str, cid: str) -> int:
@@ -65,7 +66,12 @@ def run(ws: str, cid: str) -> int:
         c.ok("single pin label names its card", cards[n - 1]["id"] in singles[0]["label"], singles[0]["label"])
 
         # Shared site: click opens the list; a row jumps to and focuses its card.
-        click_pin_in_view(pg, ".trial-pin.group")
+        shared_pin = pin_in_view(pg, ".trial-pin.group")
+        if shared_pin is None:
+            c.ok("a shared pin is inside the map", False)
+            b.close()
+            return c.failures
+        shared_pin.locator("span").click()
         pg.wait_for_selector(".site-pop button")
         rows = pg.locator(".site-pop button")
         c.ok("shared pin opens list", rows.count() >= 2, f"({rows.count()} rows; {pg.locator('.site-pop-head').inner_text()})")
@@ -83,6 +89,18 @@ def run(ws: str, cid: str) -> int:
         c.ok("show on map (shared) marks this trial's row", marked.count() == 1 and marked.inner_text() == target)
         c.ok("map scrolled into view", pg.evaluate("(() => { const r = document.querySelector('.map').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })()"))
         c.ok("pin pulses", pg.locator(".trial-pin.pulse").count() == 1)
+
+        # Show on map while that list is still open: another trial at the same site,
+        # then a trial at a different shared site (opening it closes this list).
+        nums_on = [re.search(r"numbers ([\d, ]+)\.", x["label"] or "") for x in pins if x["group"]]
+        groups = [[cards[int(n) - 1]["id"] for n in m.group(1).split(", ")] for m in nums_on if m]
+        here = next(g for g in groups if target in g)
+        show_on_map_keeps_list(pg, c, next(t for t in here if t != target), "(same site, list open)")
+        other = next((g for g in groups if target not in g), None)
+        if other:
+            show_on_map_keeps_list(pg, c, other[0], "(other shared site, list open)")
+        else:
+            print("  SKIP show on map (other shared site): the case has one shared site")
         pg.keyboard.press("Escape")
         pg.wait_for_timeout(300)
         c.ok("Escape closes list", pg.locator(".site-pop").count() == 0)
@@ -126,6 +144,17 @@ def run(ws: str, cid: str) -> int:
                 break
         c.ok("Tab reaches a pin", reached)
         c.ok("tooltip opens on pin focus", pg.locator(".leaflet-tooltip").count() > 0)
+
+        # The record is re-fetched every 8 s; pins must come through a poll unchanged
+        # (a rebuilt icon resets the pin's classes, dropping the "Show on map" pulse).
+        label = pg.evaluate("document.activeElement.getAttribute('aria-label')")
+        pulsed = pg.locator(".trial-pin.pulse").count()
+        pg.wait_for_timeout(9000)
+        c.ok("pulse survives a record poll", pulsed > 0 and pg.locator(".trial-pin.pulse").count() == pulsed,
+             f"({pulsed} before, {pg.locator('.trial-pin.pulse').count()} after)")
+        c.ok("pin keeps focus across a record poll", pg.evaluate(ON_PIN))
+        c.ok("pin keeps its label across a record poll",
+             bool(label) and pg.evaluate("document.activeElement.getAttribute('aria-label')") == label, str(label))
 
         c.ok("no page errors", not errs, str(errs[:3]))
         b.close()

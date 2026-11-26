@@ -19,8 +19,9 @@ import json
 import sys
 
 from playwright.sync_api import Page, sync_playwright
+from playwright.sync_api import TimeoutError as PwTimeout
 
-from config import APP, DOCTOR_ID, OUT, Checks, init_script, launch
+from config import APP, DOCTOR_ID, OUT, Checks, init_script, launch, pin_in_view
 
 # Pin counts, patient offset from map center, tile zoom and the map controls.
 GEOM = """() => {
@@ -41,18 +42,18 @@ GEOM = """() => {
            actionsInside: (() => { const a = document.querySelector('.map-actions'); if (!a) return true; const r = a.getBoundingClientRect(); return r.left >= box.left && r.right <= box.right; })() };
 }"""
 
-# Index of a pin comfortably inside the map (the first pin may be off screen).
-PIN_IN_VIEW = """() => { const box = document.querySelector('.map').getBoundingClientRect();
-  return [...document.querySelectorAll('.trial-pin span')].findIndex(s => { const r = s.getBoundingClientRect();
-    return r.width > 0 && r.left > box.left + 50 && r.right < box.right - 50 && r.top > box.top + 50 && r.bottom < box.bottom - 30; }); }"""
-
-
-def open_case(pg: Page, cid: str) -> None:
+def open_case(pg: Page, c: Checks, cid: str) -> bool:
+    """Open a case's map. A case with no map (no shortlist) is a FAIL, not a crash."""
     pg.goto(f"{APP}/cases/{cid}")
-    pg.wait_for_selector(".map .leaflet-container", timeout=60000)
+    try:
+        pg.wait_for_selector(".map .leaflet-container", timeout=60000)
+    except PwTimeout:
+        c.ok(f"{cid}: map shown", False, "(no map after 60 s: no shortlist, or the case stopped early?)")
+        return False
     pg.wait_for_timeout(2000)
     pg.locator(".map").scroll_into_view_if_needed()
     pg.wait_for_timeout(500)
+    return True
 
 
 def check_case(pg: Page, c: Checks, label: str) -> None:
@@ -79,17 +80,19 @@ def check_case(pg: Page, c: Checks, label: str) -> None:
         return
 
     # A pin in view: a single pin lands on its card, a shared pin opens its list.
-    pin = pg.locator(".trial-pin").nth(pg.evaluate(PIN_IN_VIEW))
-    shared = "group" in (pin.get_attribute("class") or "")
-    pin.locator("span").click()
-    pg.wait_for_timeout(700)
-    if shared:
-        c.ok("shared pin opens list", pg.locator(".site-pop button").count() >= 2)
-        pg.keyboard.press("Escape")
-    else:
-        n = int(pin.locator("span").inner_text())
-        want = pg.evaluate(f"document.querySelectorAll('.trial')[{n - 1}].id")
-        c.ok("pin click focuses its card", pg.evaluate("document.activeElement.id") == want, want)
+    pin = pin_in_view(pg)
+    c.ok("a pin is inside the map", pin is not None)
+    if pin is not None:
+        shared = "group" in (pin.get_attribute("class") or "")
+        pin.locator("span").click()
+        pg.wait_for_timeout(700)
+        if shared:
+            c.ok("shared pin opens list", pg.locator(".site-pop button").count() >= 2)
+            pg.keyboard.press("Escape")
+        else:
+            n = int(pin.locator("span").inner_text())
+            want = pg.evaluate(f"document.querySelectorAll('.trial')[{n - 1}].id")
+            c.ok("pin click focuses its card", pg.evaluate("document.activeElement.id") == want, want)
 
     # "Show on map" from the last mapped card, then Enter goes back to the card.
     last = pg.locator(".trial:has(.show-on-map)").last
@@ -123,6 +126,11 @@ def reshaper(variant: str):
     def handle(route):
         resp = route.fetch()
         rec = resp.json()
+        # The body changes, so the original length/encoding headers no longer apply.
+        headers = {k: v for k, v in resp.headers.items() if k.lower() not in ("content-length", "content-encoding")}
+        if not rec.get("shortlist"):
+            route.fulfill(response=resp)
+            return
         trials = rec["shortlist"]["trials"]
         mapped = [t for t in trials if (t.get("nearest_site") or {}).get("lat") is not None]
         unmapped = [t for t in trials if t not in mapped]
@@ -142,21 +150,33 @@ def reshaper(variant: str):
             trials = distinct(11)
         elif variant == "ten_plus_shared":  # 10 pins, one of them holding 4 extra trials
             d = distinct(10)
-            trials = d + [dict(t, nearest_site=dict(d[0]["nearest_site"])) for t in mapped if t not in d][:4]
+            trials = d + [dict(t, nearest_site=dict(d[0]["nearest_site"])) for t in mapped if t not in d][:4] if d else []
         elif variant == "none":  # no coordinates at all
             for t in trials:
                 if t.get("nearest_site"):
                     t["nearest_site"]["lat"] = t["nearest_site"]["lon"] = None
         elif variant == "onesite":  # 5 trials at one place
-            trials = [dict(t, nearest_site=dict(mapped[0]["nearest_site"])) for t in mapped[:5]]
+            trials = [dict(t, nearest_site=dict(mapped[0]["nearest_site"])) for t in mapped[:5]] if mapped else []
         elif variant == "mixed":  # 3 mapped, 5 without coordinates
             trials = mapped[:3] + unmapped[:5]
         else:
             raise SystemExit(f"unknown variant {variant!r}")
         rec["shortlist"]["trials"] = trials
-        route.fulfill(response=resp, body=json.dumps(rec), headers={**resp.headers, "content-type": "application/json"})
+        route.fulfill(response=resp, body=json.dumps(rec), headers={**headers, "content-type": "application/json"})
 
     return handle
+
+
+# Pins each variant must end up with, so a case with too few sites fails
+# loudly instead of quietly testing a different boundary.
+WANT_PINS = {"ten": 10, "eleven": 11, "ten_plus_shared": 10, "onesite": 1}
+
+
+def variant_pins_ok(pg: Page, c: Checks, variant: str, label: str) -> None:
+    if variant not in WANT_PINS:
+        return
+    got, want = pg.locator(".trial-pin").count(), WANT_PINS[variant]
+    c.ok(f"{label}: variant has {want} pins", got == want, "" if got == want else f"(got {got}; too few distinct sites in this case)")
 
 
 def run(ws: str, cases: list[str], phone=False, variant=None, switch=None, review=None) -> int:
@@ -174,13 +194,15 @@ def run(ws: str, cases: list[str], phone=False, variant=None, switch=None, revie
             pg.route("**/cases/*/record", reshaper(variant))
 
         for cid in cases:
-            open_case(pg, cid)
+            if not open_case(pg, c, cid):
+                continue
+            if variant:
+                variant_pins_ok(pg, c, variant, cid + suffix)
             check_case(pg, c, cid + suffix)
 
-        if switch:  # client-side navigation must remount the map for the new patient
+        if switch and open_case(pg, c, switch[0]):  # client-side navigation must remount the map for the new patient
             a, z = switch
             print(f"== switch {a} -> {z} (no page reload)")
-            open_case(pg, a)
             before = pg.evaluate("document.querySelector('.trial-pin')?.getAttribute('aria-label')")
             pg.evaluate(f"history.pushState({{}}, '', '/cases/{z}'); dispatchEvent(new PopStateEvent('popstate'))")
             pg.wait_for_timeout(2500)
@@ -188,9 +210,8 @@ def run(ws: str, cases: list[str], phone=False, variant=None, switch=None, revie
             check_case(pg, c, f"switched-to-{z}")
             c.ok("pins changed with the case", before != after, f"{before!r} -> {after!r}")
 
-        if review:  # record the review, then check the read-only cards
+        if review and open_case(pg, c, review):  # record the review, then check the read-only cards
             print(f"== review {review}, then read-only cards")
-            open_case(pg, review)
             pg.locator(".doctor-id input").fill(DOCTOR_ID)
             for card in pg.locator(".trial").all():
                 card.get_by_label("Keep").check()
