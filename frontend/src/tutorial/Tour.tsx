@@ -18,10 +18,10 @@ const PAD = 6; // space between the element and the spotlight edge
 const GAP = 12; // space between the spotlight and the caption
 const PHONE = 600;
 
-function pathFor(step: TourStep, caseId: string | null, current: string): string {
+function pathFor(step: TourStep, caseId: string, current: string): string {
   if (step.route === "board") return "/";
   if (step.route === "new") return "/new";
-  if (step.route === "case" && caseId) return `/cases/${encodeURIComponent(caseId)}`;
+  if (step.route === "case") return `/cases/${encodeURIComponent(caseId)}`;
   return current;
 }
 
@@ -45,9 +45,12 @@ export default function Tour() {
   const path = step ? pathFor(step, t.caseId, loc.pathname) : null;
   const blockedNext = step?.waitFor === "doctorId" && !doctorId;
 
-  // Open the step's page.
+  // Open the step's page. Leaving the example case replaces its history entry,
+  // so Back after the tour goes to where the visitor was, never to the example.
+  // (Entering it pushes, so the page the tour started from is kept.)
   useEffect(() => {
-    if (path && path !== loc.pathname) nav(path);
+    if (!path || path === loc.pathname) return;
+    nav(path, { replace: loc.pathname === `/cases/${encodeURIComponent(t.caseId)}` });
   }, [path]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Find and follow the target until the step changes.
@@ -59,10 +62,6 @@ export default function Tour() {
       if (cur.dir === -1 && cur.index > 0) cur.back();
       else cur.next();
     };
-    if (step.route === "case" && !t.caseId) {
-      skip(); // no cases yet: nothing to point at
-      return;
-    }
     // Skip soon once the page (and the case record) has loaded without the
     // target; wait longer while it is still loading.
     const GRACE = 1500;
@@ -75,6 +74,10 @@ export default function Tour() {
     const tick = () => {
       if (done) return;
       setVp((v) => (v.w === window.innerWidth && v.h === window.innerHeight ? v : { w: window.innerWidth, h: window.innerHeight }));
+      // The notice + header bar is sticky. Scroll targets out from under it,
+      // and never spotlight the part of a target it covers.
+      const bar = Math.round(document.querySelector(".app-top")?.getBoundingClientRect().bottom ?? 0);
+      document.documentElement.style.scrollPaddingTop = `${bar + PAD + 4}px`;
       const want = pathFor(step, tRef.current.caseId, window.location.pathname);
       const onPage = window.location.pathname === want;
       let tabReady = true;
@@ -89,14 +92,18 @@ export default function Tour() {
       const el = onPage ? document.querySelector<HTMLElement>(`[data-tour="${step.target}"]`) : null;
       let r = el?.getBoundingClientRect();
       if (el && r && r.width > 0 && r.height > 0) {
-        if (!shown) {
+        const inBar = !!el.closest(".app-top");
+        // Scroll it into view when the step opens, and again if the visitor
+        // scrolls it all the way under the sticky bar (nothing left to spotlight).
+        if (!shown || (!inBar && r.bottom <= bar)) {
           shown = true;
-          el.scrollIntoView({ block: r.height > window.innerHeight * 0.7 ? "start" : "center" });
+          el.scrollIntoView({ block: r.height > (window.innerHeight - bar) * 0.7 ? "start" : "center" });
           r = el.getBoundingClientRect();
         }
         lastSeen = Date.now();
         readyAt = null;
-        const b = { top: Math.round(r.top), left: Math.round(r.left), width: Math.round(r.width), height: Math.round(r.height) };
+        const top = inBar ? r.top : Math.max(r.top, bar);
+        const b = { top: Math.round(top), left: Math.round(r.left), width: Math.round(r.width), height: Math.max(0, Math.round(r.bottom - top)) };
         setHole((h) => (sameBox(h, b) ? h : b));
       } else {
         if (shown) {
@@ -117,6 +124,7 @@ export default function Tour() {
     window.addEventListener("resize", tick);
     return () => {
       done = true;
+      document.documentElement.style.scrollPaddingTop = "";
       window.clearInterval(iv);
       window.removeEventListener("scroll", tick, true);
       window.removeEventListener("resize", tick);
@@ -177,25 +185,44 @@ export default function Tour() {
   if (!step) return null;
 
   // Spotlight rectangle, clamped to the viewport.
-  const s = hole && {
+  let s = hole && {
     top: Math.max(0, hole.top - PAD),
     left: Math.max(0, hole.left - PAD),
     right: Math.min(vp.w, hole.left + hole.width + PAD),
     bottom: Math.min(vp.h, hole.top + hole.height + PAD),
   };
 
-  // Caption position: below, else above, else docked to the bottom. Phones always dock.
+  // Caption position: below, else above, else beside (desktop only). If none
+  // fits (a target taller than the screen, like the tree or the audit log),
+  // the caption takes a band at the bottom or top of the screen and the
+  // spotlight is cut to the rest, so the caption never covers it. Only a screen
+  // too short for the caption alone leaves no spotlight at all.
   let capStyle: CSSProperties;
   if (!s) {
     capStyle = { top: Math.max(16, (vp.h - cap.h) / 2), left: Math.max(16, (vp.w - cap.w) / 2) };
-  } else if (vp.w < PHONE) {
-    const roomBelow = vp.h - s.bottom;
-    capStyle = roomBelow >= cap.h + 32 || s.top < cap.h + 32 ? { bottom: 16, left: 16, right: 16 } : { top: 16, left: 16, right: 16 };
   } else {
+    const phone = vp.w < PHONE;
     const left = Math.min(Math.max(16, s.left), vp.w - cap.w - 16);
-    if (s.bottom + GAP + cap.h <= vp.h - 16) capStyle = { top: s.bottom + GAP, left };
-    else if (s.top - GAP - cap.h >= 16) capStyle = { top: s.top - GAP - cap.h, left };
-    else capStyle = { bottom: 16, left: Math.max(16, vp.w - cap.w - 24) };
+    const sideTop = Math.min(Math.max(16, s.top), vp.h - cap.h - 16);
+    const band = cap.h + 16 + (phone ? 16 : GAP); // the caption, its margin and the gap to the spotlight
+    const atBottom: CSSProperties = phone ? { bottom: 16, left: 16, right: 16 } : { top: vp.h - 16 - cap.h, left };
+    const atTop: CSSProperties = phone ? { top: 16, left: 16, right: 16 } : { top: 16, left };
+    if (vp.h - s.bottom >= band) capStyle = phone ? atBottom : { top: s.bottom + GAP, left };
+    else if (s.top >= band) capStyle = phone ? atTop : { top: s.top - GAP - cap.h, left };
+    else if (!phone && s.right + GAP + cap.w <= vp.w - 16) capStyle = { top: sideTop, left: s.right + GAP };
+    else if (!phone && s.left - GAP - cap.w >= 16) capStyle = { top: sideTop, left: s.left - GAP - cap.w };
+    else {
+      // Keep the target's top in view (its heading) unless that leaves a sliver.
+      const keepTop = vp.h - band - s.top;
+      const keepBottom = s.bottom - band;
+      if (keepTop >= 120 || keepTop >= keepBottom) {
+        s = { ...s, bottom: Math.max(s.top, vp.h - band) };
+        capStyle = atBottom;
+      } else {
+        s = { ...s, top: Math.min(s.bottom, band) };
+        capStyle = atTop;
+      }
+    }
   }
 
   const last = t.index === t.total - 1;

@@ -1,9 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api";
 import { usePoll } from "../hooks";
+import { TOUR_CASE_ID, TOUR_SOURCE_PATIENT } from "../tutorial/tourCase";
+import { useTutorial } from "../tutorial/TutorialContext";
 import { BUCKET_LABEL, STAGE_LABEL, nodeById, routeFor, waitingOn } from "../pathway";
 import type { CaseRecord, Gate, MutationCheckOutput, Stage } from "../types";
+import type { Route } from "../pathway";
 import Tree from "./Tree";
 import Audit from "./Audit";
 import { ErrorBanner, WaitChip } from "./common";
@@ -32,7 +35,59 @@ const GATE_AT_STAGE: Partial<Record<Stage, Gate>> = {
 };
 const AGENT_STAGES: Stage[] = ["intake", "preop_screen", "mutation_check", "matching"];
 
-type Tab = "pathway" | "results" | "trials" | "audit";
+type Tab = "next" | "pathway" | "results" | "trials" | "audit";
+
+/**
+ * The case's first tab is always what to do now, and it opens by default:
+ * the doctor's form, the shortlist to review, the no-match plan, or the
+ * agent's status. `act` marks a tab that needs a doctor, so it is true only
+ * while a doctor gate is open (no_match is a closed case: nothing to approve).
+ */
+function actionTab(record: CaseRecord | null | undefined, gate: Gate | undefined): { key: Tab; label: string; act: boolean } {
+  if (gate === "enter_results") return { key: "results", label: "Enter results", act: true };
+  if (gate === "review_shortlist") return { key: "trials", label: "Review shortlist", act: true };
+  if (record?.state.stage === "no_match") return { key: "trials", label: "No-match plan", act: false };
+  if (gate) return { key: "next", label: "Doctor action", act: true };
+  return { key: "next", label: "Status", act: false };
+}
+
+// Short names for the progress bar. Tree nodes not listed here (bucket and
+// yes/no branch nodes) are left out of the bar; the full tree has them.
+const STEP_LABEL: Record<string, string> = {
+  mri: "MRI",
+  cls: "Classifier",
+  confirm: "Confirm bucket",
+  stop: "Stop",
+  wot: "Watch or treat",
+  rescan: "Rescan later",
+  preop: "Pre-op screen",
+  labs: "Hormone labs",
+  sm: "Surgery or meds",
+  sp: "Surgery + pathology",
+  dr: "Results",
+  mc: "Mutation check",
+  tm: "Trial matching",
+  sl: "Shortlist review",
+  nm: "No-match plan",
+};
+
+/** One-line version of the tree: done, current and upcoming steps. Always visible above the tabs. */
+function Progress({ route }: { route: Route }) {
+  const ci = route.route.indexOf(route.cur);
+  return (
+    <ol className="progress" data-tour="progress" aria-label="Case progress">
+      {route.route.map((id, i) => {
+        if (!STEP_LABEL[id]) return null;
+        const st = i < ci || (route.closed && i === ci) ? "done" : i === ci ? "cur" : "next";
+        return (
+          <li key={id} className={`${nodeById[id]?.k ?? "neutral"} ${st}`} aria-current={st === "cur" ? "step" : undefined}>
+            <span>{STEP_LABEL[id]}</span>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 /** The doctor gate the case waits on, if any. preop_screen is an agent stage until the screen is built. */
 function gateFor(record: CaseRecord): Gate | undefined {
@@ -44,6 +99,7 @@ function gateFor(record: CaseRecord): Gate | undefined {
 export default function CaseView() {
   const { caseId } = useParams();
   const nav = useNavigate();
+  const tour = useTutorial();
   const list = usePoll(() => api.listCases(), [], 15000);
 
   // /cases with no id: open the most recently updated case.
@@ -62,19 +118,24 @@ export default function CaseView() {
   const record = rec.data;
   const gate = record ? gateFor(record) : undefined;
   const hasTrials = !!(record?.shortlist || record?.no_match || record?.preop);
+  const action = actionTab(record, gate);
   const tabs: [Tab, string][] = [
+    [action.key, action.label],
     ["pathway", "Pathway"],
-    ...(gate === "enter_results" ? ([["results", "Enter results"]] as [Tab, string][]) : []),
-    ...(hasTrials ? ([["trials", record?.shortlist ? "Trial shortlist" : record?.no_match ? "No-match plan" : "Pre-op screen"]] as [Tab, string][]) : []),
+    ...(hasTrials && action.key !== "trials"
+      ? ([["trials", record?.shortlist ? "Trial shortlist" : record?.no_match ? "No-match plan" : "Pre-op screen"]] as [Tab, string][])
+      : []),
     ["audit", "Audit log"],
   ];
-  const defaultTab: Tab =
-    gate === "enter_results" ? "results" : gate === "review_shortlist" || record?.state.stage === "no_match" ? "trials" : "pathway";
-  const [tab, setTab] = useState<Tab>("pathway");
+  const defaultTab: Tab = action.key;
+  const [tab, setTab] = useState<Tab>(defaultTab);
   useEffect(() => setTab(defaultTab), [caseId, record?.state.stage]); // eslint-disable-line react-hooks/exhaustive-deps
-  const shownTab = tabs.some(([k]) => k === tab) ? tab : "pathway";
+  const shownTab = tabs.some(([k]) => k === tab) ? tab : action.key;
 
   const route = useMemo(() => (record ? routeFor(record) : null), [record]);
+
+  // The tour's example case exists only while the tour runs; ending the tour on it goes back to the board.
+  if (caseId === TOUR_CASE_ID && !tour.active) return <Navigate to="/" replace />;
 
   return (
     <>
@@ -101,24 +162,53 @@ export default function CaseView() {
         </div>
 
         <div className="center">
+          {route && <Progress route={route} />}
           <div className="ctabs" role="tablist">
-            {tabs.map(([k, label]) => (
-              <button key={k} data-tour={`tab-${k}`} role="tab" aria-selected={shownTab === k} className={shownTab === k ? "on" : ""} onClick={() => setTab(k)}>
-                {label}
-              </button>
-            ))}
+            {tabs.map(([k, label], i) => {
+              const act = i === 0 && action.act;
+              return (
+                <button
+                  key={k}
+                  data-tour={`tab-${k}`}
+                  role="tab"
+                  aria-selected={shownTab === k}
+                  className={`${shownTab === k ? "on" : ""} ${act ? "act" : ""}`}
+                  onClick={() => setTab(k)}
+                  title={act ? "Needs a doctor" : undefined}
+                >
+                  {act ? <span data-tour="gate">{label}</span> : label}
+                </button>
+              );
+            })}
           </div>
           <div className="cbody">
+            {shownTab === "next" && record && (
+              <NextStep record={record} gate={gate} onDone={refresh} openTab={setTab} />
+            )}
             {shownTab === "pathway" && (
               <div className="canvas" data-tour="pathway-tree">
                 <Tree route={route} />
               </div>
             )}
-            {shownTab === "results" && record && <ResultsForm record={record} onDone={refresh} />}
+            {shownTab === "results" && record && (
+              <>
+                {record.state.stage === "awaiting_pathology" && (
+                  <div className="box" style={{ marginTop: 0, marginBottom: 10 }}>
+                    Waiting on the pathology report. Enter results when it is back.
+                  </div>
+                )}
+                <ResultsForm record={record} onDone={refresh} />
+              </>
+            )}
             {shownTab === "trials" && record && (
               <>
                 {record.shortlist && (
-                  <ShortlistReview record={record} canReview={gate === "review_shortlist"} onDone={refresh} />
+                  // The tour's example keeps its "needs a doctor" dot (the tour points at it) but can't be reviewed.
+                  <ShortlistReview
+                    record={record}
+                    canReview={gate === "review_shortlist" && record.state.case_id !== TOUR_CASE_ID}
+                    onDone={refresh}
+                  />
                 )}
                 {record.no_match && <NoMatch plan={record.no_match} />}
                 {record.preop && <PreOp preop={record.preop} />}
@@ -132,7 +222,7 @@ export default function CaseView() {
           {!caseId && <div className="empty">Select a case.</div>}
           {caseId && !record && !rec.error && <div className="empty">Loading…</div>}
           {record && route && (
-            <Detail record={record} gate={gate} cur={route.cur} onDone={refresh} openTab={setTab} />
+            <Detail record={record} cur={route.cur} />
           )}
         </div>
       </section>
@@ -140,31 +230,28 @@ export default function CaseView() {
   );
 }
 
-function Detail({
-  record,
-  gate,
-  cur,
-  onDone,
-  openTab,
-}: {
-  record: CaseRecord;
-  gate: Gate | undefined;
-  cur: string;
-  onDone: () => Promise<void>;
-  openTab: (t: Tab) => void;
-}) {
+/** Reference column: who the case waits on, the suspected bucket, the MRI and the model's output. No forms. */
+function Detail({ record, cur }: { record: CaseRecord; cur: string }) {
   const s = record.state;
   const who = waitingOn(s.stage, s.waiting_on);
   const c = record.classifier;
   const overrode = s.confirmed_bucket && s.suspected_bucket && s.confirmed_bucket !== s.suspected_bucket;
+  const example = s.case_id === TOUR_CASE_ID;
 
   return (
     <>
-      <h2>{s.case_id}</h2>
-      <div className="sub">
-        Synthetic case · opened {new Date(record.created_at).toLocaleDateString()} · updated{" "}
-        {new Date(s.updated_at).toLocaleTimeString()}
-      </div>
+      <h2>{example ? `Example case · ${TOUR_SOURCE_PATIENT}` : s.case_id}</h2>
+      {example ? (
+        <div className="sub">
+          <span className="chip warn">Tour example</span> Synthetic patient {TOUR_SOURCE_PATIENT}, shown only during the
+          tour. Not saved, not in your workspace, and it can't be changed.
+        </div>
+      ) : (
+        <div className="sub">
+          Synthetic case · opened {new Date(record.created_at).toLocaleDateString()} · updated{" "}
+          {new Date(s.updated_at).toLocaleTimeString()}
+        </div>
+      )}
       <div className="chips">
         {who !== "none" && <WaitChip who={who} label={`Waiting on ${who}`} />}
         {c?.flagged_uncertain && <span className="chip danger">Low confidence: look harder</span>}
@@ -195,73 +282,6 @@ function Detail({
       </div>
 
       <ScanPanel key={s.case_id} caseId={s.case_id} hasHeatmap={!!c?.heatmap_path} />
-
-      {gate && (
-        <div className="box gate" data-tour="gate">
-          <h4>Doctor action needed</h4>
-          <div>{gate === "preop_review" ? "Review the pre-op screen and answer each enroll-before-surgery trial" : STAGE_LABEL[s.stage]}</div>
-          {gate === "confirm_bucket" && <ConfirmBucketForm record={record} onDone={onDone} />}
-          {gate === "watch_or_treat" && <WatchOrTreatForm record={record} onDone={onDone} />}
-          {gate === "preop_review" && (
-            <>
-              <div className="row-actions">
-                <a href="#" onClick={(e) => (e.preventDefault(), openTab("trials"))}>
-                  See the full pre-op screen
-                </a>
-              </div>
-              <PreopReviewForm key={record.preop!.screen_id} record={record} onDone={onDone} />
-            </>
-          )}
-          {gate === "hormone_labs" && <HormoneLabsForm record={record} onDone={onDone} />}
-          {gate === "surgery_or_meds" && <SurgeryOrMedsForm record={record} onDone={onDone} />}
-          {gate === "enter_results" && (
-            <div className="row-actions">
-              {s.stage === "awaiting_pathology" && <div className="muted">Enter results when the pathology report is back.</div>}
-              <button className="btn" onClick={() => openTab("results")}>
-                Open results form
-              </button>
-            </div>
-          )}
-          {gate === "review_shortlist" && (
-            <div className="row-actions">
-              <button className="btn" onClick={() => openTab("trials")}>
-                Review shortlist
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-
-      {!gate && AGENT_STAGES.includes(s.stage) && (
-        <div className="box">
-          <h4>Agent working</h4>
-          {STAGE_LABEL[s.stage]}. If this doesn't move on, the last agent step may have failed (see the audit log).
-          {s.stage !== "intake" && <AgentRetry caseId={s.case_id} onDone={onDone} />}
-        </div>
-      )}
-
-      {s.stage === "no_match" && (
-        <div className="box">
-          <h4>No current match</h4>
-          No eligible trial in the searched statuses. Near misses and the trial alert are in the{" "}
-          <a href="#" onClick={(e) => (e.preventDefault(), openTab("trials"))}>
-            No-match plan
-          </a>{" "}
-          tab.
-        </div>
-      )}
-      {s.stage === "stopped" && (
-        <div className="box">
-          <h4>Closed</h4>
-          {record.shortlist ? "Shortlist reviewed. No further agent steps." : "No trial search for this case."}
-        </div>
-      )}
-      {s.stage === "rescan" && (
-        <div className="box">
-          <h4>Rescan scheduled</h4>
-          {rescanText(record)}
-        </div>
-      )}
 
       {c && (
         <div className="box">
@@ -320,6 +340,83 @@ function Detail({
       {record.results && <ResultsSummary record={record} />}
       {record.mutation && <MutationBox m={record.mutation} />}
     </>
+  );
+}
+
+/**
+ * The "Doctor action" / "Status" tab: the open gate's form, or what the agent
+ * is doing. Enter results and the shortlist review have their own action tabs.
+ */
+function NextStep({
+  record,
+  gate,
+  onDone,
+  openTab,
+}: {
+  record: CaseRecord;
+  gate: Gate | undefined;
+  onDone: () => Promise<void>;
+  openTab: (t: Tab) => void;
+}) {
+  const s = record.state;
+  return (
+    <div className="next-step">
+      {gate && (
+        <div className="box gate">
+          <h4>Doctor action needed</h4>
+          <div>{gate === "preop_review" ? "Review the pre-op screen and answer each enroll-before-surgery trial" : STAGE_LABEL[s.stage]}</div>
+          {gate === "confirm_bucket" && (
+            <div className="muted" style={{ fontSize: 12, marginTop: 4 }}>
+              The MRI, Grad-CAM and the classifier's probabilities are in the case panel (beside this, or below on narrow screens).
+            </div>
+          )}
+          {gate === "confirm_bucket" && <ConfirmBucketForm record={record} onDone={onDone} />}
+          {gate === "watch_or_treat" && <WatchOrTreatForm record={record} onDone={onDone} />}
+          {gate === "preop_review" && (
+            <>
+              <div className="row-actions">
+                <a href="#" onClick={(e) => (e.preventDefault(), openTab("trials"))}>
+                  See the full pre-op screen
+                </a>
+              </div>
+              <PreopReviewForm key={record.preop!.screen_id} record={record} onDone={onDone} />
+            </>
+          )}
+          {gate === "hormone_labs" && <HormoneLabsForm record={record} onDone={onDone} />}
+          {gate === "surgery_or_meds" && <SurgeryOrMedsForm record={record} onDone={onDone} />}
+        </div>
+      )}
+
+      {!gate && AGENT_STAGES.includes(s.stage) && (
+        <div className="box">
+          <h4>Agent working</h4>
+          {STAGE_LABEL[s.stage]}. If this doesn't move on, the last agent step may have failed (see the audit log).
+          {s.stage !== "intake" && <AgentRetry caseId={s.case_id} onDone={onDone} />}
+        </div>
+      )}
+      {s.stage === "stopped" && (
+        <div className="box">
+          <h4>Closed</h4>
+          {record.shortlist ? (
+            <>
+              Shortlist reviewed. No further agent steps. The decisions are in the{" "}
+              <a href="#" onClick={(e) => (e.preventDefault(), openTab("trials"))}>
+                Trial shortlist
+              </a>{" "}
+              tab.
+            </>
+          ) : (
+            "No trial search for this case."
+          )}
+        </div>
+      )}
+      {s.stage === "rescan" && (
+        <div className="box">
+          <h4>Rescan scheduled</h4>
+          {rescanText(record)}
+        </div>
+      )}
+    </div>
   );
 }
 

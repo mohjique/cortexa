@@ -2,6 +2,7 @@
 // enforces the gates, policy and audit log. The UI never decides a stage change.
 import type { AuditEntry, CaseRecord, CaseState, DecisionRecord, GateDecision } from "./types";
 import { WORKSPACE_HEADER, workspaceId } from "./workspace";
+import { TOUR_CASE_ID, TOUR_SCAN_URL } from "./tutorial/tourCase";
 
 // Production: VITE_API_URL points at the deployed FastAPI server.
 // Local dev: unset, so requests go to /api and Vite proxies them to :8000.
@@ -56,17 +57,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type Health = { status: string; classifier: string; trial_source?: "demo" | "live" };
 
+// The guided tour's example case (tutorial/exampleCase.ts) never reaches the
+// backend: reads return the fixture, and every write for it is refused here,
+// so nothing on it can be approved or changed. The fixture is a separate chunk,
+// loaded only when the tour opens the case. The refusal is a 403, not status 0,
+// so it never reads as "backend offline".
+const isExample = (id: string) => id === TOUR_CASE_ID;
+const example = () => import("./tutorial/exampleCase");
+const refuseExample = () =>
+  Promise.reject(new ApiError(403, "This is the tour's example case. It can't be changed; open a real case instead."));
+
 export const api = {
   /** Liveness, classifier, and where trials come from (`demo` or `live`). */
   health: () => request<Health>("/health"),
   listCases: () => request<CaseState[]>("/cases"),
-  getCase: (id: string) => request<CaseState>(`/cases/${encodeURIComponent(id)}`),
-  getRecord: (id: string) => request<CaseRecord>(`/cases/${encodeURIComponent(id)}/record`),
-  getAudit: (id: string) => request<AuditEntry[]>(`/cases/${encodeURIComponent(id)}/audit`),
+  getCase: (id: string) =>
+    isExample(id) ? example().then((m) => m.EXAMPLE_RECORD.state as CaseState) : request<CaseState>(`/cases/${encodeURIComponent(id)}`),
+  getRecord: (id: string) =>
+    isExample(id) ? example().then((m) => m.EXAMPLE_RECORD as CaseRecord) : request<CaseRecord>(`/cases/${encodeURIComponent(id)}/record`),
+  getAudit: (id: string) =>
+    isExample(id) ? example().then((m) => m.EXAMPLE_AUDIT as AuditEntry[]) : request<AuditEntry[]>(`/cases/${encodeURIComponent(id)}/audit`),
   runAgent: (id: string) =>
-    request<CaseState>(`/cases/${encodeURIComponent(id)}/run`, { method: "POST" }),
+    isExample(id) ? refuseExample() : request<CaseState>(`/cases/${encodeURIComponent(id)}/run`, { method: "POST" }),
 
   submitDecision: (caseId: string, doctorId: string, d: GateDecision, note?: string) => {
+    if (isExample(caseId)) return refuseExample();
     const body: DecisionRecord = {
       ...d,
       case_id: caseId,
@@ -83,7 +98,7 @@ export const api = {
 
   /** Doctor asks for a fresh pre-op screen. 409 unless the case waits on preop_review. */
   rescreenPreop: (caseId: string, doctorId: string, reason?: string) =>
-    request<CaseState>(`/cases/${encodeURIComponent(caseId)}/preop/rescreen`, {
+    isExample(caseId) ? refuseExample() : request<CaseState>(`/cases/${encodeURIComponent(caseId)}/preop/rescreen`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ doctor_id: doctorId, reason: reason?.trim() ? reason.trim() : null }),
@@ -100,9 +115,11 @@ export const api = {
   heatmapUrl: (caseId: string) =>
     `${API_BASE}/cases/${encodeURIComponent(caseId)}/heatmap?ws=${encodeURIComponent(workspaceId())}`,
 
-  /** The case's MRI as uploaded (PNG). 404 when it wasn't kept. */
+  /** The case's MRI as uploaded (PNG). 404 when it wasn't kept. The example case shows its demo MRI, bundled with the app. */
   scanUrl: (caseId: string) =>
-    `${API_BASE}/cases/${encodeURIComponent(caseId)}/image?ws=${encodeURIComponent(workspaceId())}`,
+    isExample(caseId)
+      ? TOUR_SCAN_URL
+      : `${API_BASE}/cases/${encodeURIComponent(caseId)}/image?ws=${encodeURIComponent(workspaceId())}`,
 
   /** The committed demo MRIs: case IDs only, no label or model call. */
   listDemoScans: () => request<{ case_id: string }[]>("/demo-scans"),

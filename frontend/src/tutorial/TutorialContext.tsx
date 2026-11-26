@@ -1,6 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import { api } from "../api";
-import type { Stage } from "../types";
+import { TOUR_CASE_ID } from "./tourCase";
 import { STEPS, type TourStep } from "./steps";
 
 // Set once the welcome card is dismissed (tour taken or skipped). If storage
@@ -23,24 +22,11 @@ function writeSeen() {
   }
 }
 
-// Which case the case steps open: one that has reached the shortlist if there
-// is one, so the most steps have something to point at. Steps whose target is
-// missing on the chosen case are skipped by the overlay.
-const STAGE_RANK: Stage[] = ["review_shortlist", "no_match", "enter_results", "awaiting_pathology", "confirm_bucket"];
-
-async function pickCase(): Promise<string | null> {
-  try {
-    const cases = await api.listCases();
-    if (!cases.length) return null;
-    const rank = (s: Stage) => {
-      const i = STAGE_RANK.indexOf(s);
-      return i < 0 ? STAGE_RANK.length : i;
-    };
-    return [...cases].sort((a, b) => rank(a.stage) - rank(b.stage))[0].case_id;
-  } catch {
-    return null;
-  }
-}
+// The case steps always open the built-in example case (exampleCase.ts, a
+// synthetic patient at the shortlist stage; see tourCase.ts), never one of the
+// visitor's cases. A new workspace has no cases, and a real case may not have
+// reached the stage a step points at, so every visitor sees the same steps.
+// It loads from the app's own files, so the tour starts at once even on a cold backend.
 
 interface Tutorial {
   active: boolean;
@@ -49,7 +35,8 @@ interface Tutorial {
   total: number;
   /** Direction of the last move, so a missing target is skipped the same way. */
   dir: 1 | -1;
-  caseId: string | null;
+  /** The case the case steps open: always the example case. */
+  caseId: string;
   seen: boolean;
   start: () => void;
   next: () => void;
@@ -64,7 +51,6 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const [active, setActive] = useState(false);
   const [index, setIndex] = useState(0);
   const [dir, setDir] = useState<1 | -1>(1);
-  const [caseId, setCaseId] = useState<string | null>(null);
   const [seen, setSeen] = useState(readSeen);
   const returnFocus = useRef<HTMLElement | null>(null);
 
@@ -76,12 +62,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
   const start = useCallback(() => {
     dismissWelcome();
     returnFocus.current = document.activeElement as HTMLElement | null;
-    pickCase().then((id) => {
-      setCaseId(id);
-      setIndex(0);
-      setDir(1);
-      setActive(true);
-    });
+    setIndex(0);
+    setDir(1);
+    setActive(true);
   }, [dismissWelcome]);
 
   const stop = useCallback(() => {
@@ -108,7 +91,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       step: active ? STEPS[index] : null,
       total: STEPS.length,
       dir,
-      caseId,
+      caseId: TOUR_CASE_ID,
       seen,
       start,
       next,
@@ -116,7 +99,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       stop,
       dismissWelcome,
     }),
-    [active, index, dir, caseId, seen, start, next, back, stop, dismissWelcome],
+    [active, index, dir, seen, start, next, back, stop, dismissWelcome],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

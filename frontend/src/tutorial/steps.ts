@@ -7,12 +7,14 @@
 // (`tab`), which is plain navigation; they never click an approval button,
 // submit a form or create a case.
 
+import { TOUR_SOURCE_PATIENT, TOUR_SOURCE_SUMMARY } from "./tourCase";
+
 export type TourRoute = "board" | "case" | "new" | "current";
 export type CaseTab = "pathway" | "trials" | "audit";
 
 export interface TourStep {
   id: string;
-  /** Page to show. "case" is the demo case picked when the tour starts. */
+  /** Page to show. "case" is the built-in example case (exampleCase.ts), never a visitor's case. */
   route: TourRoute;
   /** Matches an element's data-tour attribute. */
   target: string;
@@ -53,7 +55,15 @@ export const STEPS: TourStep[] = [
     tab: "pathway",
     target: "pathway-tree",
     title: "Pathway",
-    body: "Where this case sits in the decision tree. Done steps are lit, the current step glows, and dashed boxes show where the case can go next.",
+    body: `This is an example case from synthetic patient ${TOUR_SOURCE_PATIENT}, ${TOUR_SOURCE_SUMMARY} (doctor-confirmed), shown only during the tour. The tree shows where the case sits: done steps are lit, the current step glows, and dashed boxes show where the case can go next.`,
+  },
+  {
+    id: "progress",
+    route: "case",
+    tab: "pathway",
+    target: "progress",
+    title: "Progress bar",
+    body: "The short version of the tree, always above the tabs: done steps are filled, the current step is outlined, and dashed steps are still to come.",
   },
   {
     id: "suspected",
@@ -66,10 +76,10 @@ export const STEPS: TourStep[] = [
   {
     id: "gate",
     route: "case",
-    tab: "pathway",
+    tab: "trials",
     target: "gate",
     title: "Doctor action needed",
-    body: "Nothing moves forward without a recorded doctor action: confirm the bucket, enter results, or review the shortlist. The tour never presses anything here.",
+    body: "The first tab is always what to do now, and a case opens on it. A dot means it needs a doctor: confirm the bucket, enter results, or, as here, review the shortlist. Nothing moves forward without a recorded doctor action. The tour never presses anything, and the example case can't be changed.",
   },
   {
     id: "trial-map",
@@ -85,7 +95,7 @@ export const STEPS: TourStep[] = [
     tab: "trials",
     target: "trial-card",
     title: "Eligibility with evidence",
-    body: "Each rule is marked met, not met or unknown, with the patient field and the criterion text it used. Unknown is never guessed. Recruiting and not-yet-recruiting trials are labeled. The doctor keeps or rejects every trial.",
+    body: "Each rule is marked met, not met or unknown, with the patient field and the criterion text it used. Unknown is never guessed. An unknown doesn't remove a trial; it shows what the doctor still needs to confirm. Recruiting and not-yet-recruiting trials are labeled. The doctor keeps or rejects every trial.",
   },
   {
     id: "audit",
