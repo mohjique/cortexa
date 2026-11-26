@@ -436,7 +436,11 @@ def _before_surgery(facts: Facts, match: PhraseMatch, policy: Policy) -> Finding
     """
     what = "may need enrollment before surgery" if match.enrollment else "is timed before surgery"
     if facts.stage == "post_pathology":
-        return _review("stage", f"criterion {what} ({match.phrase!r}) and surgery or biopsy is done; "
+        # Medication-only pituitary cases reach this stage with no surgery: say only what is recorded.
+        operated = any(t.type == "surgery" for t in facts.prior_treatments or ())
+        done = "a surgery or biopsy is recorded" if operated else "the case is past the pre-op screen"
+        closed = "; the enrollment window may have closed" if match.enrollment else ""
+        return _review("stage", f"criterion {what} ({match.phrase!r}) and {done}{closed}; "
                                 "confirm whether the patient still qualifies")
     surgery = _has_treatment(facts, {"surgery"}, "surgery", policy)
     if surgery.holds:

@@ -161,6 +161,16 @@ def test_before_surgery_met_preop_unknown_after(trials):
     assert "before planned surgical resection" in row.reason
 
 
+def test_after_pathology_reason_does_not_claim_a_surgery_that_was_not_recorded():
+    """Medication-only pituitary cases reach post-pathology without surgery."""
+    c = el.Criterion("inclusion", "Preoperative MRI of the sella")
+    facts = el.Facts(stage="post_pathology", bucket="pituitary", prior_treatments=())
+    f = el.evaluate(c, facts, policy.get_policy())
+    assert f.holds is None and "past the pre-op screen" in f.reason and "surgery or biopsy" not in f.reason
+    operated = dataclasses.replace(facts, prior_treatments=(PriorTreatment(type="surgery"),))
+    assert "surgery or biopsy is recorded" in el.evaluate(c, operated, policy.get_policy()).reason
+
+
 def test_before_surgery_with_prior_surgery_at_preop_is_unknown():
     """A re-resection trial can take a patient with prior surgery: the doctor decides."""
     c = el.Criterion("inclusion", BEFORE)

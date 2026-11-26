@@ -20,6 +20,7 @@ from agent.schemas import (
     PreSurgeryTrial,
     Shortlist,
     ShortlistTrial,
+    TrialRecord,
 )
 from agent.store import CaseRecord
 from agent.workflow import AgentHooks, submit_decision
@@ -258,8 +259,32 @@ def test_trial_declined_before_surgery_is_still_shortlisted_with_the_answer(audi
     [t] = [t for t in out.trials if t.trial_id == tid]
     [row] = [r for r in t.eligibility if r.evidence_field == "preop_review"]
     assert row.status == "unknown" and "not a window trial" in row.reason
+    assert t.group == "needs_review"  # never listed as a plain match
     [entry] = [e for e in audit_log.read() if e.action == "preop_review_applied"]
     assert entry.detail == {"trials": [tid]}
+
+
+def window_trial(criteria: str) -> TrialRecord:
+    return TrialRecord.model_validate(
+        {"trial_id": "NCT99000099", "title": "[SYNTHETIC] Window trial in glioblastoma", "source": "ctgov",
+         "recruitment_status": "RECRUITING", "conditions": ["Glioblastoma"], "criteria_text": criteria,
+         "remote_participation": False, "fetched_at": "2026-11-21T14:00:00Z", "from_cache": True},
+        context=policy.status_context())
+
+
+def test_firm_pre_surgery_trial_after_pathology_is_never_eligible():
+    """Review finding: the diagnostic surgery left out of prior_treatments must not let a
+    closed window-of-opportunity trial show as an eligible match."""
+    t = window_trial("Inclusion Criteria:\n* Newly diagnosed glioblastoma\n"
+                     "* Patient has to be included before surgery\nExclusion Criteria:\n* Pregnancy")
+    r = DoctorResults(**(patient("demo-013")["doctor_decisions"]["enter_results"] | {"prior_treatments": []}))
+    rows = matching.check_trial(t, matching.Facts.from_results(r), policy=policy.get_policy())
+    [pre] = [x for x in rows if "before surgery" in x.criterion_text]
+    assert pre.status == "unknown" and pre.evidence_field == "stage"
+    assert "enrollment window may have closed" in pre.reason
+    assert matching.passes(rows), [(x.criterion_text, x.status) for x in rows]
+    group, _ = matching.shortlist_group(rows, policy.get_policy().trial_search.key_unknown_fields)
+    assert group == "needs_review"
 
 
 def test_declined_trial_failing_one_rule_is_still_a_near_miss():

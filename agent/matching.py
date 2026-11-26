@@ -11,8 +11,11 @@ Passing trials are split into three groups, the way coordinators sort them:
 IDH or a CLIA TMB result; the group names the test that would decide it) and
 "needs_review" (no clinical inclusion criterion was confirmed automatically,
 only demographics such as age or exclusions that do not apply, so the doctor
-must read the criteria; common for
-live trials whose free text the rule library does not cover).
+must read the criteria; common for live trials whose free text the rule
+library does not cover). A trial with an open pre-surgery question (a
+criterion timed before surgery, or the doctor's pre-op answer;
+`DOCTOR_DECIDES_FIELDS`) is always "needs_review": the enrollment window may
+have closed at surgery, so it is never listed as a plain match.
 
 There is no distance cutoff. The search is nationwide, and distance only
 sorts the shortlist: nearest first, trials with no known distance (remote-only,
@@ -76,6 +79,12 @@ CONDITION_FOR_BUCKET = {
 # Evidence field for the row that cites the doctor's preop_review answer.
 PREOP_REVIEW_FIELD = "preop_review"
 
+# An unknown row on one of these asks the doctor whether the trial is still
+# open after surgery: a criterion timed before surgery
+# (`agent.eligibility._before_surgery`) or the doctor's pre-op answer
+# (`preop_review_row`). A trial with one is "needs_review", never "eligible".
+DOCTOR_DECIDES_FIELDS = frozenset({"stage", PREOP_REVIEW_FIELD})
+
 # A trial that fails only on one of these is for a different tumor or
 # disease stage (new vs recurrent, another hormone), or enrolls only the other
 # sex. None can change, so it is not a near miss. The alert still catches new
@@ -116,6 +125,8 @@ def needs_test_fields(rows: list[EligibilityResult], key_fields: list[str]) -> l
 
 def shortlist_group(rows: list[EligibilityResult], key_fields: list[str]) -> tuple[str, list[str]]:
     """(group, needs_test_fields) for a passing trial."""
+    if any(r.status == "unknown" and r.evidence_field in DOCTOR_DECIDES_FIELDS for r in rows):
+        return "needs_review", []
     # Only a met inclusion is evidence the trial fits; a met exclusion just means it does not apply.
     if not any(r.status == "met" and r.criterion_type == "inclusion" and r.evidence_field not in DEMOGRAPHIC_FIELDS
                for r in rows):
