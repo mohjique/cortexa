@@ -327,7 +327,8 @@ class PreSurgeryTrialAck(Schema):
 
     @model_validator(mode="after")
     def _reason_when_declined(self) -> PreSurgeryTrialAck:
-        # Declining closes the window for good, so the tumor board must see why.
+        # Declining closes the pre-surgery window, so the tumor board must see why. The
+        # reason is shown again when the trial comes back for review after pathology.
         if self.action == "not_pursuing" and self.reason is None:
             raise ValueError("reason is required when action is not_pursuing")
         return self
@@ -609,10 +610,12 @@ class PreSurgeryTrial(Schema):
     trial_id: TrialId
     title: NonEmptyStr
     recruitment_status: RecruitmentStatus
-    criterion_text: NonEmptyStr  # the matched criterion line, or "Title: ..." for a title hint
-    # criteria = a criterion line matched. title_hint = only the title suggests it;
-    # shown as "possible, check criteria" and still needs the doctor's answer.
-    matched_on: Literal["criteria", "title_hint"] = "criteria"
+    criterion_text: NonEmptyStr  # the matched criterion bullet, or "Title: ..." for a title hint
+    # criteria = a bullet with a phrase and enrollment wording, or an exclusion phrase.
+    # phrase_only = a phrase with no enrollment wording near it; title_hint = only the
+    # title suggests it. Both are shown as "possible, check criteria" and still need
+    # the doctor's answer.
+    matched_on: Literal["criteria", "phrase_only", "title_hint"] = "criteria"
     nearest_site: NearestSite | None = None
     # Set from the preop_review gate; "pending" until the doctor decides.
     doctor_action: Literal["pending", PreSurgeryAction] = "pending"

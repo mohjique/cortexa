@@ -47,6 +47,7 @@ from typing import Literal
 from agent.audit import audit
 from agent.concepts import ConceptHit, detect
 from agent.policy import Policy, get_policy
+from agent.presurgery import PhraseMatch, inclusion_match
 from agent.schemas import (
     Bucket,
     DoctorResults,
@@ -425,13 +426,26 @@ def _imaging_suspicious_gbm(facts: Facts, m: re.Match[str], policy: Policy) -> F
     return _review("radiology_report", "report does not state suspected glioblastoma")
 
 
-def _before_surgery(facts: Facts, phrase: str, policy: Policy) -> Finding:
-    """Phrases come from pre_surgery_detection.inclusion_phrases in policy.yaml."""
+def _before_surgery(facts: Facts, match: PhraseMatch, policy: Policy) -> Finding:
+    """A bullet timed before surgery (`agent.presurgery`, phrases from policy.yaml).
+
+    Never `not_met`. A phrase cannot tell "enroll before surgery" from "MRI
+    before surgery" or from a re-resection trial, and a not_met would hide the
+    trial on a guess (rule 3). After surgery the doctor decides, with the
+    pre-op answer in view (`agent.matching.preop_review_row`).
+    """
+    what = "may need enrollment before surgery" if match.enrollment else "is timed before surgery"
     if facts.stage == "post_pathology":
-        return _no("stage", f"needs enrollment {phrase!r}; surgery or biopsy is already done")
+        # Medication-only pituitary cases reach this stage with no surgery: say only what is recorded.
+        operated = any(t.type == "surgery" for t in facts.prior_treatments or ())
+        done = "a surgery or biopsy is recorded" if operated else "the case is past the pre-op screen"
+        closed = "; the enrollment window may have closed" if match.enrollment else ""
+        return _review("stage", f"criterion {what} ({match.phrase!r}) and {done}{closed}; "
+                                "confirm whether the patient still qualifies")
     surgery = _has_treatment(facts, {"surgery"}, "surgery", policy)
     if surgery.holds:
-        return _no("prior_treatments", "prior surgery recorded")
+        return _review("prior_treatments", f"criterion {what} ({match.phrase!r}) and a prior surgery "
+                                           "is recorded; confirm whether it counts")
     return _yes("stage", "case is at the pre-op screen, before surgery")
 
 
@@ -729,12 +743,14 @@ def split_criteria(text: str) -> list[Criterion]:
 # ---------------------------------------------------------------------------
 
 
-def _pre_surgery_phrase(criterion: Criterion, policy: Policy) -> str | None:
-    """An inclusion phrase from policy.yaml that means 'enroll before surgery'."""
+def _pre_surgery_phrase(criterion: Criterion, policy: Policy) -> PhraseMatch | None:
+    """A pre-surgery inclusion phrase from policy.yaml, firm or possible.
+
+    Same matching as the pre-op screen (`agent.presurgery`).
+    """
     if criterion.type != "inclusion":
         return None
-    low = criterion.text.lower()
-    return next((p for p in policy.pre_surgery_detection.inclusion_phrases if p.lower() in low), None)
+    return inclusion_match(criterion.text, policy.pre_surgery_detection)
 
 
 # ---------------------------------------------------------------------------
@@ -1123,11 +1139,10 @@ def evaluate(criterion: Criterion, facts: Facts, policy: Policy) -> Finding:
     covered: set[str] = set()
     read: list[tuple[int, int]] = []
 
-    phrase = _pre_surgery_phrase(criterion, policy)
-    if phrase is not None:
-        parts.append(_before_surgery(facts, phrase, policy))
-        i = text.lower().find(phrase.lower())
-        read.append((i, i + len(phrase)))
+    pre_surgery = _pre_surgery_phrase(criterion, policy)
+    if pre_surgery is not None:
+        parts.append(_before_surgery(facts, pre_surgery, policy))
+        read.append((pre_surgery.start, pre_surgery.end))
     for rule in RULES:
         m = rule.pattern.search(text)
         if m is None or any(a <= m.start() and m.end() <= b for a, b in read):

@@ -183,7 +183,7 @@ export function PreopReviewForm({ record, onDone }: FormProps) {
         {preop.pre_surgery_trials.length > 0 ? (
           <div style={{ marginTop: 8 }}>
             <div className="muted" style={{ fontSize: 12 }}>
-              Enroll-before-surgery trials. Answer each one: once surgery happens the patient can no longer join.
+              Trials that may need enrollment before surgery. Answer each one. A trial marked Possible may only time a test before surgery. Trials still open to the patient after pathology show your answer again.
             </div>
             {preop.pre_surgery_trials.map((t) => {
               const a = get(t.trial_id);
@@ -191,7 +191,7 @@ export function PreopReviewForm({ record, onDone }: FormProps) {
                 <div className="ptrial" key={t.trial_id}>
                   <div>
                     <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
-                    {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+                    {t.matched_on !== undefined && t.matched_on !== "criteria" && <span className="chip warn">Possible: check criteria</span>}
                   </div>
                   <div className="ptitle">{t.title}</div>
                   <div className="demo">Nearest site: {siteText(t.nearest_site)}</div>
