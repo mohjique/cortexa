@@ -44,7 +44,7 @@ MODEL_ID = "google/medgemma-4b-it"
 OUT_DIR = Path(__file__).resolve().parent / "medgemma"
 DEMO_JSON = Path(__file__).resolve().parent / "splits" / "demo_images.json"
 PROMPT_VERSION = "v1"            # eval (multiple choice)
-REASONING_PROMPT_VERSION = "r1"  # demo reasoning
+REASONING_PROMPT_VERSION = "r2"  # demo reasoning (r2: name the tumor only as "the suspected ...")
 
 CHOICES = {"A": "glioma", "B": "meningioma", "C": "pituitary", "D": "no_tumor"}
 
