@@ -306,7 +306,7 @@ export function PreOp({ preop }: { preop: PreOpScreen }) {
             <div className="ptrial" key={t.trial_id}>
               <div>
                 <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
-                {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+                {t.matched_on !== undefined && t.matched_on !== "criteria" && <span className="chip warn">Possible: check criteria</span>}
                 {t.doctor_action && t.doctor_action !== "pending" && (
                   <span className={`chip ${t.doctor_action === "pursue_before_surgery" ? "doc" : ""}`}>
                     Doctor: {t.doctor_action === "pursue_before_surgery" ? "pursue before surgery" : "not pursuing"}

@@ -151,19 +151,85 @@ def test_tmb_reads_clia_result_only(trials, tmb, want):
 BEFORE = "Must enroll before planned surgical resection"
 
 
-def test_before_surgery_met_preop_not_met_after(trials):
+def test_before_surgery_met_preop_unknown_after(trials):
+    """After surgery a pre-surgery bullet is for the doctor, never a not_met (rule 3)."""
     pre = el.Facts(stage="preop", bucket="glioma", age=50, recurrent=False, prior_treatments=())
     assert rows_by_text(trials["NCT99000003"], pre)[BEFORE].status == "met"
     post = el.Facts.from_results(results())
-    assert rows_by_text(trials["NCT99000003"], post)[BEFORE].status == "not_met"
+    row = rows_by_text(trials["NCT99000003"], post)[BEFORE]
+    assert row.status == "unknown" and row.evidence_field == "stage"
+    assert "before planned surgical resection" in row.reason
 
 
-def test_before_surgery_phrase_comes_from_policy(trials, policy_with):
-    policy_with(lambda t: t.replace('    - "before planned surgical resection"\n', ""))
-    pre = el.Facts(stage="preop", bucket="glioma", age=50, recurrent=False, prior_treatments=())
-    row = rows_by_text(trials["NCT99000003"], pre)[BEFORE]
-    # "before resection" is still listed but is not a substring; no other rule fits.
-    assert row.status == "unknown" and row.evidence_field == el.NO_RULE_FIELD
+def test_after_pathology_reason_does_not_claim_a_surgery_that_was_not_recorded():
+    """Medication-only pituitary cases reach post-pathology without surgery."""
+    c = el.Criterion("inclusion", "Preoperative MRI of the sella")
+    facts = el.Facts(stage="post_pathology", bucket="pituitary", prior_treatments=())
+    f = el.evaluate(c, facts, policy.get_policy())
+    assert f.holds is None and "past the pre-op screen" in f.reason and "surgery or biopsy" not in f.reason
+    operated = dataclasses.replace(facts, prior_treatments=(PriorTreatment(type="surgery"),))
+    assert "surgery or biopsy is recorded" in el.evaluate(c, operated, policy.get_policy()).reason
+
+
+def test_before_surgery_with_prior_surgery_at_preop_is_unknown():
+    """A re-resection trial can take a patient with prior surgery: the doctor decides."""
+    c = el.Criterion("inclusion", BEFORE)
+    facts = el.Facts(stage="preop", bucket="glioma", recurrent=True,
+                     prior_treatments=(PriorTreatment(type="surgery", weeks_ago=52),))
+    f = el.evaluate(c, facts, policy.get_policy())
+    assert f.holds is None and f.field == "prior_treatments"
+
+
+# Live ClinicalTrials.gov text (NCT05084430). "preoperative" used to match inside
+# "Preoperatively" and fail every post-pathology patient, hiding the trial.
+LESION_SIZE = "Preoperatively, the lesion must be ≥1.0 cm in diameter as determined by MRI."
+
+
+@pytest.mark.parametrize("text", [
+    LESION_SIZE,
+    "Preoperative MRI must show a contrast-enhancing lesion",
+    "Pre-operative KPS of 70 or higher",
+    "Pre-operative KPS >= 70 and no prior radiation therapy",  # context word nearby: firm, still not not_met
+    "Patients must be planned for preoperative chemoradiotherapy",
+])
+def test_pre_surgery_bullet_never_fails_after_surgery(text):
+    c = el.Criterion("inclusion", text)
+    pol = policy.get_policy()
+    assert el._pre_surgery_phrase(c, pol) is not None
+    row = el.to_row("NCT05084430", c, el.evaluate(c, el.Facts.from_results(results()), pol))
+    assert row.status != "not_met", row.reason
+
+
+@pytest.mark.parametrize("text, phrase, enrollment", [
+    (BEFORE, "before planned surgical resection", True),
+    ("Patients must receive the study drug preoperatively", "preoperative", True),
+    ("Patients will receive preoperative study treatment for 7 days", "preoperative", True),
+    ("Enrollment must occur prior to surgery", "prior to surgery", True),
+    ("Candidates for neoadjuvant therapy", "neoadjuvant", True),
+    ("Patient has to be included before surgery", "before surgery", True),  # live NCT06797661
+    (LESION_SIZE, "preoperative", False),
+])
+def test_pre_surgery_phrase_firm_or_possible(text, phrase, enrollment):
+    m = el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy())
+    assert m is not None and (m.phrase, m.enrollment) == (phrase, enrollment)
+
+
+def test_pre_surgery_span_is_the_matched_word():
+    """The read span is where the whole-word match is, not the first substring."""
+    text = "Preoperativeness aside, patients receive preoperative study treatment"
+    m = el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy())
+    assert m is not None and text[m.start:m.end] == "preoperative"
+    assert m.start == text.index("preoperative study")
+
+
+def test_pre_surgery_context_words_come_from_policy(policy_with):
+    """Rule 8: removing a context word changes behavior without code."""
+    text = "Enrollment must occur prior to surgery"
+    m = el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy())
+    assert m is not None and m.enrollment
+    policy_with(lambda t: t.replace('    - "enrol"\n', ""))
+    m = el._pre_surgery_phrase(el.Criterion("inclusion", text), policy.get_policy())
+    assert m is not None and not m.enrollment  # still flagged, now as possible
 
 
 # --- other rules ----------------------------------------------------------------

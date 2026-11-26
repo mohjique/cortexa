@@ -188,7 +188,7 @@ export interface PreSurgeryTrial {
   title: string;
   recruitment_status: string;
   criterion_text: string;
-  matched_on?: "criteria" | "title_hint";
+  matched_on?: "criteria" | "phrase_only" | "title_hint";
   nearest_site?: NearestSite | null;
   doctor_action?: "pending" | PreSurgeryAction;
   doctor_reason?: string | null;
