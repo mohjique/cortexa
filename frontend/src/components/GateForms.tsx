@@ -191,7 +191,7 @@ export function PreopReviewForm({ record, onDone }: FormProps) {
                 <div className="ptrial" key={t.trial_id}>
                   <div>
                     <b>{t.trial_id}</b> <RecruitChip status={t.recruitment_status} />
-                    {t.matched_on === "title_hint" && <span className="chip warn">Possible: check criteria</span>}
+                    {t.matched_on !== undefined && t.matched_on !== "criteria" && <span className="chip warn">Possible: check criteria</span>}
                   </div>
                   <div className="ptitle">{t.title}</div>
                   <div className="demo">Nearest site: {siteText(t.nearest_site)}</div>

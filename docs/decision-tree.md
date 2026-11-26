@@ -44,7 +44,7 @@ flowchart TD
 - **MedGemma does not vote.** The ResNet classifier sets the suspected bucket. MedGemma gets that call and the bucket's pathway from `agent/reasoning.py` (in code) and writes draft reasoning for the doctor. Rule 1 is checked in code.
 - **Missing results never block matching.** Rules that depend on a missing field are marked `unknown: needs pathology`.
 - **Inconclusive mutation check = no information.** Matching continues without it. A high mutation count never routes to immunotherapy trials.
-- **Pre-surgery trials.** The glioma pre-op screen flags trials that require enrollment before surgery.
+- **Pre-surgery trials.** The glioma pre-op screen flags trials that may require enrollment before surgery, firm or "possible: check criteria". After surgery, a trial the doctor marked `not_pursuing` stays off the shortlist; any other pre-surgery criterion is left for the doctor to review, never ruled out from its wording.
 - **Pre-op review gate.** Every glioma case stops after the pre-op screen until the doctor marks the biopsy tests reviewed and chooses `pursue_before_surgery` or `not_pursuing` for each flagged pre-surgery trial. None can be skipped. The window closes at surgery, so the gate applies even when no trial is flagged.
 - **Doctor overrides.** If the doctor changes the bucket, the case follows the new bucket's path.
 - **Hormone labs gate.** A pituitary case moves to surgery-or-meds only after the doctor marks the hormone labs reviewed.

@@ -199,7 +199,7 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
       "title": "[SYNTHETIC] Window-of-opportunity drug before resection in suspected glioblastoma",
       "recruitment_status": "NOT_YET_RECRUITING",
       "criterion_text": "Must enroll before planned surgical resection",
-      "matched_on": "criteria | title_hint",
+      "matched_on": "criteria | phrase_only | title_hint",
       "nearest_site": {"city": "Austin", "state": "TX", "distance_miles": 86.7, "drive_minutes": 110},
       "doctor_action": "pending | pursue_before_surgery | not_pursuing",
       "doctor_reason": null
@@ -221,7 +221,13 @@ Runs after the bucket is confirmed as glioma and before surgery. It lists what t
 
 After the screen, the case waits at `preop_screen` (`waiting_on: doctor`) for the `preop_review` gate. Every `pre_surgery_trials` entry must be acknowledged before the case moves to `awaiting_pathology`. The gate copies each choice onto the trial as `doctor_action` and `doctor_reason` (`pending` until then).
 
-A trial is flagged when an inclusion criterion contains a `pre_surgery_detection.inclusion_phrases` phrase together with an `inclusion_context_words` word (enrollment or study-treatment wording, so "Preoperatively, the lesion must be ≥1 cm" does not count), or an exclusion criterion contains an `exclusion_phrases` phrase. Phrases match as whole words. The trial's conditions or title must also name a `condition_keywords` term (all in `policy.yaml`). `criterion_text` is the line that matched (`matched_on: criteria`). A trial whose title has a `title_hints` phrase but no criterion match is still listed, with `matched_on: title_hint` and `criterion_text: "Title: ..."`. The UI shows it as "Possible: check criteria", and the doctor must answer it like any other. The screen has no surgical history, so it cannot rule a trial out for prior surgery; the doctor does that at the gate.
+A trial is flagged when a criterion bullet contains a `pre_surgery_detection` phrase, and its conditions or title name a `condition_keywords` term (all in `policy.yaml`). Phrases match as whole words plus a common suffix ("preoperative" also matches "preoperatively", "prior brain surgery" also "prior brain surgeries"). Matching leans toward flagging: a missed flag closes the enrollment window at surgery, a false one costs one answer at this gate. `criterion_text` is the matched bullet, on one line.
+
+- `matched_on: criteria`: an `inclusion_phrases` phrase with an `inclusion_context_words` word (enrollment or study-treatment wording) within 8 words, or an `exclusion_phrases` phrase in an exclusion bullet.
+- `matched_on: phrase_only`: an `inclusion_phrases` phrase with no such word nearby, for example "Preoperatively, the lesion must be ≥1 cm". It may only time a measurement, or the trial may dose before surgery, so it is listed, not dropped. A trial with both kinds of match is listed as `criteria`.
+- `matched_on: title_hint`: no criterion matched, but the title has a `title_hints` phrase. `criterion_text` is `"Title: ..."`.
+
+The UI shows `phrase_only` and `title_hint` as "Possible: check criteria", and the doctor must answer them like any other. The screen has no surgical history, so it cannot rule a trial out for prior surgery; the doctor does that at the gate.
 
 **Rescreen.** While the case waits on `preop_review`, the doctor can ask for a fresh screen with `POST /cases/{case_id}/preop/rescreen` and body `{"doctor_id": "dr-synthetic-01", "reason": "optional"}`. The old screen is dropped (its flags stay in the audit log as `preop_rescreen_requested`), `waiting_on` goes back to `agent`, and the screen runs again. Returns 409 at any other point.
 
@@ -336,6 +342,8 @@ Each trial is in one of three groups, the way coordinators sort a prescreen:
 | `eligible` | Eligible on what we know. At least one clinical criterion is `met`; any `unknown` rows are routine items (labs, washout, device use) checked at the screening visit. | `[]` |
 | `needs_test` | At least one `unknown` on a key field listed in `trial_search.key_unknown_fields` in `policy.yaml` (today `idh`, `codeletion_1p19q`, `mgmt`, `tmb_clia`). | The key fields left unknown, in policy order, e.g. `["tmb_clia"]`. Each has an `unknown` row in `eligibility` whose `reason` says which test decides it. |
 | `needs_review` | Nothing ruled it out, but no clinical inclusion criterion was confirmed automatically: the only `met` rows are demographics (age, sex) or exclusions that do not apply. Common for live trials whose free-text criteria the rule library does not cover. The doctor must read the criteria. | `[]` |
+
+**Pre-surgery criteria after surgery.** A bullet with a pre-surgery phrase is never `not_met` from its wording: after surgery it is `unknown` with `evidence_field: "stage"` (or `"prior_treatments"` at pre-op when a prior surgery is recorded), and the doctor decides. The doctor's `preop_review` answer is added as one more row per flagged trial, with `evidence_field: "preop_review"` and the flag's `criterion_text`: `not_pursuing` is `not_met` (the trial stays off the shortlist and is not a near miss), `pursue_before_surgery` is `unknown` ("confirm whether the patient enrolled"). Each case that gets such a row logs `preop_review_applied`.
 
 A `needs_test` or `needs_review` trial is not a match yet. Show each group under its own heading, for example "Needs a test: CLIA TMB result" or "Needs doctor review of the criteria". Near misses are unchanged and only appear in the no-match plan.
 

@@ -72,6 +72,8 @@ def test_locked_safety_settings_cannot_be_loosened(change, match):
         ({"privacy": ...}, "privacy"),
         ({"pre_surgery_detection.inclusion_phrases": []}, "inclusion_phrases"),
         ({"pre_surgery_detection.exclusion_phrases": [""]}, "exclusion_phrases"),
+        # Rule 8: no hidden default list in code; policy.yaml is the only source.
+        ({"pre_surgery_detection.inclusion_context_words": ...}, "inclusion_context_words"),
     ],
 )
 def test_bad_edits_rejected(change, match):

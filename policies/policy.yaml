@@ -38,47 +38,65 @@ mutation_check:
   never_route_to_immunotherapy_on_mutation_count: true
 
 # Pre-op screen (glioma): flag trials that need enrollment before surgery.
-# Phrases match case-insensitive and as whole words, inside the named criteria list only.
+# Phrases match case-insensitive, as whole words plus a common suffix
+# ("preoperative" also matches "preoperatively", "prior resection" also
+# "prior resections"), inside the named criteria list only. Matching leans
+# toward flagging: a missed flag closes the enrollment window at surgery, a
+# false one costs the doctor one answer at the pre-op review. After surgery a
+# matched bullet is "unknown" for the doctor, never "not_met".
 # "prior resection" in an INCLUSION list means a recurrent-tumor trial, so it
 # is not listed there. Add phrases here; no code change needed.
 pre_surgery_detection:
   inclusion_phrases:
     - "before planned surgical resection"
+    - "before surgical resection"
+    - "prior to surgical resection"
     - "before resection"
     - "prior to resection"
+    - "before craniotomy"
+    - "prior to craniotomy"
     - "prior to surgery"
     - "before surgery"
     - "pre-operative"
     - "preoperative"
+    - "pre-op"
     - "presurgical"
+    - "pre-surgical"
     - "window of opportunity"
     - "neoadjuvant"
-  # An inclusion phrase above counts only when the same criterion also uses one
-  # of these word starts ("enrol" matches "enrolled", "enrollment"). Phrases
-  # match whole words. "Preoperatively, the lesion must be >= 1.0 cm" times a
-  # measurement, not enrollment, so it is not a pre-surgery requirement.
+  # Enrollment or study-treatment wording. An inclusion phrase with one of
+  # these within 8 words is a firm flag. Without one it is still flagged, as
+  # "Possible: check criteria": "Preoperatively, the lesion must be >= 1 cm"
+  # may time a measurement, or the trial may dose before surgery. These match
+  # inside a word too ("therap" matches "radiotherapy", "enrol" "enrollment").
   inclusion_context_words:
     - "enrol"
-    - "registration"
-    - "register"
-    - "randomiz"
-    - "randomis"
-    - "receive"
+    - "includ"
+    - "consent"
+    - "regist"
+    - "randomi"
+    - "receiv"
     - "study drug"
     - "study treatment"
     - "study therapy"
-    - "treatment"
-    - "therapy"
+    - "treat"
+    - "therap"
     - "dose"
     - "dosing"
     - "administ"
+    - "infusion"
     - "window"
     - "neoadjuvant"
     - "intervention"
     - "investigational"
+    - "scheduled"
+    - "planned"
+    - "candidate"
   exclusion_phrases:
     - "prior brain surgery"
     - "prior resection"
+    - "prior surgical resection"
+    - "prior craniotomy"
     - "prior surgery or biopsy"
   # A title hint alone is never a confirmed flag. Code lists it as
   # "possible, check criteria" (matched_on: title_hint) and the doctor must

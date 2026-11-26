@@ -16,6 +16,8 @@ from agent.schemas import (
     DoctorResults,
     MutationCheckRan,
     NoMatchPlan,
+    PreOpScreen,
+    PreSurgeryTrial,
     Shortlist,
     ShortlistTrial,
 )
@@ -213,6 +215,51 @@ def test_near_miss_fails_one_rule():
     assert ids["NCT99000004"].blocking[0].evidence_field == "mgmt"
     # Fails only on new-vs-recurrent: not a near miss.
     assert "NCT99000008" not in ids and "NCT99000009" not in ids
+
+
+def preop_with(trial_id: str, action: str, reason: str | None = None) -> PreOpScreen:
+    return PreOpScreen(
+        case_id="t", trials_considered=1, tests_needed=[], label="Suspected glioma. Biopsy results pending.",
+        pre_surgery_trials=[PreSurgeryTrial(
+            trial_id=trial_id, title="[SYNTHETIC] window trial", recruitment_status="RECRUITING",
+            criterion_text="Must enroll before planned surgical resection",
+            doctor_action=action, doctor_reason=reason)],
+    )
+
+
+def test_trial_declined_at_preop_review_is_not_met_citing_the_doctor():
+    row = matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "not_pursuing", "Already had surgery"))
+    assert row is not None and row.status == "not_met" and row.evidence_field == "preop_review"
+    assert row.criterion_text == "Must enroll before planned surgical resection"  # rule 4
+    assert "Already had surgery" in row.reason
+
+
+def test_trial_pursued_at_preop_review_is_unknown_for_the_doctor():
+    row = matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "pursue_before_surgery"))
+    assert row is not None and row.status == "unknown"
+
+
+def test_no_preop_answer_adds_no_row():
+    assert matching.preop_review_row("NCT99000004", None) is None
+    assert matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "pending")) is None
+    assert matching.preop_review_row("NCT99000001", preop_with("NCT99000004", "not_pursuing", "x")) is None
+
+
+def test_declined_trial_is_hidden_and_not_a_near_miss(audit_log):
+    """demo-012: NCT99000004 fails only on MGMT. Declined at pre-op, it also fails on
+    the doctor's answer, and a doctor-declined trial is never a near miss."""
+    rec = record("demo-012").model_copy(update={"preop": preop_with("NCT99000004", "not_pursuing", "x")})
+    out = matching.match_case(rec, policy.get_policy())
+    assert isinstance(out, NoMatchPlan)
+    assert "NCT99000004" not in {m.trial_id for m in out.near_misses}
+    [entry] = [e for e in audit_log.read() if e.action == "preop_review_applied"]
+    assert entry.detail == {"trials": {"NCT99000004": "not_met"}}
+
+
+def test_declined_only_on_preop_review_is_not_a_near_miss():
+    rows = [matching.preop_review_row("NCT99000004", preop_with("NCT99000004", "not_pursuing", "x"))]
+    t = next(t for t in matching.search_trials() if t.trial_id == "NCT99000004")
+    assert matching._near_miss(matching.Checked(t, rows, None, False)) is None
 
 
 def test_near_miss_pending_result():

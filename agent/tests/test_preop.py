@@ -56,13 +56,38 @@ def test_criteria_match_wins_over_title_hint():
     assert flag.trial_id == "NCT99000003" and flag.matched_on == "criteria"
 
 
-def test_measurement_timing_is_not_a_pre_surgery_flag():
-    """Live NCT05084430 wording: 'Preoperatively' times a measurement, not enrollment."""
-    t = trial(criteria_text="Inclusion Criteria:\n"
-              "* Preoperatively, the lesion must be ≥1.0 cm in diameter as determined by MRI.\n"
+def test_phrase_without_enrollment_wording_is_flagged_as_possible():
+    """Live NCT05084430 wording. It may time a measurement, or the trial may dose
+    before surgery; only the doctor can tell, so it is shown, not dropped."""
+    lesion = "Preoperatively, the lesion must be ≥1.0 cm in diameter as determined by MRI."
+    t = trial(criteria_text=f"Inclusion Criteria:\n* {lesion}\n"
               "* Preoperative MRI must show a contrast-enhancing lesion\n"
               "Exclusion Criteria:\n* Pregnancy")
-    assert pre_surgery_criterion(t, get_policy()) is None
+    [flag] = find_pre_surgery_trials([t], get_policy())
+    assert flag.matched_on == "phrase_only" and flag.criterion_text == lesion
+
+
+def test_firm_match_wins_over_an_earlier_possible_one():
+    t = trial(criteria_text="Inclusion Criteria:\n* Preoperative MRI required\n"
+              "* Patients will receive the study drug before surgery\nExclusion Criteria:\n* Pregnancy")
+    [flag] = find_pre_surgery_trials([t], get_policy())
+    assert flag.matched_on == "criteria"
+    assert flag.criterion_text == "Patients will receive the study drug before surgery"
+
+
+def test_wrapped_bullet_matches_like_the_eligibility_checker():
+    """Phrase and enrollment wording on different lines of one bullet still count."""
+    t = trial(criteria_text="Inclusion Criteria:\n* Patients will be enrolled and\n  begin dosing before surgery\n"
+              "Exclusion Criteria:\n* Pregnancy")
+    [flag] = find_pre_surgery_trials([t], get_policy())
+    assert flag.matched_on == "criteria"
+    assert flag.criterion_text == "Patients will be enrolled and begin dosing before surgery"
+
+
+@pytest.mark.parametrize("text", ["No prior resections of the tumor", "Prior brain surgeries"])
+def test_exclusion_phrase_matches_plurals(text):
+    t = trial(criteria_text=f"Inclusion Criteria:\n* Adults\nExclusion Criteria:\n* {text}")
+    assert pre_surgery_criterion(t, get_policy()) == text
 
 
 def test_exclusion_phrase_matches_whole_words_only():

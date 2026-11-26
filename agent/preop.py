@@ -3,10 +3,16 @@
 Deterministic. Phrases come from `pre_surgery_detection` in policy.yaml, so
 staff can change what counts without a code change (rule 8).
 
-Two kinds of flag, both shown to the doctor and both needing an answer at the
+Three kinds of flag, all shown to the doctor and all needing an answer at the
 `preop_review` gate:
-- `matched_on: criteria`: a criterion line contains a policy phrase. That
-  line is cited as `criterion_text` (rule 4).
+- `matched_on: criteria`: a criterion bullet has a policy phrase with
+  enrollment or study-treatment wording near it, or an exclusion phrase. That
+  bullet is cited as `criterion_text` (rule 4).
+- `matched_on: phrase_only`: a bullet has an inclusion phrase but no
+  enrollment wording near it ("Preoperatively, the lesion must be >= 1 cm").
+  It may only time a measurement, or it may be a trial that doses before
+  surgery, so it is shown as "possible, check criteria" rather than dropped.
+  The bullet is cited as `criterion_text`.
 - `matched_on: title_hint`: only the title suggests it (e.g. "neoadjuvant").
   Not confirmed, so the UI shows it as "possible, check criteria" and
   `criterion_text` cites the title. The window closes at surgery, so a
@@ -36,14 +42,12 @@ Tests are ordered by trials decided, then trials mentioning, descending.
 
 from __future__ import annotations
 
-import re
-from collections.abc import Callable
-
 from agent import geo
 from agent.audit import audit
 from agent.policy import Policy
 from agent.concepts import detect
 from agent.eligibility import split_criteria
+from agent.presurgery import exclusion_match, inclusion_match
 from agent.schemas import (
     Origin,
     PreOpScreen,
@@ -56,37 +60,32 @@ from agent.schemas import (
 from agent.store import CaseRecord
 from agent.trials import search_trials
 
-# A header line on its own, not "meets none of the exclusion criteria below".
-_EXCLUSION_HEADER = re.compile(r"^\s*exclusion criteria:?\s*$", re.IGNORECASE | re.MULTILINE)
+def pre_surgery_match(trial: TrialRecord, policy: Policy) -> tuple[str, bool] | None:
+    """(criterion text, firm) for the bullet that marks this trial as
+    enroll-before-surgery, or None.
 
-
-def _split_criteria(text: str) -> tuple[str, str]:
-    """(inclusion section, exclusion section). No header = all inclusion."""
-    parts = _EXCLUSION_HEADER.split(text, maxsplit=1)
-    return parts[0], parts[1] if len(parts) > 1 else ""
-
-
-def _matching_line(section: str, matches: Callable[[str], str | None]) -> str | None:
-    """The first criterion line `matches` accepts, cleaned up for display."""
-    for line in section.splitlines():
-        if matches(line):
-            cleaned = line.strip().lstrip("*-• ").strip()
-            if cleaned:
-                return cleaned
-    return None
+    Whole bullets from `split_criteria`, matched by `agent.presurgery`, the
+    same reading the eligibility checker uses. A firm match (enrollment
+    wording near the phrase, or an exclusion phrase) wins over a possible
+    one anywhere in the trial; otherwise the first possible match is used.
+    """
+    rules = policy.pre_surgery_detection
+    possible: str | None = None
+    for c in split_criteria(trial.criteria_text):
+        m = inclusion_match(c.text, rules) if c.type == "inclusion" else exclusion_match(c.text, rules)
+        if m is None:
+            continue
+        text = " ".join(c.text.split())  # one line for display
+        if m.enrollment:
+            return text, True
+        possible = possible or text
+    return (possible, False) if possible else None
 
 
 def pre_surgery_criterion(trial: TrialRecord, policy: Policy) -> str | None:
-    """The criterion text that marks this trial as enroll-before-surgery, or None.
-
-    Same matching as the eligibility checker: whole-word phrases, and an
-    inclusion phrase only in a line about enrolling or study treatment.
-    """
-    rules = policy.pre_surgery_detection
-    inclusion, exclusion = _split_criteria(trial.criteria_text)
-    return _matching_line(inclusion, rules.inclusion_phrase_in) or _matching_line(
-        exclusion, rules.exclusion_phrase_in
-    )
+    """The criterion text of a firm or possible pre-surgery match, or None."""
+    hit = pre_surgery_match(trial, policy)
+    return hit[0] if hit else None
 
 
 def _has_title_hint(trial: TrialRecord, policy: Policy) -> bool:
@@ -109,9 +108,10 @@ def find_pre_surgery_trials(
     for t in trials:
         if not _is_glioma_trial(t, policy):
             continue
-        criterion = pre_surgery_criterion(t, policy)
-        if criterion is not None:
-            matched_on, evidence = "criteria", criterion
+        hit = pre_surgery_match(t, policy)
+        if hit is not None:
+            evidence, firm = hit
+            matched_on = "criteria" if firm else "phrase_only"
         elif _has_title_hint(t, policy):
             matched_on, evidence = "title_hint", f"Title: {t.title}"
         else:
@@ -231,6 +231,7 @@ def preop_screen_hook(rec: CaseRecord, policy: Policy) -> PreOpScreen:
         {
             "trials_searched": len(trials),
             "flagged": [t.trial_id for t in flagged if t.matched_on == "criteria"],
+            "phrase_only": [t.trial_id for t in flagged if t.matched_on == "phrase_only"],
             "possible": [t.trial_id for t in flagged if t.matched_on == "title_hint"],
         },
         case_id=rec.case_id,

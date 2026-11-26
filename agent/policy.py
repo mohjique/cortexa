@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import hashlib
 import os
-import re
 import threading
 from pathlib import Path
 from typing import Annotated, Literal
@@ -104,41 +103,16 @@ class PreSurgeryPolicy(Schema):
 
     inclusion_phrases: PhraseList
     exclusion_phrases: PhraseList
-    # An inclusion phrase counts only in a criterion that also uses one of these
-    # (word starts: "enrol" matches "enrolled"). "Preoperatively, the lesion must
-    # be >= 1 cm" times a measurement, not enrollment, so it is not a
-    # pre-surgery requirement.
-    inclusion_context_words: PhraseList = [
-        "enrol", "registration", "register", "randomiz", "randomis", "receive", "study drug",
-        "study treatment", "study therapy", "treatment", "therapy", "dose", "dosing", "administ",
-        "window", "neoadjuvant", "intervention", "investigational",
-    ]
+    # Enrollment or study-treatment wording. An inclusion phrase with one of
+    # these nearby is a firm flag; without one it is still flagged, as
+    # "possible" (matched_on: phrase_only). Required, so policy.yaml is the
+    # only list (rule 8). Matching lives in agent/presurgery.py.
+    inclusion_context_words: PhraseList
     title_hints: list[Phrase] = []
     # A trial is screened only if its conditions or title name one of these.
     condition_keywords: PhraseList = ["glioma", "glioblastoma", "astrocytoma", "oligodendroglioma"]
     # Rule 4: a title alone cites no criterion, so it can never flag a trial by itself.
     llm_confirm_on_title_hint_only: Literal[True]
-
-    def exclusion_phrase_in(self, text: str) -> str | None:
-        """The first exclusion phrase `text` contains as whole words, or None."""
-        return _whole_phrase(text, self.exclusion_phrases)
-
-    def inclusion_phrase_in(self, text: str) -> str | None:
-        """The first inclusion phrase `text` contains as whole words, if `text` is
-        also about enrolling or study treatment; else None."""
-        phrase = _whole_phrase(text, self.inclusion_phrases)
-        if phrase is None:
-            return None
-        low = text.lower()
-        if not any(re.search(rf"\b{re.escape(w)}", low) for w in self.inclusion_context_words):
-            return None
-        return phrase
-
-
-def _whole_phrase(text: str, phrases: list[str]) -> str | None:
-    """Whole-word match, so "preoperative" does not match "preoperatively"."""
-    low = text.lower()
-    return next((p for p in phrases if re.search(rf"(?<!\w){re.escape(p)}(?!\w)", low)), None)
 
 
 class PrivacyPolicy(Schema):
