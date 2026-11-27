@@ -205,6 +205,8 @@ table.crit th{color:var(--faint);font-weight:600;font-size:11px;text-transform:u
 .map{position:relative;height:320px;border-radius:8px;border:1px solid var(--line);margin-bottom:12px;overflow:hidden}
 .map-actions{position:absolute;top:10px;right:10px;z-index:1000;display:flex;gap:6px}
 .map-actions .btn{background:var(--panel);padding:4px 10px;font-size:12px}
+.map-wheel-hint{position:absolute;left:10px;bottom:10px;z-index:1000;pointer-events:none;background:var(--panel);font-size:11px;padding:3px 8px;border-radius:4px;opacity:.85}
+@media (hover:none){.map-wheel-hint{display:none}}
 .map-note{font-size:12px;margin:-6px 0 12px}
 .map-tip-hint{font-size:11px;opacity:.7;margin-top:2px}
 .trial{scroll-margin-top:8px}

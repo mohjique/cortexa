@@ -3,8 +3,9 @@
 Per case: patient centered; every pin in view when there are 10 or fewer pins,
 else at least 10 in view plus the note and "Fit all trials"; zoom capped; map
 buttons inside the map; no sideways page scroll; pin click lands on its card;
-"Show on map" points at the right trial; Enter returns to the card; Reset view
-restores the default view.
+"Show on map" points at the right trial; Enter returns to the card; the scroll
+wheel zooms only after a click on the map, and stops when the pointer leaves;
+Reset view restores the default view.
 
     python frontend/e2e/map_checks.py WORKSPACE demo-016 [demo-008 ...]
         [--phone] [--variant ten|eleven|ten_plus_shared|none|onesite|mixed]
@@ -54,6 +55,68 @@ def open_case(pg: Page, c: Checks, cid: str) -> bool:
     pg.locator(".map").scroll_into_view_if_needed()
     pg.wait_for_timeout(500)
     return True
+
+
+# Current map zoom, read from the tiles: the top tile level (highest z-index)
+# is drawn at 256 * 2^(zoom - z) px, so zoom = z + log2(width / 256).
+ZOOM = """() => {
+  const lv = [...document.querySelectorAll('.map .leaflet-tile-container')].filter(l => l.querySelector('.leaflet-tile-loaded'))
+    .sort((a, b) => (+b.style.zIndex || 0) - (+a.style.zIndex || 0))[0];
+  const t = lv && lv.querySelector('.leaflet-tile-loaded');
+  if (!t) return null;
+  const z = +(t.src.match(/\\/(\\d+)\\/\\d+\\/\\d+\\.png/) || [])[1];
+  return z + Math.log2(t.getBoundingClientRect().width / 256);
+}"""
+
+# A point in the map that is bare tiles (no pin, line, popup or control on top).
+BARE_SPOT = """() => {
+  const b = document.querySelector('.map .leaflet-container').getBoundingClientRect();
+  for (const fy of [0.75, 0.6, 0.85, 0.4, 0.3]) for (const fx of [0.25, 0.75, 0.4, 0.6, 0.15, 0.85]) {
+    const x = b.left + b.width * fx, y = b.top + b.height * fy;
+    const el = document.elementFromPoint(x, y);
+    if (el && (el.classList.contains('leaflet-tile') || el.classList.contains('leaflet-container'))) return [x, y];
+  }
+  return null;
+}"""
+
+
+def check_wheel(pg: Page, c: Checks) -> None:
+    """Wheel does not zoom until the map is clicked; after a click it does; leaving the map turns it off."""
+    spot = pg.evaluate(BARE_SPOT)
+    c.ok("bare map spot for the wheel check", spot is not None)
+    if spot is None:
+        return
+    x, y = spot
+    zoom = lambda: pg.evaluate(ZOOM)  # noqa: E731
+    pg.mouse.move(x, y)
+    before = zoom()
+    pg.mouse.wheel(0, -300)
+    pg.wait_for_timeout(800)
+    c.ok("wheel ignored before map click", abs(zoom() - before) < 0.01, f"{before:.2f} -> {zoom():.2f}")
+    c.ok("wheel hint shown before click", pg.locator(".map-wheel-hint").is_visible() or pg.evaluate("matchMedia('(hover:none)').matches"))
+    # That wheel may have scrolled the page (it should: the map doesn't catch it), so find the spot again.
+    pg.locator(".map").scroll_into_view_if_needed()
+    pg.wait_for_timeout(500)
+    spot = pg.evaluate(BARE_SPOT)
+    if spot is None:
+        c.ok("bare map spot after page scroll", False)
+        return
+    x, y = spot
+    pg.mouse.click(x, y)
+    pg.wait_for_timeout(300)
+    c.ok("wheel hint hidden after click", pg.locator(".map-wheel-hint").count() == 0)
+    pg.mouse.move(x, y)
+    pg.mouse.wheel(0, -300)
+    pg.wait_for_timeout(1200)
+    mid = zoom()
+    c.ok("wheel zooms in after map click", mid > before + 0.5, f"{before:.2f} -> {mid:.2f}")
+    pg.mouse.wheel(0, 300)
+    pg.wait_for_timeout(1200)
+    c.ok("wheel zooms out", zoom() < mid - 0.5, f"{mid:.2f} -> {zoom():.2f}")
+    box = pg.locator(".map .leaflet-container").bounding_box()
+    pg.mouse.move(box["x"] + box["width"] / 2, box["y"] - 20)  # leave the map
+    pg.wait_for_timeout(300)
+    c.ok("wheel off again after leaving the map", pg.locator(".map-wheel-hint").count() == 1)
 
 
 def check_case(pg: Page, c: Checks, label: str) -> None:
@@ -111,6 +174,8 @@ def check_case(pg: Page, c: Checks, label: str) -> None:
     c.ok("Enter returns to the card", pg.evaluate("document.activeElement.id") == f"trial-{tid}")
 
     pg.locator(".map").scroll_into_view_if_needed()
+    pg.wait_for_timeout(1000)  # let the smooth scroll back to the card finish, or the click lands mid-scroll
+    check_wheel(pg, c)
     pg.locator(".leaflet-control-zoom-out").click()
     pg.wait_for_timeout(600)
     pg.get_by_role("button", name="Reset view").click()

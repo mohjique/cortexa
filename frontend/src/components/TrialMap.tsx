@@ -136,6 +136,29 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
   // The default view needs the map's pixel size, so set it once the map exists.
   useEffect(() => resetView(false), [map]);
 
+  // Scroll-wheel zoom turns on once the map is clicked and off when the pointer
+  // leaves, so scrolling the page past the map is never caught by it.
+  const [wheelOn, setWheelOn] = useState(false);
+  useEffect(() => {
+    if (!map) return;
+    const on = () => {
+      map.scrollWheelZoom.enable();
+      setWheelOn(true);
+    };
+    const off = () => {
+      map.scrollWheelZoom.disable();
+      setWheelOn(false);
+    };
+    off();
+    map.on("click", on);
+    const el = map.getContainer();
+    el.addEventListener("mouseleave", off);
+    return () => {
+      map.off("click", on);
+      el.removeEventListener("mouseleave", off);
+    };
+  }, [map]);
+
   // Move focus into a site's open list: the marked row if any, else the first.
   const focusList = (m: LeafletMarker) => {
     const el = m.getPopup()?.getElement();
@@ -298,6 +321,11 @@ const TrialMap = forwardRef<TrialMapHandle, Props>(function TrialMap({ shortlist
             );
           })}
         </MapContainer>
+        {!wheelOn && (
+          <div className="map-wheel-hint" aria-hidden="true">
+            Click the map to zoom with the scroll wheel
+          </div>
+        )}
         {sites.length > 0 && (
           <div className="map-actions">
             <button type="button" className="btn ghost" onClick={() => resetView()}>
